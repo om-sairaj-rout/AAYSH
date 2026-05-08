@@ -9,6 +9,7 @@ const connectToDB = require("./config/db");
 const authRouter = require('./routes/auth.routes');
 const uploadRouter = require('./routes/upload.routes');
 const orderRouter = require('./routes/order.routes');
+const dashboardRouter = require('./routes/dashboard.routes');
 
 connectToDB();
 
@@ -27,6 +28,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api', authRouter);
 app.use('/api', uploadRouter);
 app.use('/api', orderRouter);
+app.use('/api', dashboardRouter);
 
 app.listen(3000, () => {
     console.log('Server is running on port 3000');
