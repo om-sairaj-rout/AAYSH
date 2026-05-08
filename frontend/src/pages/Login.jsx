@@ -5,6 +5,7 @@ import { loginUser } from "../api/authAPI";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { authVerify } from '../store/slice/checkAuth';
+import WhatsAppBut from "../components/WhatsAppBut";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -67,20 +68,15 @@ const Login = () => {
 
       {/* Right Side: Form Section */}
       <div className="w-full lg:w-1/2 h-full overflow-y-auto flex flex-col p-8 lg:p-16">
-        <div className="self-end mb-8 text-gray-600 text-sm">
-          Don't have an account?{" "}
-          <span className="text-blue-900 font-bold cursor-pointer">
-            Sign Up
-          </span>
-        </div>
+        <WhatsAppBut />
 
-        <div className="max-w-xl w-full mx-auto">
+        <div className="max-w-svh w-full mx-auto">
           {/* Logo Section */}
-          <div className="text-center mb-10">
+          <div className="text-center mb-5">
             <img
               src={aayshlogo}
               alt="aaysh-logo"
-              className="mx-auto w-full h-24"
+              className="mx-auto w-45 h-36"
             />
           </div>
 

@@ -10,17 +10,19 @@ import DashBoard from "./pages/DashBoard.jsx";
 import Layout from "./components/Layout.jsx"; 
 import BookingInfo from "./pages/BookingInfo.jsx";
 import RateCalculator from "./pages/RateCalculator.jsx";
+import UploadPage from "./pages/UploadPage.jsx";
 
 const router = createBrowserRouter([
   { path: "/", element: <App /> },
   { path: "/login", element: <Login /> },
-  { path: "/register", element: <Register /> },
   {
     element: <Layout />, 
     children: [
       { path: "/dashboard", element: <DashBoard /> },
-      { path: "/booking-info", element: <BookingInfo /> },
+      { path: "/reports/orders", element: <BookingInfo /> },
       { path: "/rate-calculator", element: <RateCalculator /> },
+      { path: "/reports/upload", element: <UploadPage /> },
+      { path: "/settings/create-account", element: <Register /> },
     ],
   },
 ]);

@@ -74,56 +74,8 @@ const Register = () => {
 
 
   return (
-    <div className="flex flex-col-reverse lg:flex-row h-screen overflow-hidden bg-white font-sans">
-      {/* Left Side: Hero Image Section */}
-      <div className="lg:flex w-full mx-auto lg:w-1/2 p-6 h-full">
-        <div className="relative w-full h-full rounded-[40px] overflow-hidden">
-          <img
-            src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80"
-            alt="Warehouse"
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          {/* Overlay gradient for text readability */}
-          <div className="absolute inset-0 bg-black/40 flex flex-col justify-end p-12 text-white">
-            <p className="uppercase tracking-widest text-sm font-semibold mb-2">
-              Smart Tracking Technology
-            </p>
-            <h1 className="text-5xl font-bold mb-6 leading-tight">
-              Complete Visibility Always
-            </h1>
-            <p className="text-lg opacity-90 max-w-md mb-8">
-              Track your shipments in real-time from origin to destination.
-              Ensure your cargo is safe and arrives exactly on time with live
-              monitoring.
-            </p>
-            {/* Progress indicators */}
-            <div className="flex gap-2">
-              <div className="h-1 w-16 bg-white/30 rounded-full"></div>
-              <div className="h-1 w-16 bg-white rounded-full"></div>
-              <div className="h-1 w-16 bg-white/30 rounded-full"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Right Side: Form Section */}
-      <div className="w-full lg:w-1/2 h-full overflow-y-auto flex flex-col p-8 lg:p-16">
-        <div className="self-end mb-8 text-gray-600 text-sm">
-          Already have an account?{" "}
-          <span className="text-blue-900 font-bold cursor-pointer hover:underline">
-            Log In
-          </span>
-        </div>
-
+    <div className="w-full h-full overflow-y-auto flex flex-col p-8">
         <div className="max-w-xl w-full mx-auto">
-          {/* Logo Section */}
-          <div className="text-center mb-10">
-            <img
-                            src={aayshlogo}
-                            alt="aaysh-logo"
-                            className="mx-auto w-full h-24"
-                        />
-          </div>
 
           <form className="grid grid-cols-4 gap-x-4 gap-y-6 pb-12" onSubmit={handleSubmit}>
             {/* Row 1 */}
@@ -243,15 +195,14 @@ const Register = () => {
 
             {/* Submit Button */}
             <div className="col-span-4 mt-2">
-              <button className="w-full px-10 py-3 border rounded-xl bg-[#0f203b] text-white font-bold hover:bg-[#0d1a2e] hover:scale-99 transition-transform duration-200 cursor-pointer">
+              <button className="py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all shadow-md uppercase tracking-wide text-sm cursor-pointer w-full bg-[#FF6B35] hover:bg-[#e85a2a]">
                 Create Account
               </button>
             </div>
           </form>
-          <p className="hidden lg:block mt-5 text-center text-gray-600 text-lg">Copyright © 2026 <span className="font-bold text-black">Softieons</span> – All Rights Reserved</p>
+          
         </div>
       </div>
-    </div>
   );
 };
 
