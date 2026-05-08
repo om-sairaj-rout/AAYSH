@@ -8,7 +8,7 @@ import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import DashBoard from "./pages/DashBoard.jsx";
 import Layout from "./components/Layout.jsx"; 
-import BookingInfo from "./pages/BookingInfo.jsx";
+import BookingInfo from "./pages/OrderInfo.jsx";
 import RateCalculator from "./pages/RateCalculator.jsx";
 import UploadPage from "./pages/UploadPage.jsx";
 
