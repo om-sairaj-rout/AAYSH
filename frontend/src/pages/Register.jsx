@@ -6,12 +6,12 @@ import {
   Lock,
   EyeOff,
   Users,
-  MapPin, MapPinned,Map, Globe
+  MapPin, MapPinned, Map, Globe, Scale
 } from "lucide-react";
-import aayshlogo from "../assets/aaysh_logo.png";
 import { useRef, useState } from "react";
-import {useNavigate} from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { registerUser } from "../api/authAPI";
+import { toast } from "react-hot-toast";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -29,6 +29,7 @@ const Register = () => {
   const countryRef = useRef();
 
   const [errors, setErrors] = useState({});
+  const [showWeight, setShowWeight] = useState(true); 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,10 +52,10 @@ const Register = () => {
       newErrors.username = "Username must contain at least 3 letters";
     }
     if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = "Invalid email address"; // Changed for better clarity
+      newErrors.email = "Invalid email address"; 
     }
     if (password.length < 6) {
-      newErrors.password = "Password must contain at least 6 characters"; // Changed for better clarity
+      newErrors.password = "Password must contain at least 6 characters"; 
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -62,147 +63,188 @@ const Register = () => {
       return;
     }
 
-    setErrors({}); // Clear validation errors before API call
+    setErrors({}); 
 
     try {
-      await registerUser({ username, email, password, mobile_number: mobile, company_name: company, gender, address, zip_code: zipCode, city, state, country });
+      await registerUser({ 
+        username, 
+        email, 
+        password, 
+        mobile_number: mobile, 
+        company_name: company, 
+        gender, 
+        address, 
+        zip_code: zipCode, 
+        city, 
+        state, 
+        country,
+        showWeight 
+      });
+      toast.success("Registration successful!");
       navigate("/login");
     } catch (error) {
-      setErrors({ api: error.message || "Registration failed. Please try again." });
+      const errorMsg = error.message || "Registration failed. Please try again.";
+      setErrors({ api: errorMsg });
+      toast.error(errorMsg);
     }
   };
 
-
   return (
     <div className="w-full h-full overflow-y-auto flex flex-col p-8">
-        <div className="max-w-xl w-full mx-auto">
+      <div className="max-w-xl w-full mx-auto">
 
-          <form className="grid grid-cols-4 gap-x-4 gap-y-6 pb-12" onSubmit={handleSubmit}>
-            {/* Row 1 */}
-            <div className="col-span-2">
-              <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Company Name <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input type="text" placeholder="Softieons Technolo" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        <form className="grid grid-cols-4 gap-x-4 gap-y-6 pb-12" onSubmit={handleSubmit}>
+          {/* Row 1 */}
+          <div className="col-span-2">
+            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Company Name <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input type="text" placeholder="Softieons Technolo" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 ref={companyRef}
                 required
-                />
-              </div>
+              />
             </div>
+          </div>
 
-            <div className="col-span-2">
-              <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Full Name <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input type="text" placeholder="John Doe" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500" ref={usernameRef} required />
-              </div>
-                {errors.username && (
+          <div className="col-span-2">
+            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Full Name <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input type="text" placeholder="John Doe" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500" ref={usernameRef} required />
+            </div>
+            {errors.username && (
               <p className="text-red-500 text-sm mt-1">{errors.username}</p>
             )}
-            </div>
+          </div>
 
-            {/* Row 2 */}
-            <div className="col-span-2">
-              <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Mobile Number <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input type="text" placeholder="9876543210" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          {/* Row 2 */}
+          <div className="col-span-2">
+            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Mobile Number <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input type="text" placeholder="9876543210" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 ref={mobileRef}
                 required
-                />
-              </div>
+              />
             </div>
+          </div>
 
-            <div className="col-span-2">
-              <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Email Address <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input type="email" placeholder="john@example.com" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          <div className="col-span-2">
+            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Email Address <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input type="email" placeholder="john@example.com" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 ref={emailRef}
                 required />
-              </div>
-                {errors.email && (
+            </div>
+            {errors.email && (
               <p className="text-red-500 text-sm mt-1">{errors.email}</p>
             )}
-            </div>
+          </div>
 
-            {/* Row 3 */}
-            <div className="col-span-2">
-              <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Password <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input type="password" placeholder="............" className="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500" ref={passwordRef} required />
-                <EyeOff className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 cursor-pointer" />
-              </div>
-                {errors.password && (
+          {/* Row 3 */}
+          <div className="col-span-2">
+            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Password <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input type="password" placeholder="............" className="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500" ref={passwordRef} required />
+              <EyeOff className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 cursor-pointer" />
+            </div>
+            {errors.password && (
               <p className="text-red-500 text-sm mt-1">{errors.password}</p>
             )}
-            </div>
+          </div>
 
-            <div className="col-span-2">
-              <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Gender <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <select className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-500" ref={genderRef} required >
-                  <option>others</option>
-                  <option>Male</option>
-                  <option>Female</option>
-                </select>
-              </div>
+          <div className="col-span-2">
+            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Gender <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <select className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-500" ref={genderRef} required >
+                <option>others</option>
+                <option>Male</option>
+                <option>Female</option>
+              </select>
             </div>
+          </div>
 
-            {/* Row 4: Full Width Address */}
-            <div className="col-span-4">
-              <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Address <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-4 text-gray-400 w-5 h-5" />
-                <textarea placeholder="Enter your full address" rows="3" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" ref={addressRef} required></textarea>
-              </div>
+          {/* Row 4: Full Width Address */}
+          <div className="col-span-4">
+            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Address <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-4 text-gray-400 w-5 h-5" />
+              <textarea placeholder="Enter your full address" rows="3" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" ref={addressRef} required></textarea>
             </div>
+          </div>
 
-            {/* Row 5: NEW GEOGRAPHIC FIELDS from image_f0a096.png */}
-            <div className="col-span-1">
-              <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Zip Code <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <MapPinned className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input type="text" placeholder="Zip Code" className="w-full pl-10 pr-2 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm" ref={zipCodeRef} required />
-              </div>
+          {/* Row 5: GEOGRAPHIC FIELDS */}
+          <div className="col-span-1">
+            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Zip Code <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <MapPinned className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input type="text" placeholder="Zip Code" className="w-full pl-10 pr-2 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm" ref={zipCodeRef} required />
             </div>
+          </div>
 
-            <div className="col-span-1">
-              <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">City <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input type="text" placeholder="City" className="w-full pl-10 pr-2 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm" ref={cityRef} required />
-              </div>
+          <div className="col-span-1">
+            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">City <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input type="text" placeholder="City" className="w-full pl-10 pr-2 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm" ref={cityRef} required />
             </div>
+          </div>
 
-            <div className="col-span-1">
-              <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">State <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <Map className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input type="text" placeholder="State" className="w-full pl-10 pr-2 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm" ref={stateRef} required />
-              </div>
+          <div className="col-span-1">
+            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">State <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <Map className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input type="text" placeholder="State" className="w-full pl-10 pr-2 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm" ref={stateRef} required />
             </div>
+          </div>
 
-            <div className="col-span-1">
-              <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Country <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input type="text" placeholder="Country" className="w-full pl-10 pr-2 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm" ref={countryRef} required />
-              </div>
+          <div className="col-span-1">
+            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Country <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input type="text" placeholder="Country" className="w-full pl-10 pr-2 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm" ref={countryRef} required />
             </div>
+          </div>
 
-            {/* Submit Button */}
-            <div className="col-span-4 mt-2">
-              <button className="py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all shadow-md uppercase tracking-wide text-sm cursor-pointer w-full bg-[#FF6B35] hover:bg-[#e85a2a]">
-                Create Account
-              </button>
+          {/* ================= OPTIMIZED COMPACT CHECKBOX LAYER ================= */}
+          <div className="col-span-4">
+            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">
+              Show Weight Permission <span className="text-red-500">*</span>
+            </label>
+            <div className="relative flex items-center h-11.5 border border-gray-200 rounded-xl bg-gray-100/50 px-3">
+              <Scale className="text-gray-400 w-5 h-5 mr-2 shrink-0" />
+              <span className="text-gray-500 text-sm flex-1 font-medium select-none">
+                {showWeight ? "Enabled" : "Disabled"}
+              </span>
+              <input 
+                type="checkbox" 
+                checked={showWeight}
+                onChange={(e) => setShowWeight(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
+              />
             </div>
-          </form>
+          </div>
+
+          {/* Submit Button */}
+          <div className="col-span-4 mt-2">
+            <button className="py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all shadow-md uppercase tracking-wide text-sm cursor-pointer w-full bg-[#FF6B35] hover:bg-[#e85a2a]">
+              Create Account
+            </button>
+          </div>
           
-        </div>
+          {/* Central API Error Messaging */}
+          {errors.api && (
+            <div className="col-span-4 text-center bg-red-50 border border-red-100 p-3 rounded-xl text-red-600 font-medium text-xs">
+              {errors.api}
+            </div>
+          )}
+        </form>
+        
       </div>
+    </div>
   );
 };
 

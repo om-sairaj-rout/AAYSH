@@ -62,3 +62,51 @@ export const deleteUploadRecord = async (id) => {
 
     return data;
 };
+
+export const downloadUserOrdersExcel =
+  async (userId) => {
+
+  const res = await fetch(
+    `${BASE}/api/download-user-orders/${userId}`,
+    {
+      method: "GET",
+      credentials: "include",
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error(
+      "Download failed"
+    );
+  }
+
+  return res.blob();
+};
+
+export const uploadAndUpdateStatusExcel = async (userId, formData) => {
+  const res = await fetch(
+    `${BASE}/api/upload-status-excel/${userId}`,
+    {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+      headers: {
+        // IMPORTANT: DO NOT manually set boundary, browser handles it
+        Accept: "application/json",
+      },
+    }
+  );
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    throw new Error("Invalid server response");
+  }
+
+  if (!res.ok) {
+    throw new Error(data.message || "Upload failed");
+  }
+
+  return data;
+};

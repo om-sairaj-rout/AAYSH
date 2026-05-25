@@ -22,10 +22,17 @@ const loginUser = async (req, res) => {
 
     // 3. Create JWT token
     const token = jwt.sign(
-      { id: foundUser._id, username: foundUser.username, role: foundUser.role },
-      process.env.JWT_SECRET,
-      {expiresIn:process.env.JWT_EXPIRATION}
-    );
+  {
+    id: foundUser._id,
+    username: foundUser.username,
+    role: foundUser.role,
+    showWeight: foundUser.showWeight
+  },
+  process.env.JWT_SECRET,
+  {
+    expiresIn: process.env.JWT_EXPIRATION
+  }
+);
 
 
     // Set token in cookie
@@ -40,7 +47,7 @@ const loginUser = async (req, res) => {
     // 4. Send response
     res.status(200).json({
       message: "Login successful",
-      user: { id: foundUser._id, username: foundUser.username, email: foundUser.email, role: foundUser.role },
+      user: { id: foundUser._id, username: foundUser.username, email: foundUser.email, role: foundUser.role, showWeight: foundUser.showWeight },
     });
 
   } catch (error) {

@@ -1,6 +1,7 @@
 import { FileSpreadsheet, CheckCircle, Loader2, AlertCircle, Clock, Trash2, FileText } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { uploadFile, getUploadHistory, deleteUploadRecord } from '../api/uploadAPI';
+import { toast } from 'react-hot-toast';
 
 const UploadPage = () => {
   const [file, setFile] = useState(null);
@@ -54,7 +55,6 @@ const UploadPage = () => {
 
       setFile(null);
 
-      // Refresh history after upload
       const refreshed = await getUploadHistory();
 
       if (refreshed.success) {
@@ -85,14 +85,13 @@ const UploadPage = () => {
 
         await deleteUploadRecord(id);
 
-        // Remove instantly from UI
         setHistory(prev =>
           prev.filter(item => item._id !== id)
         );
 
       } catch (error) {
 
-        alert(error.message || "Failed to hide record");
+        toast.error(error.message || "Failed to hide record");
 
       } finally {
 

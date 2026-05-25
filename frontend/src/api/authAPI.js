@@ -40,3 +40,128 @@ export const logoutUser = async () => {
   
   return res.json();
 };
+
+// Forgot Password API
+export const forgotPasswordAPI = async (email) => {
+
+  const response = await fetch(
+    `${BASE}/api/forgot-password`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message);
+  }
+
+  return data;
+};
+
+
+// Reset Password API
+export const resetPasswordAPI = async (
+  token,
+  password
+) => {
+
+  const response = await fetch(
+    `${BASE}/api/reset-password/${token}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message);
+  }
+
+  return data;
+};
+
+// ================= GET ALL USERS =================
+export const getAllUsers = async () => {
+  const res = await fetch(
+    `${BASE}/api/users`,
+    {
+      method: "GET",
+      credentials: "include",
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      data.message || "Failed to fetch users"
+    );
+  }
+
+  return data;
+};
+
+// ================= UPDATE USER =================
+export const updateUserAccount = async (
+  id,
+  userData
+) => {
+  const res = await fetch(
+    `${BASE}/api/update-user/${id}`,
+    {
+      method: "PUT",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(userData),
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      data.message || "Update failed"
+    );
+  }
+
+  return data;
+};
+
+// ================= DELETE USER =================
+export const deleteUserAccount = async (
+  id
+) => {
+
+  const res = await fetch(
+    `${BASE}/api/delete-user/${id}`,
+    {
+      method: "DELETE",
+      credentials: "include",
+    }
+  );
+
+  const data =
+    await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      data.message ||
+      "Delete failed"
+    );
+  }
+
+  return data;
+};

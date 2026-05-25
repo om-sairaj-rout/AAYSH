@@ -8,9 +8,13 @@ const getUploadHistoryController = require('../controllers/uploadControllers/get
 
 const deleteFileController = require('../controllers/uploadControllers/deleteFile.controllers.js');
 
+const downloadUserOrdersExcelController = require('../controllers/uploadControllers/downloadUserOrdersExcel.js');
+
+const uploadAndUpdateStatusExcelController = require('../controllers/uploadControllers/uploadAndUpdateStatusExcel.controllers.js');
+
 const upload = require('../middlewares/upload.middleware.js');
 
-const { checkAuth } = require('../middlewares/auth.middleware.js');
+const { checkAuth, authRoles } = require('../middlewares/auth.middleware.js');
 
 uploadRouter.post(
     '/upload',
@@ -29,6 +33,20 @@ uploadRouter.delete(
     '/upload/history/:id',
     checkAuth,
     deleteFileController
+);
+
+uploadRouter.get(
+  "/download-user-orders/:userId",
+  checkAuth,
+  downloadUserOrdersExcelController
+);
+
+uploadRouter.post(
+  "/upload-status-excel/:userId",
+  checkAuth,
+  authRoles("admin"),
+  upload.single("file"),
+  uploadAndUpdateStatusExcelController
 );
 
 module.exports = uploadRouter;

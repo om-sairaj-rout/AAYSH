@@ -2,22 +2,6 @@ const mongoose = require("mongoose");
 
 const OrderSchema = new mongoose.Schema(
   {
-    // Basic Order Details
-    orderNumber: {
-      type: String,
-      required: true,
-      trim: true,
-      index: true,
-    },
-
-    awbNumber: {
-      type: String,
-      required: true,
-      trim: true,
-      unique: true,
-      index: true,
-    },
-
     // Upload Tracking
     historyId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -33,128 +17,123 @@ const OrderSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Customer Details
-    customerName: {
-      type: String,
+    // Pickup
+    pickupDate: {
+      type: Date,
       required: true,
-      trim: true,
+      index: true,
     },
 
-    phoneNumber: {
+    // Parties
+    consignorName: {
       type: String,
       trim: true,
     },
 
+    consigneeName: {
+      type: String,
+      trim: true,
+    },
+
+    // Address
     address: {
       type: String,
       trim: true,
     },
 
-    // Destination Details
+    contactNo: {
+      type: String,
+      trim: true,
+    },
+
+    // Destination
     destinationCity: {
       type: String,
-      required: true,
       trim: true,
       index: true,
     },
 
-    pincode: {
+    destinationState: {
       type: String,
-      required: true,
       trim: true,
-      index: true,
     },
 
-    // Weight Details
+    destinationPincode: {
+      type: String,
+      trim: true,
+    },
+
+    // Shipment
+    qty: {
+      type: Number,
+      default: 1,
+    },
+
+    invoiceNo: {
+      type: String,
+      trim: true,
+    },
+
+    invoiceValue: {
+      type: Number,
+      default: 0,
+    },
+
+    // Manual Update Later
     weight: {
       type: Number,
       default: 0,
     },
 
-    actualWeight: {
-      type: Number,
-      default: 0,
-    },
+    courierStatus: {
+  type: String,
+  enum: [
+    "Not Shipped",
+    "Booked",
+    "In Transit",
+    "RTO",
+    "Delivered",
+    "Cancelled",
+    "Delayed"
+  ],
+  default: "Not Shipped",
+  index: true,
+},
 
-    volumetricWeight: {
-      type: Number,
-      default: 0,
-    },
+    awbNumber: {
+  type: String,
+  trim: true,
+  default: null,
+  index: true,
+},
 
-    // Dimensions
-    length: {
-      type: Number,
-      default: 0,
-    },
+deliveryDate: {
+  type: Date,
+  default: null,
+},
 
-    width: {
-      type: Number,
-      default: 0,
-    },
+bookedAt: {
+  type: Date,
+  default: null,
+},
 
-    height: {
-      type: Number,
-      default: 0,
-    },
-
-    // Charges
-    deliveryCharge: {
-      type: Number,
-      default: 0,
-    },
-
-    // Courier
-    courierPartner: {
+    // Auto Fields
+    category: {
       type: String,
-      trim: true,
+      default: "Rest of India",
     },
 
-    // Status
-    status: {
-      type: String,
-      trim: true,
-      default: "Pending",
-      index: true,
-    },
-
-    comments: {
-      type: String,
-      trim: true,
-    },
-
-    // Dates
-    orderDate: {
-      type: Date,
-      index: true,
-    },
-
-    expectedDeliveryDate: {
-      type: Date,
-    },
-
-    firstAttemptDate: {
-      type: Date,
-    },
-
-    secondAttemptDate: {
-      type: Date,
-    },
-
-    thirdAttemptDate: {
-      type: Date,
-    },
-
-    deliveredDate: {
-      type: Date,
-    },
-
-    // Delivery Details
-    receiverName: {
-      type: String,
-      trim: true,
+    expectedHours: {
+      type: Number,
+      default: 144,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-module.exports = mongoose.model("Order", OrderSchema);
+module.exports = mongoose.model(
+  "Order",
+  OrderSchema
+);

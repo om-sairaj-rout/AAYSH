@@ -59,10 +59,14 @@ const userSchema = new mongoose.Schema({
     enum: ["user", "admin"],
     default: "user",
   },
+  showWeight: {
+  type: Boolean,
+  default: true
+}
 }, {
   timestamps: true,
 });
 
-const User = mongoose.model("User", userSchema);
+const User = mongoose.models.User ||mongoose.model("User", userSchema);
 
 module.exports = User;

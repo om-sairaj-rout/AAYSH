@@ -97,6 +97,13 @@ const Dashboard = () => {
     },
   ];
 
+  const currentYear = new Date().getFullYear();
+
+const yearOptions = Array.from(
+  { length: 3 },
+  (_, i) => currentYear - i
+);
+
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] font-sans text-slate-700">
       <main className="flex-1 p-8 overflow-y-auto">
@@ -120,71 +127,88 @@ const Dashboard = () => {
         </div>
 
         {/* Annual Performance Histogram */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-8">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
-            <div>
-              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <BarChart3 size={20} className="text-blue-500" />
-                Annual Performance
-              </h2>
-              <p className="text-xs text-slate-400 font-medium">Data overview for the year {selectedYear}</p>
-            </div>
-            <div className="flex items-center gap-6">
-              <div className="relative group">
-                <CalendarDays size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 appearance-none focus:outline-none cursor-pointer"
-                >
-                  <option value="2026">FY 2026</option>
-                  <option value="2025">FY 2025</option>
-                  <option value="2024">FY 2024</option>
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              </div>
-               <div className="hidden lg:flex gap-4 text-[10px] font-bold uppercase tracking-widest">
+<div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-8">
+  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
+    <div>
+      <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+        <BarChart3 size={20} className="text-blue-500" />
+        Annual Performance
+      </h2>
+      <p className="text-xs text-slate-400 font-medium">Data overview for the year {selectedYear}</p>
+    </div>
+    <div className="flex items-center gap-6">
+      <div className="relative group">
+        <CalendarDays size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <select
+  value={selectedYear}
+  onChange={(e) => setSelectedYear(e.target.value)}
+  className="pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 appearance-none focus:outline-none cursor-pointer"
+>
+  {yearOptions.map((year) => (
+    <option key={year} value={year}>
+      FY {year}
+    </option>
+  ))}
+</select>
+        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+      </div>
+       <div className="hidden lg:flex gap-4 text-[10px] font-bold uppercase tracking-widest">
 
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
-                  Orders
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-orange-400 rounded-sm"></div>
-                  Cost
-                </div>
-
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-end justify-between h-72 border-b border-slate-100 pb-2 gap-1 overflow-x-auto lg:overflow-visible">
-            {dashboardData.chartData.map((item, idx) => (
-              <div key={idx} className="flex flex-col items-center group flex-1 min-w-11.25">
-                <div className="flex items-end gap-0.5 mb-3">
-                  <div
-                    style={{ height: `${Math.max(item.orders * 2, 20)}px` }}
-                    className="w-3 md:w-4 bg-blue-500 rounded-t-sm transition-all group-hover:bg-blue-600 relative"
-                  >
-                    <span className="absolute -top-8 left-[20%] -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-slate-800 text-white text-[9px] py-1 px-2 rounded z-10">
-                      {item.orders}
-                    </span>
-                  </div>
-                  <div
-                    style={{ height: `${Math.max(item.cost / 100, 20)}px` }}
-                    className="w-3 md:w-4 bg-orange-400 rounded-t-sm transition-all group-hover:bg-orange-500 relative"
-                  >
-                    <span className="absolute -top-8 left-[80%] -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-slate-800 text-white text-[9px] py-1 px-2 rounded z-10">
-                      ₹{item.cost}
-                    </span>
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase">{item.name}</span>
-              </div>
-            ))}
-          </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
+          Orders
         </div>
+
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-orange-400 rounded-sm"></div>
+          Cost
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div className="flex items-end justify-between h-72 border-b border-slate-100 pb-2 gap-1 overflow-x-auto lg:overflow-visible">
+    {dashboardData.chartData.map((item, idx) => {
+      // Find dynamic limits to scale both datasets visually apart from each other safely inside the h-72 container
+      const maxOrdersVal = Math.max(...dashboardData.chartData.map(d => d.orders || 0), 1);
+      const maxCostVal = Math.max(...dashboardData.chartData.map(d => d.cost || 0), 1);
+
+      // Orders top out lower visually, Costs top out near the top ceiling of the container
+      const orderBarHeight = Math.max((item.orders / maxOrdersVal) * 140, 16); 
+      const costBarHeight = Math.max((item.cost / maxCostVal) * 230, 16);
+
+      return (
+        <div key={idx} className="flex flex-col items-center group flex-1 min-w-11.25">
+          <div className="flex items-end gap-0.5 mb-3">
+            
+            {/* Orders Bar */}
+            <div
+              style={{ height: `${orderBarHeight}px` }}
+              className="w-3 md:w-4 bg-blue-500 rounded-t-sm transition-all group-hover:bg-blue-600 relative"
+            >
+              <span className="absolute -top-8 left-[20%] -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-slate-800 text-white text-[9px] py-1 px-2 rounded z-10 whitespace-nowrap">
+                {item.orders}
+              </span>
+            </div>
+
+            {/* Cost Bar */}
+            <div
+              style={{ height: `${costBarHeight}px` }}
+              className="w-3 md:w-4 bg-orange-400 rounded-t-sm transition-all group-hover:bg-orange-500 relative"
+            >
+              <span className="absolute -top-8 left-[80%] -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-slate-800 text-white text-[9px] py-1 px-2 rounded z-10 whitespace-nowrap">
+                ₹{item.cost}
+              </span>
+            </div>
+
+          </div>
+          <span className="text-[10px] font-bold text-slate-400 uppercase">{item.name}</span>
+        </div>
+      );
+    })}
+  </div>
+</div>
 
         {/* Bottom Section */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">

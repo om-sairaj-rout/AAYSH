@@ -1,6 +1,6 @@
 import { useSelector } from 'react-redux';
 import Layout from './components/Layout';
-import Login from './pages/Login';
+import HomePage from './pages/HomePage';
 
 function App() {
 
@@ -8,7 +8,7 @@ function App() {
 
   return (
     <>
-      {isAuthenticated ? <Layout /> : <Login />}
+      {isAuthenticated ? <Layout /> : <HomePage />}
     </>
   )
 }

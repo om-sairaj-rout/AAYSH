@@ -1,117 +1,195 @@
-const Order = require("../../models/upload/order.model");
+const Order = require(
+  "../../models/upload/order.model"
+);
 
-const getDashboardController = async (req, res) => {
+const getDashboardController = async (
+  req,
+  res
+) => {
 
   try {
 
-    const isAdmin = req.user.role === "admin";
-    const selectedYear = req.query.year;
+    const isAdmin =
+      req.user.role === "admin";
+
+    const selectedYear =
+      req.query.year;
 
     let filter = {};
 
     if (!isAdmin) {
-      filter.uploadedBy = req.user.id;
+      filter.uploadedBy =
+        req.user.id;
     }
 
-    let orders = await Order.find(filter);
+    let orders =
+      await Order.find(filter);
 
-    // FILTER BY YEAR
+    // YEAR FILTER
     if (selectedYear) {
 
-      orders = orders.filter((order) => {
+      orders = orders.filter(
+        (order) => {
 
-        if (!order.orderDate) return false;
+          if (!order.pickupDate)
+            return false;
 
-        const orderYear = new Date(order.orderDate)
-          .getFullYear()
-          .toString();
-
-        return orderYear === selectedYear;
-      });
+          return (
+            new Date(order.pickupDate)
+              .getFullYear()
+              .toString() ===
+            selectedYear
+          );
+        }
+      );
     }
 
-    // TOTAL STATS
-    const totalOrders = orders.length;
+    // STATS
 
-    const deliveredOrders = orders.filter(
-      (o) => (o.status || "").toLowerCase() === "delivered"
-    ).length;
+    const totalOrders =
+      orders.length;
 
-    const inTransitOrders = orders.filter((o) => {
-      const status = (o.status || "").toLowerCase();
-      return status === "in transit" || status === "shipped";
-    }).length;
+    const deliveredOrders =
+      orders.filter(
+        (o) =>
+          (
+            o.courierStatus || ""
+          ).toLowerCase() ===
+          "delivered"
+      ).length;
 
-    const delayedOrders = orders.filter((o) => {
-      const status = (o.status || "").toLowerCase();
-      return status === "delayed" || status === "rto";
-    }).length;
+    const inTransitOrders =
+      orders.filter((o) => {
 
-    // MONTHLY DATA
-    const monthOrder = [
-      "Jan","Feb","Mar","Apr","May","Jun",
-      "Jul","Aug","Sep","Oct","Nov","Dec"
+        const status =
+          (
+            o.courierStatus || ""
+          ).toLowerCase();
+
+        return (
+          status ===
+            "in transit" ||
+          status ===
+            "shipped"
+        );
+      }).length;
+
+    const delayedOrders =
+      orders.filter((o) => {
+
+        const status =
+          (
+            o.courierStatus || ""
+          ).toLowerCase();
+
+        return (
+          status ===
+            "delayed"
+        );
+      }).length;
+
+    const totalCost =
+      orders.reduce(
+        (acc, curr) =>
+          acc +
+          Number(
+            curr.invoiceValue || 0
+          ),
+        0
+      );
+
+    // CHART DATA
+
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
 
-    const monthlyMap = {};
+    const chartData =
+      months.map(
+        (month, index) => {
 
-    monthOrder.forEach((month) => {
-      monthlyMap[month] = {
-        name: month,
-        orders: 0,
-        cost: 0
-      };
-    });
+          const monthOrders =
+            orders.filter(
+              (o) =>
+                o.pickupDate &&
+                new Date(
+                  o.pickupDate
+                ).getMonth() ===
+                  index
+            );
 
-    orders.forEach((order) => {
+          return {
+            name: month,
+            orders:
+              monthOrders.length,
+            cost:
+              monthOrders.reduce(
+                (
+                  acc,
+                  curr
+                ) =>
+                  acc +
+                  Number(
+                    curr.invoiceValue ||
+                    0
+                  ),
+                0
+              ),
+          };
+        }
+      );
 
-      if (!order.orderDate) return;
+    // TOP CITIES
 
-      const date = new Date(order.orderDate);
-      if (isNaN(date)) return;
-
-      const month = date.toLocaleString("default", {
-        month: "short"
-      });
-
-      if (monthlyMap[month]) {
-
-        monthlyMap[month].orders += 1;
-
-        monthlyMap[month].cost += Number(order.deliveryCharge || 0);
-      }
-    });
-
-    const chartData = Object.values(monthlyMap);
-
-    // 🔥 TOP CITIES (FIXED)
     const cityMap = {};
 
-    orders.forEach((order) => {
+    orders.forEach((o) => {
 
-      const city = order.destinationCity || "Unknown";
+      const city =
+        o.destinationCity ||
+        "Unknown";
 
       if (!cityMap[city]) {
+
         cityMap[city] = {
           city,
           orders: 0,
-          cost: 0
+          cost: 0,
         };
       }
 
-      cityMap[city].orders += 1;
+      cityMap[
+        city
+      ].orders += 1;
 
-      cityMap[city].cost += Number(order.deliveryCharge || 0);
+      cityMap[
+        city
+      ].cost += Number(
+        o.invoiceValue || 0
+      );
     });
 
-    const topCities = Object.values(cityMap)
-      .sort((a, b) => b.orders - a.orders);
+    const topCities =
+      Object.values(cityMap)
 
-    // TOTAL COST
-    const totalCost = orders.reduce(
-      (acc, curr) => acc + Number(curr.deliveryCharge || 0),
-      0
-    );
+        .sort(
+          (a, b) =>
+            b.orders -
+            a.orders
+        )
+
+        .slice(0, 20);
 
     return res.status(200).json({
       success: true,
@@ -120,12 +198,14 @@ const getDashboardController = async (req, res) => {
         totalOrders,
         deliveredOrders,
         inTransitOrders,
-        delayedOrders
+        delayedOrders,
       },
 
       chartData,
+
       topCities,
-      totalCost
+
+      totalCost,
     });
 
   } catch (error) {
@@ -134,9 +214,11 @@ const getDashboardController = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Server Error"
+      message:
+        error.message,
     });
   }
 };
 
-module.exports = getDashboardController;
+module.exports =
+  getDashboardController;

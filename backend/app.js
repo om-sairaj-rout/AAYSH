@@ -10,6 +10,11 @@ const authRouter = require('./routes/auth.routes');
 const uploadRouter = require('./routes/upload.routes');
 const orderRouter = require('./routes/order.routes');
 const dashboardRouter = require('./routes/dashboard.routes');
+const adminStatusUpdateRouter = require('./routes/adminStatusUpdate.routes');
+const courierRouter = require('./routes/courier.routes');
+const assignAwbRouter = require('./routes/assignAwb.routes');
+const generateLabelRouter = require('./routes/labelGeneration.routes');
+const contactRouter = require('./routes/contact.routes');
 
 connectToDB();
 
@@ -29,6 +34,11 @@ app.use('/api', authRouter);
 app.use('/api', uploadRouter);
 app.use('/api', orderRouter);
 app.use('/api', dashboardRouter);
+app.use('/api/admin', adminStatusUpdateRouter);
+app.use('/api', courierRouter);
+app.use('/api', assignAwbRouter);
+app.use('/api', generateLabelRouter);
+app.use('/api', contactRouter)
 
 app.listen(3000, () => {
     console.log('Server is running on port 3000');

@@ -15,7 +15,7 @@ const RateCalculator = () => {
   const results = [
     {
       id: 1,
-      name: "Ekart Surface 2 KG",
+      name: "Trackon Surface",
       partner: "RouteXMitra",
       rating: "4.5",
       price: "88.19",
@@ -25,7 +25,7 @@ const RateCalculator = () => {
     },
     {
       id: 2,
-      name: "Ekart Surface 1 KG",
+      name: "Trackon Air",
       partner: "RouteXMitra",
       rating: "4.6",
       price: "107.26",
@@ -96,7 +96,7 @@ const RateCalculator = () => {
         </div>
 
         {/* Row 3: Toggles */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Payment Type</label>
             <div className="flex bg-gray-100 rounded-lg p-1">
@@ -111,7 +111,7 @@ const RateCalculator = () => {
               <button onClick={() => setApptDelivery("Yes")} className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${apptDelivery === "Yes" ? "bg-white shadow-sm text-blue-900" : "text-gray-400"}`}>Yes</button>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Row 4: Buttons */}
         <div className="flex gap-4">
@@ -139,12 +139,12 @@ const RateCalculator = () => {
                 <input type="radio" name="rate_select" className="mt-1.5 w-4 h-4 accent-blue-600" />
                 <div className="space-y-1">
                   <h3 className="font-bold text-gray-800">{item.name}</h3>
-                  <div className="flex items-center gap-2">
+                  {/* <div className="flex items-center gap-2">
                     <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded font-bold text-gray-600">{item.partner}</span>
-                  </div>
+                  </div> */}
                   <div className="flex items-center gap-3 text-[10px] text-gray-400 font-medium">
                     <span className="flex items-center gap-1"><Star size={10} className="fill-yellow-400 text-yellow-400" /> {item.rating}</span>
-                    <span className="flex items-center gap-1 uppercase"><Truck size={10} /> Surface</span>
+                    {/* <span className="flex items-center gap-1 uppercase"><Truck size={10} /> Surface</span> */}
                   </div>
                   <div className="flex gap-2 mt-2">
                     <span className="text-[9px] border border-green-200 text-green-600 px-2 py-0.5 rounded font-bold uppercase bg-green-50/50">Door Pickup <ArrowRight size={8} className="inline ml-1" /></span>
