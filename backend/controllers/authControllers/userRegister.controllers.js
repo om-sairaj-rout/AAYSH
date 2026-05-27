@@ -2,7 +2,7 @@ const User = require('../../models/User.model');
 const bcrypt = require('bcrypt');
 
 const RegisterController = async (req, res) => {
- const { username, email, password, mobile_number, company_name, gender, address, zip_code, city, state, country, showWeight } = req.body;
+ const { username, email, password, mobile_number, company_name, gender, role, address, zip_code, city, state, country, showWeight } = req.body;
 
   if (!username || username.length < 3) {
     return res.status(400).json({ message: "Username must contain at least 3 letters." });
@@ -31,6 +31,7 @@ const hashedPassword = await bcrypt.hash(password, salt);
   mobile_number,
   company_name,
   gender,
+  role,
   address,
   zip_code,
   city,

@@ -14,6 +14,7 @@ import {
   Globe,
   ArrowLeft,
   ShieldCheck,
+  ShieldAlert,
   UserCircle,
   Scale
 } from "lucide-react";
@@ -38,12 +39,13 @@ const EditAccount = () => {
     mobile: "",
     company: "",
     gender: "others",
+    role: "user",
     address: "",
     zipCode: "",
     city: "",
     state: "",
     country: "",
-    showWeight: true, // Added tracking field key parameter explicitly here
+    showWeight: true, 
   });
 
   // ================= FETCH USERS ON INIT =================
@@ -74,15 +76,16 @@ const EditAccount = () => {
       mobile: user.mobile_number || "",
       company: user.company_name || "",
       gender: user.gender || "others",
+      role: user.role || "user",
       address: user.address || "",
       zipCode: user.zip_code || "",
       city: user.city || "",
       state: user.state || "",
       country: user.country || "",
-      showWeight: user.showWeight !== undefined ? user.showWeight : true, // Natively prefill field flag straight from database value
+      showWeight: user.showWeight !== undefined ? user.showWeight : true, 
     });
     setErrors({});
-  };
+    };
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -122,12 +125,13 @@ const EditAccount = () => {
         mobile_number: formData.mobile.trim(),
         company_name: formData.company.trim(),
         gender: formData.gender,
+        role: formData.role,
         address: formData.address.trim(),
         zip_code: formData.zipCode.trim(),
         city: formData.city.trim(),
         state: formData.state.trim(),
         country: formData.country.trim(),
-        showWeight: formData.showWeight, // Append the weight property into request payload bundle
+        showWeight: formData.showWeight, 
       };
 
       if (formData.password) {
@@ -135,7 +139,7 @@ const EditAccount = () => {
       }
 
       await updateUserAccount(selectedUser._id, updatedPayload);
-      toast.success("Changes applied successfully!"); // Swapped alert with toast cleanly
+      toast.success("Changes applied successfully!");
       
       // Refresh user list and go back
       setSelectedUser(null);
@@ -327,6 +331,24 @@ const EditAccount = () => {
                 <option value="others">others</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="col-span-4">
+            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Role <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <ShieldAlert className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <select 
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-700" 
+                value={formData.role}
+                onChange={handleInputChange}
+                name="role"
+                defaultValue="user"
+                required 
+              >
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
               </select>
             </div>
           </div>

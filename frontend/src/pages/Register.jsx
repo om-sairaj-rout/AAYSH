@@ -6,7 +6,8 @@ import {
   Lock,
   EyeOff,
   Users,
-  MapPin, MapPinned, Map, Globe, Scale
+  MapPin, MapPinned, Map, Globe, Scale,
+  ShieldAlert // Added an icon for the Role field
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -22,6 +23,7 @@ const Register = () => {
   const mobileRef = useRef();
   const companyRef = useRef();
   const genderRef = useRef();
+  const roleRef = useRef(); // Added role ref
   const addressRef = useRef();
   const zipCodeRef = useRef();
   const cityRef = useRef();
@@ -40,6 +42,7 @@ const Register = () => {
     const mobile = mobileRef.current.value.trim();
     const company = companyRef.current.value.trim();
     const gender = genderRef.current.value.trim();
+    const role = roleRef.current.value; // Captured role value
     const address = addressRef.current.value.trim();
     const zipCode = zipCodeRef.current.value.trim();
     const city = cityRef.current.value.trim();
@@ -73,6 +76,7 @@ const Register = () => {
         mobile_number: mobile, 
         company_name: company, 
         gender, 
+        role, 
         address, 
         zip_code: zipCode, 
         city, 
@@ -160,9 +164,26 @@ const Register = () => {
             <div className="relative">
               <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
               <select className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-500" ref={genderRef} required >
-                <option>others</option>
-                <option>Male</option>
-                <option>Female</option>
+                <option value="others">others</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+          </div>
+
+          {/* ================= NEW ROLE SELECTION FIELD ================= */}
+          <div className="col-span-4">
+            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Role <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <ShieldAlert className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <select 
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-700" 
+                ref={roleRef} 
+                defaultValue="user"
+                required 
+              >
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
               </select>
             </div>
           </div>

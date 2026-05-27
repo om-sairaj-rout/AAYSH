@@ -40,6 +40,8 @@ app.use('/api', assignAwbRouter);
 app.use('/api', generateLabelRouter);
 app.use('/api', contactRouter)
 
+require("./utils/cron/cleanupOrders");
+
 app.listen(3000, () => {
     console.log('Server is running on port 3000');
 })

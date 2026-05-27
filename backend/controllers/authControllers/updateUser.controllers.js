@@ -11,6 +11,7 @@ const updateUserController = async (req, res) => {
       mobile_number: req.body.mobile_number,
       company_name: req.body.company_name,
       gender: req.body.gender,
+      role: req.body.role,
       address: req.body.address,
       zip_code: req.body.zip_code,
       city: req.body.city,
