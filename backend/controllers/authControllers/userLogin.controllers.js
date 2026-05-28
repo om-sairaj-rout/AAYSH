@@ -1,7 +1,7 @@
 // controllers/userLogin.controller.js
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const User = require("../../models/User.model"); // your Mongoose model 
+const User = require("../../models/user.model"); // your Mongoose model 
 
 
 const loginUser = async (req, res) => {
