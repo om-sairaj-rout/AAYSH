@@ -431,14 +431,14 @@ const HomePage = () => {
                   <Mail className="w-5 h-5 text-teal-600 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="font-semibold text-slate-900">Digital Network Communications</h4>
-                    <p className="font-light text-xs text-slate-500 mt-0.5">support@aayshexpress.com</p>
+                    <p className="font-light text-xs text-slate-500 mt-0.5">airexpresscustomersupport@gmail.com</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3.5 bg-white p-4 rounded-xl border border-slate-200/60 shadow-sm">
                   <Phone className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="font-semibold text-slate-900">Direct Merchant Hotline</h4>
-                    <p className="font-light text-xs text-slate-500 mt-0.5">+91 (120) 456-7890 / Corporate Helpline</p>
+                    <p className="font-light text-xs text-slate-500 mt-0.5">+91 9310248736 / Corporate Helpline</p>
                   </div>
                 </div>
               </div>
