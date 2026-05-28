@@ -25,6 +25,7 @@ app.use(cors({
   origin: [
     "http://localhost:5173",
     "https://aaysh.onrender.com",
+    "https://aaysh.vercel.app",
   ],
   credentials: true
 }));
