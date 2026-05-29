@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { authVerify } from "./store/slice/checkAuth";
 
-import App from "./App.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import DashBoard from "./pages/DashBoard.jsx";
@@ -24,15 +23,19 @@ import SelectCourier from "./pages/SelectCourier.jsx";
 import AwbPage from "./pages/AwbPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import ExcelReportsPage from "./pages/ExcelReportsPage.jsx";
+import ProtectedRoute from "./ProtectedRoute.jsx";
 
 const router = createBrowserRouter([
-  { path: "/", element: <App /> },
-  { path: "/home", element: <HomePage /> },
+  { path: "/", element: <HomePage /> },
   { path: "/login", element: <Login /> },
   { path: "/forgot-password", element: <ForgotPassword /> },
   { path: "/reset-password/:token", element: <ResetPassword /> },
   {
-    element: <Layout />, 
+    element: (
+    <ProtectedRoute>
+      <Layout />
+    </ProtectedRoute>
+  ), 
     children: [
       { path: "/dashboard", element: <DashBoard /> },
       { path: "/reports/orders", element: <OrderByDateInfo /> },
