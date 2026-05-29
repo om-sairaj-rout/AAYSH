@@ -25,6 +25,7 @@ app.use(cors({
   origin: [
     "http://localhost:5173",
     "https://aaysh.vercel.app",
+    "https://www.aayshexpress.com",
   ],
   credentials: true
 }));
