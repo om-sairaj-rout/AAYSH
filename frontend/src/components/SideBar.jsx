@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { useSelector } from "react-redux"; // Added to access Redux state
-import { LayoutDashboard, FileChartColumn, ChevronDown } from "lucide-react";
+import { useSelector } from "react-redux";
+import { LayoutDashboard, FileChartColumn, ChevronDown, X } from "lucide-react";
 import aayshlogo from "../assets/aaysh_logo.png";
 
-const SideBar = () => {
+const SideBar = ({ isOpen, setIsOpen }) => {
   const [openMenus, setOpenMenus] = useState({});
   const { isAdmin } = useSelector((state) => state.auth);
 
@@ -98,13 +98,26 @@ const SideBar = () => {
   });
 
   return (
-    <aside className="w-[20%] h-screen sticky top-0 border-r border-gray-200 bg-white flex flex-col overflow-hidden">
-      <div className="z-10 p-2 border-b border-gray-100 bg-white flex justify-center shrink-0">
+    <aside className={`
+      fixed inset-y-0 left-0 z-50 lg:z-0 lg:sticky lg:top-0
+      w-64 h-screen border-r border-gray-200 bg-white flex flex-col overflow-hidden
+      transition-transform duration-300 ease-in-out
+      ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+    `}>
+      {/* Sidebar Header Container */}
+      <div className="z-10 p-2 border-b border-gray-100 bg-white flex items-center justify-between lg:justify-center shrink-0 px-4 lg:px-2">
         <img
           src={aayshlogo}
           alt="AayshExpress"
-          className="h-16 object-contain"
+          className="h-16 object-contain mx-auto lg:mx-0"
         />
+        {/* Sidebar dismissal button on responsive targets */}
+        <button 
+          onClick={() => setIsOpen(false)} 
+          className="lg:hidden p-2 hover:bg-gray-100 rounded-md text-gray-500"
+        >
+          <X size={20} />
+        </button>
       </div>
 
       <nav className="flex-1 overflow-y-auto p-4 no-scrollbar">
@@ -130,11 +143,7 @@ const SideBar = () => {
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <span
-                            className={
-                              isExpanded ? "text-gray-900" : "text-gray-500"
-                            }
-                          >
+                          <span className={isExpanded ? "text-gray-900" : "text-gray-500"}>
                             {item.icon}
                           </span>
                           <span className="text-[15px] font-medium">
@@ -149,6 +158,7 @@ const SideBar = () => {
                     ) : (
                       <NavLink
                         to={item.path}
+                        onClick={() => setIsOpen(false)} // Closes mobile sidebar on view routing change actions
                         className={({ isActive }) =>
                           `flex items-center gap-3 py-3 px-3 rounded-lg transition-all duration-200 ${
                             isActive
@@ -172,6 +182,7 @@ const SideBar = () => {
                             <li key={subIdx}>
                               <NavLink
                                 to={sub.path}
+                                onClick={() => setIsOpen(false)} // Closes mobile drawer on subItem click
                                 className={({ isActive }) =>
                                   `relative flex items-center py-2.5 pl-6 group transition-colors ${
                                     isActive

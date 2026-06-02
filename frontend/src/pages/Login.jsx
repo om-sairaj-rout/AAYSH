@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { loginUser } from "../api/authAPI";
 import { useNavigate, Link } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { authVerify } from '../store/slice/checkAuth';
+import { authVerify } from "../store/slice/checkAuth";
 import { toast } from "react-hot-toast";
 
 const Login = () => {
@@ -24,14 +24,14 @@ const Login = () => {
     };
 
     try {
-      setErrorMsg(""); 
+      setErrorMsg("");
       await loginUser(userCred);
       await dispatch(authVerify());
       navigate("/dashboard");
     } catch (error) {
       const fallbackMsg = error.message || "Login failed";
       setErrorMsg(fallbackMsg);
-      toast.error(fallbackMsg); 
+      toast.error(fallbackMsg);
     }
   };
 
@@ -45,30 +45,24 @@ const Login = () => {
             alt="Warehouse"
             className="absolute inset-0 w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-black/40 flex flex-col justify-end p-12 text-white">
-            <p className="uppercase tracking-widest text-sm font-semibold mb-2">
+          <div className="absolute inset-0 bg-black/40 flex flex-col justify-end p-6 md:p-12 text-white">
+            <p className="uppercase tracking-widest text-xs md:text-sm font-semibold mb-2">
               Smart Tracking Technology
             </p>
-            <h1 className="text-5xl font-bold mb-6 leading-tight">
+            <h1 className="text-3xl md:text-5xl font-bold mb-4 md:mb-6 leading-tight">
               Complete Visibility Always
             </h1>
-            <p className="text-lg opacity-90 max-w-md mb-8">
+            <p className="text-base md:text-lg opacity-90 max-w-md mb-6 md:mb-8">
               Track your shipments in real-time from origin to destination.
               Ensure your cargo is safe and arrives exactly on time with live
               monitoring.
             </p>
-            <div className="flex gap-2">
-              <div className="h-1 w-16 bg-white/30 rounded-full"></div>
-              <div className="h-1 w-16 bg-white rounded-full"></div>
-              <div className="h-1 w-16 bg-white/30 rounded-full"></div>
-            </div>
           </div>
         </div>
       </div>
 
       {/* Right Side: Form Section */}
       <div className="w-full lg:w-1/2 h-full overflow-y-auto flex flex-col p-8 lg:p-16">
-
         <div className="max-w-svh w-full mx-auto">
           <div className="text-center mb-5">
             <img
@@ -108,8 +102,8 @@ const Login = () => {
                 <label className="block text-[15px] font-bold text-gray-700 uppercase">
                   Password
                 </label>
-                <Link 
-                  to="/forgot-password" 
+                <Link
+                  to="/forgot-password"
                   className="text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors"
                 >
                   Forgot Password?
@@ -127,7 +121,7 @@ const Login = () => {
                 <EyeOff className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 cursor-pointer" />
               </div>
             </div>
-            
+
             <button className="w-full px-10 py-3 border rounded-xl bg-[#0f203b] text-white font-bold hover:bg-[#0d1a2e] hover:scale-99 transition-transform duration-200 cursor-pointer">
               Log in
             </button>
