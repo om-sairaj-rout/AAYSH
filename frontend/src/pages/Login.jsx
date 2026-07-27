@@ -1,7 +1,7 @@
 import { Mail, Lock, EyeOff } from "lucide-react";
 import aayshlogo from "../assets/aaysh_logo.png";
 import { useRef, useState } from "react";
-import { loginUser } from "../api/authAPI";
+import { loginUser, loginUserExternal} from "../api/authAPI";
 import { useNavigate, Link } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { authVerify } from "../store/slice/checkAuth";
@@ -26,6 +26,7 @@ const Login = () => {
     try {
       setErrorMsg("");
       await loginUser(userCred);
+      await loginUserExternal(userCred);
       await dispatch(authVerify());
       navigate("/dashboard");
     } catch (error) {

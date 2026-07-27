@@ -28,6 +28,20 @@ export const loginUser = async (userCred) => {
   return res.json();
 };
 
+export const loginUserExternal = async (userCred) => {
+  const res = await fetch(`${BASE}/api/user/external/login`,{
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(userCred),
+  });
+  if(!res.ok){
+     const errorData = await res.json();
+    throw new Error(errorData.message || "login failed");
+  }
+  return res.json();
+};
+
 export const logoutUser = async () => {
   const res = await fetch(`${BASE}/api/user/logout`, {
     method: "POST",
