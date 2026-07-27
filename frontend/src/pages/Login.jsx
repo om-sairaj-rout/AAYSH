@@ -129,7 +129,7 @@ const Login = () => {
 
           <p className="hidden lg:block mt-15 text-center text-gray-600 text-lg">
             Copyright © 2026{" "}
-            <span className="font-bold text-black">Softieons</span> – All Rights
+            <span className="font-bold text-black">AAYSHeEXPRESS</span> – All Rights
             Reserved
           </p>
         </div>
