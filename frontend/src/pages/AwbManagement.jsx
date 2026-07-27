@@ -143,7 +143,7 @@ const AwbManagement = () => {
               {/* Explicit Bifurcated Category Selector Toggle */}
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Weight Consignment Category</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setWeightCategory('under1kg')}
@@ -157,14 +157,25 @@ const AwbManagement = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setWeightCategory('over1kg')}
+                    onClick={() => setWeightCategory('over3kg')}
                     className={`py-2.5 rounded-xl border font-bold text-xs transition-all ${
-                      weightCategory === 'over1kg'
+                      weightCategory === 'over3kg'
                         ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    Over 1 kg
+                    Over 3 kg
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWeightCategory('prime')}
+                    className={`py-2.5 rounded-xl border font-bold text-xs transition-all ${
+                      weightCategory === 'prime'
+                        ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    Prime
                   </button>
                 </div>
               </div>
@@ -212,13 +223,14 @@ const AwbManagement = () => {
                   <tr className="bg-[#FAFAFA] border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                     <th className="p-4">Courier Network Provider</th>
                     <th className="p-4 text-center">Remaining (&lt; 1 kg)</th>
-                    <th className="p-4 text-center">Remaining (&gt; 1 kg)</th>
+                    <th className="p-4 text-center">Remaining (&gt; 3 kg)</th>
+                    <th className="p-4 text-center">Remaining (Prime)</th>
                     <th className="p-4 text-right">Combined Reserve</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
                   {couriers.map((courier) => {
-                    const combinedSum = (courier.unbookedUnder1kg || 0) + (courier.unbookedOver1kg || 0);
+                    const combinedSum = (courier.unbookedUnder1kg || 0) + (courier.unbookedOver3kg || 0) + (courier.unbookedPrime || 0);
                     return (
                       <tr key={courier._id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="p-4 font-bold text-slate-800 flex items-center gap-2">
@@ -234,7 +246,12 @@ const AwbManagement = () => {
                         </td>
                         <td className="p-4 text-center">
                           <span className="bg-orange-50 text-orange-700 border border-orange-100 px-2.5 py-1 rounded-full font-mono font-bold">
-                            {(courier.unbookedOver1kg || 0).toLocaleString()} available
+                            {(courier.unbookedOver3kg || 0).toLocaleString()} available
+                          </span>
+                        </td>
+                        <td className="p-4 text-center">
+                          <span className="bg-purple-50 text-purple-700 border border-purple-100 px-2.5 py-1 rounded-full font-mono font-bold">
+                            {(courier.unbookedPrime || 0).toLocaleString()} available
                           </span>
                         </td>
                         <td className="p-4 text-right font-mono font-black text-slate-900 text-sm">
@@ -246,7 +263,7 @@ const AwbManagement = () => {
 
                   {couriers.length === 0 && (
                     <tr>
-                      <td colSpan="4" className="p-12 text-center text-slate-400 font-medium">
+                      <td colSpan="5" className="p-12 text-center text-slate-400 font-medium">
                         No registered shipping channels mapped. Create one above.
                       </td>
                     </tr>

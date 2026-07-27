@@ -431,14 +431,14 @@ const HomePage = () => {
                   <Mail className="w-5 h-5 text-teal-600 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="font-semibold text-slate-900">Digital Network Communications</h4>
-                    <p className="font-light text-xs text-slate-500 mt-0.5">airexpresscustomersupport@gmail.com</p>
+                    <p className="font-light text-xs text-slate-500 mt-0.5">customersupport@aayshexpress.com</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3.5 bg-white p-4 rounded-xl border border-slate-200/60 shadow-sm">
                   <Phone className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="font-semibold text-slate-900">Direct Merchant Hotline</h4>
-                    <p className="font-light text-xs text-slate-500 mt-0.5">+91 9310248736 / Corporate Helpline</p>
+                    <p className="font-light text-xs text-slate-500 mt-0.5">+91 8882719505 / Corporate Helpline</p>
                   </div>
                 </div>
               </div>
@@ -467,14 +467,14 @@ const HomePage = () => {
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Your Name</label>
                       <input 
-                        type="text" required name="name" value={formData.name} onChange={handleInputChange} placeholder="John Doe"
+                        type="text" required name="name" value={formData.name} onChange={handleInputChange} placeholder="Neeraj Sharma"
                         className="w-full bg-slate-50 text-slate-800 placeholder-slate-400 text-sm px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 transition-colors"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Business Email Address</label>
                       <input 
-                        type="email" required name="email" value={formData.email} onChange={handleInputChange} placeholder="john@company.com"
+                        type="email" required name="email" value={formData.email} onChange={handleInputChange} placeholder="xyz@company.com"
                         className="w-full bg-slate-50 text-slate-800 placeholder-slate-400 text-sm px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 transition-colors"
                       />
                     </div>

@@ -18,7 +18,6 @@ import ShipmentPage from "./pages/ShipmentPage.jsx";
 import EditAccount from "./pages/EditAccount.jsx";
 import RemoveAccount from "./pages/RemoveAccount.jsx";
 import AwbManagement from "./pages/AwbManagement.jsx";
-import StatusManagementPage from "./pages/StatusManagementPage.jsx";
 import SelectCourier from "./pages/SelectCourier.jsx";
 import AwbPage from "./pages/AwbPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
@@ -49,7 +48,6 @@ const router = createBrowserRouter([
       { path: "/user/remove-account", element: <RemoveAccount /> },
       { path: "/reports/shipments", element: <ShipmentPage /> },
       { path: "/update/AWB", element: <AwbManagement /> },
-      { path: "/update/status", element: <StatusManagementPage /> },
       { path: "/select-courier", element: <SelectCourier /> },
       { path: "/awb/:awbNumber", element: <AwbPage /> },
     ],

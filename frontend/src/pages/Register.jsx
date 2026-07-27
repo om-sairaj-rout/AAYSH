@@ -114,7 +114,7 @@ const Register = () => {
             <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Full Name <span className="text-red-500">*</span></label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input type="text" placeholder="John Doe" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500" ref={usernameRef} required />
+              <input type="text" placeholder="Neeraj Sharma" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500" ref={usernameRef} required />
             </div>
             {errors.username && (
               <p className="text-red-500 text-sm mt-1">{errors.username}</p>
@@ -137,7 +137,7 @@ const Register = () => {
             <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Email Address <span className="text-red-500">*</span></label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input type="email" placeholder="john@example.com" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              <input type="email" placeholder="xyz@example.com" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 ref={emailRef}
                 required />
             </div>

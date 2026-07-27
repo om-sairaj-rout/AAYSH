@@ -20,7 +20,8 @@ const awbSchema =
         type: String,
         enum: [
           "under1kg",
-          "over1kg",
+          "over3kg",
+          "prime",
         ],
         required: true,
       },
@@ -45,7 +46,7 @@ const awbSchema =
       timestamps: true,
     }
   );
-
+console.log("ENUM VALUES:", awbSchema.path("category").enumValues);
 module.exports =
   mongoose.model(
     "Awb",

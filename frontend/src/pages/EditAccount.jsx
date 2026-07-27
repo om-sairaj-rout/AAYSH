@@ -252,7 +252,7 @@ const EditAccount = () => {
                 name="username"
                 value={formData.username}
                 onChange={handleInputChange}
-                placeholder="John Doe" 
+                placeholder="Neeraj Sharma" 
                 className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm" 
                 required 
               />
@@ -286,7 +286,7 @@ const EditAccount = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                placeholder="john@example.com" 
+                placeholder="xyz@example.com" 
                 className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
                 required 
               />

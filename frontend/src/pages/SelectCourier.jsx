@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { 
   X, 
-  Zap, 
+  Zap,
+  Crown
 } from 'lucide-react';
 import { fetchCourierPartnersAPI } from "../api/courierAPI"; 
 import { toast } from 'react-hot-toast';
 
 const SelectCourier = ({ isOpen, onClose, onConfirm, selectedOrdersCount = 2 }) => {
   const [selectedCourier, setSelectedCourier] = useState(null);
+  const [isPrime, setIsPrime] = useState(false);
 
   const [couriers, setCouriers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -37,6 +39,7 @@ const SelectCourier = ({ isOpen, onClose, onConfirm, selectedOrdersCount = 2 }) 
 
     if (isOpen) {
       loadCouriers();
+      setIsPrime(false); // Reset prime toggle on modal open
     }
   }, [isOpen]);
 
@@ -48,11 +51,12 @@ const SelectCourier = ({ isOpen, onClose, onConfirm, selectedOrdersCount = 2 }) 
     }
 
     onConfirm({
-        courierId: selectedCourier,
-});
+      courierId: selectedCourier,
+      isPrime: isPrime,
+    });
   };
 
-    if (!isOpen) return null;
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
@@ -134,6 +138,37 @@ const SelectCourier = ({ isOpen, onClose, onConfirm, selectedOrdersCount = 2 }) 
                 </div>
               );
             })}
+          </div>
+
+          {/* PRIME SERVICE SELECTION TOGGLE */}
+          <div 
+            onClick={() => setIsPrime(!isPrime)}
+            className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between select-none ${
+              isPrime 
+                ? 'bg-purple-50 border-purple-400 shadow-sm' 
+                : 'bg-white border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="isPrimeToggle"
+                checked={isPrime}
+                onChange={(e) => setIsPrime(e.target.checked)}
+                className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 cursor-pointer"
+              />
+              <label htmlFor="isPrimeToggle" className="cursor-pointer flex items-center gap-2">
+                <Crown className={`w-4 h-4 ${isPrime ? 'text-purple-600' : 'text-slate-400'}`} />
+                <span className={`text-xs font-bold ${isPrime ? 'text-purple-900' : 'text-slate-700'}`}>
+                  Use Prime Service
+                </span>
+              </label>
+            </div>
+            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+              isPrime ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-500'
+            }`}>
+              {isPrime ? 'Prime Active' : 'Standard Delivery'}
+            </span>
           </div>
 
         </div>

@@ -3,22 +3,31 @@ const Order = require("../../models/upload/order.model");
 
 
 // ================= CATEGORY LOGIC =================
-// Missing / 0 / >1kg = over1kg
-// <=1kg = under1kg
-const getAwbCategory = (weight) => {
+// Missing / 0 / >3kg = over3kg
+// <=3kg = under3kg
+const getAwbCategory = (weight,isPrime) => {
 
-  if (!weight || weight > 1) {
-    return "over1kg";
+  if (isPrime) {
+    return "prime";
   }
 
-  return "under1kg";
+  if (!weight || weight > 3) {
+    return "over3kg";
+  }
+
+  if(weight <= 1){
+    return "under1kg";
+  }
+
+  return "over3kg";
 };
 
 
 const assignAwbToOrders = async (req, res) => {
   try {
 
-    const { courierId, orders } = req.body;
+    const { courierId, orders, isPrime } = req.body;
+    console.log("REQUEST BODY:", req.body);
 
     if (!courierId || !orders?.length) {
       return res.status(400).json({
@@ -33,10 +42,16 @@ const assignAwbToOrders = async (req, res) => {
     for (const item of orders) {
 
       const category =
-        getAwbCategory(item.weight);
+        getAwbCategory(item.weight, isPrime);
+        console.log("CATEGORY:", category);
 
       // ================= FIND NEXT AVAILABLE AWB =================
       // FIFO sequence using oldest createdAt
+      console.log({
+  courierId,
+  category,
+  status: "available"
+});
       const awb =
         await Awb.findOneAndUpdate(
           {
@@ -58,6 +73,7 @@ const assignAwbToOrders = async (req, res) => {
             },
           }
         );
+        console.log("FOUND AWB:", awb);
 
       // No AWB available
       if (!awb) {

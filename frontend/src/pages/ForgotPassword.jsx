@@ -88,7 +88,7 @@ const ForgotPassword = () => {
                 <input
                   type="email"
                   ref={emailRef}
-                  placeholder="john@example.com"
+                  placeholder="xyz@example.com"
                   className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   required
                 />

@@ -68,11 +68,6 @@ const SideBar = ({ isOpen, setIsOpen }) => {
           icon: <LayoutDashboard size={20} />,
           path: "/update/AWB",
         },
-        {
-          name: "Status Management",
-          icon: <LayoutDashboard size={20} />,
-          path: "/update/status",
-        },
       ],
     },
     {

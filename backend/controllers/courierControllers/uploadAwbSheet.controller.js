@@ -1,88 +1,64 @@
 const XLSX = require("xlsx");
+const Awb = require("../../models/awb/awb.model");
 
-const Awb =
-  require("../../models/awb/awb.model");
+const uploadAwbSheet = async (req, res) => {
+  try {
+    const { courierId, category } = req.body;
+    console.log("COURIER ID:", courierId, "CATEGORY:", category);
 
-const uploadAwbSheet =
-  async (req, res) => {
-    try {
-      const {
-        courierId,
-        category,
-      } = req.body;
-
-      if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "File required",
-        });
-      }
-
-      const workbook =
-        XLSX.read(
-          req.file.buffer,
-          {
-            type: "buffer",
-          }
-        );
-
-      const sheet =
-        workbook.Sheets[
-          workbook.SheetNames[0]
-        ];
-
-      const rows =
-        XLSX.utils.sheet_to_json(
-          sheet,
-          {
-            header: 1,
-          }
-        );
-
-      let inserted = 0;
-
-      for (
-        let i = 1;
-        i < rows.length;
-        i++
-      ) {
-        const awb =
-          String(
-            rows[i][0]
-          ).trim();
-
-        if (!awb) continue;
-
-        const exists =
-          await Awb.findOne({
-            awbNumber:
-              awb,
-          });
-
-        if (!exists) {
-          await Awb.create({
-            courierId,
-            category,
-            awbNumber: awb,
-          });
-
-          inserted++;
-        }
-      }
-
-      res.json({
-        success: true,
-        count: inserted,
-      });
-    } catch (error) {
-      res.status(500).json({
+    if (!req.file) {
+      return res.status(400).json({
         success: false,
-        message:
-          error.message,
+        message: "File required",
       });
     }
-  };
 
-module.exports =
-  uploadAwbSheet;
+    const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+    const rows = XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+        raw: false,
+        defval: "",
+        blankrows: false,
+    });
+
+    const unique = new Set();
+    let inserted = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+      const awb = String(rows[i][0] || "").trim();
+
+      if (!awb) continue;
+      
+      if (unique.has(awb)) continue;
+      unique.add(awb);
+
+      const exists = await Awb.exists({ awbNumber: awb });
+
+      if (exists) continue;
+
+      await Awb.create({
+        courierId,
+        category,
+        awbNumber: awb,
+        status: "available",
+      });
+
+      inserted++;
+    }
+
+    return res.json({
+      success: true,
+      inserted,
+    });
+
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+module.exports = uploadAwbSheet;

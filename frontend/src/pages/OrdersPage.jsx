@@ -100,6 +100,7 @@ const OrdersPage = () => {
 
       const payload = {
         courierId: modalData.courierId,
+        isPrime: Boolean(modalData.isPrime), // Sends prime service option to backend
         orders: orderPayloads
       };
 
@@ -222,9 +223,7 @@ const OrdersPage = () => {
                     <td className="p-3 font-mono font-bold text-blue-800">{order.awbNumber || "-"}</td>
 
                     {canSeeWeight && (
-                    
-                        <td className="p-3 font-mono text-slate-600">{order.weight ? `${order.weight} kg` : "-"}</td>
-                      
+                      <td className="p-3 font-mono text-slate-600">{order.weight ? `${order.weight} kg` : "-"}</td>
                     )}
 
                     <td className="p-3 text-center">{order.qty || "-"}</td>
@@ -279,7 +278,6 @@ const OrdersPage = () => {
               Showing {orders.length > 0 ? indexOfFirstOrder + 1 : 0} - {Math.min(indexOfLastOrder, orders.length)} of {orders.length} orders
             </span>
           </div>
-          {/* Pagination arrows omitted for brief layout size */}
         </div>
 
       </div>
