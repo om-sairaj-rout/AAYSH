@@ -70,7 +70,7 @@ const assignAwbToOrders = async (req, res) => {
       if (!order) continue;
 
       // Temporary (remove later after frontend migration)
-      order.shipping?.shippingStatus = "Booked";
+      order.courierStatus = status = "Booked";
       await order.save();
 
       await Shipping.findOneAndUpdate(
@@ -100,7 +100,7 @@ const assignAwbToOrders = async (req, res) => {
         }
       );
 
-      order.shipping?.shippingStatus = "Booked";
+      order.courierStatus = status = "Booked";
 order.pickupLocation = "Primary";
 await order.save();
 

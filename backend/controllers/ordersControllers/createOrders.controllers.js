@@ -2,21 +2,24 @@ const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 
 
-// Generate 8 digit order number
+// Generate 8 digit internal order id
 const generateOrderId = () => {
-  return Math.floor(10000000 + Math.random() * 90000000).toString();
+  return Math.floor(
+    10000000 + Math.random() * 90000000
+  ).toString();
 };
 
 
 const createCustomOrder = async (req, res) => {
+
   try {
 
     const body = req.body;
 
 
-    // ==========================
+    // ===============================
     // Validation
-    // ==========================
+    // ===============================
 
     if (
       !body.order_id ||
@@ -25,291 +28,355 @@ const createCustomOrder = async (req, res) => {
       body.order_items.length === 0
     ) {
       return res.status(400).json({
-        success: false,
+        success:false,
         error:
-          "Required fields: order_id, pickup_location, order_items"
+        "Missing required fields. Required: order_id, pickup_location, order_items"
       });
     }
 
 
 
-    // ==========================
-    // Duplicate Check
-    // ==========================
+    // ===============================
+    // Duplicate Order Check
+    // ===============================
 
     const existingOrder = await Order.findOne({
-      externalOrderId: body.order_id,
+      externalOrderId: body.order_id
     });
 
 
-    if (existingOrder) {
+    if(existingOrder){
+
       return res.status(400).json({
         success:false,
-        error:"Order already exists",
+        error:"Order already exists"
       });
+
     }
 
 
 
-    // ==========================
-    // Generate Internal Order ID
-    // ==========================
+    // ===============================
+    // Generate Your Order ID
+    // ===============================
 
-    let generatedOrderId;
+    let orderId;
 
-    let exists = true;
+    while(true){
 
+      orderId = generateOrderId();
 
-    while(exists){
-
-      generatedOrderId = generateOrderId();
-
-      const check = await Order.findOne({
-        orderId: generatedOrderId,
+      const exists = await Order.findOne({
+        orderId
       });
 
-      exists = !!check;
+      if(!exists){
+        break;
+      }
+
     }
 
 
 
-    // ==========================
+    // ===============================
     // Create Order
-    // ==========================
+    // ===============================
+
 
     const order = await Order.create({
 
       uploadedBy:req.user.id,
 
-      // Your ID
-      orderId: generatedOrderId,
+
+      // Your internal id
+      orderId,
 
 
-      // Client order ID
-      externalOrderId: body.order_id,
+      // Client order id
+      externalOrderId:
+      body.order_id,
+
 
 
       orderDate:
-        body.order_date 
-        ? new Date(body.order_date)
-        : new Date(),
+      body.order_date
+      ? new Date(body.order_date)
+      : new Date(),
+
 
 
       pickupDate:
-        body.order_date 
-        ? new Date(body.order_date)
-        : new Date(),
+      body.order_date
+      ? new Date(body.order_date)
+      : new Date(),
+
 
 
       pickupLocation:
-        body.pickup_location,
+      body.pickup_location,
 
 
-      // Customer mapping
+
+      // ===============================
+      // Customer Mapping
+      // ===============================
+
+
+      consignorName:
+      body.consignor_name || "",
+
 
       consigneeName:
-        body.billing_customer_name || "",
+      body.billing_customer_name || "",
 
 
-      billingLastName:
-        body.billing_last_name || "",
+      consigneeLastName:
+      body.billing_last_name || "",
+
 
 
       address:
-        body.billing_address || "",
+      body.billing_address || "",
+
 
 
       address2:
-        body.billing_address_2 || "",
+      body.billing_address_2 || "",
+
 
 
       destinationCity:
-        body.billing_city || "",
+      body.billing_city || "",
+
 
 
       destinationState:
-        body.billing_state || "",
+      body.billing_state || "",
+
 
 
       destinationPincode:
-        String(body.billing_pincode || ""),
+      String(body.billing_pincode || ""),
 
 
-      billingCountry:
-        body.billing_country || "India",
+
+      destinationCountry:
+      body.billing_country || "India",
 
 
-      billingEmail:
-        body.billing_email || "",
+
+      consigneeEmail:
+      body.billing_email || "",
+
 
 
       billingPhone:
-        body.billing_phone || "",
-
-
-      contactNo:
-        body.billing_phone || "",
+      body.billing_phone || "",
 
 
 
       shippingIsBilling:
-        body.shipping_is_billing ?? true,
+      body.shipping_is_billing ?? true,
 
+
+
+
+      // ===============================
+      // Order Details
+      // ===============================
 
 
       paymentMethod:
-        body.payment_method || "COD",
+      body.payment_method || "COD",
+
 
 
       comment:
-        body.comment || "",
+      body.comment || "",
 
 
 
-      // Items
 
       orderItems:
-        body.order_items.map(item => ({
-          name:item.name || "",
-          sku:item.sku || "",
-          units:item.units || 1,
-          sellingPrice:item.selling_price || 0,
-          discount:item.discount || 0,
-          tax:item.tax || 0,
-          hsn:String(item.hsn || "")
-        })),
+
+      body.order_items.map(item => ({
+
+        name:
+        item.name || "",
+
+
+        sku:
+        item.sku || "",
+
+
+        units:
+        item.units || 1,
+
+
+        sellingPrice:
+        item.selling_price || 0,
+
+
+        discount:
+        item.discount || 0,
+
+
+        tax:
+        item.tax || 0,
+
+
+        hsn:
+        String(item.hsn || "")
+
+      })),
+
 
 
 
       qty:
-        body.order_items.reduce(
-          (sum,item)=>sum + Number(item.units || 0),
-          0
-        ),
+
+      body.order_items.reduce(
+        (total,item)=>
+        total + Number(item.units || 0),
+        0
+      ),
+
+
+
+
+      invoiceValue:
+      body.sub_total || 0,
 
 
 
       subTotal:
-        body.sub_total || 0,
+      body.sub_total || 0,
 
-
-      invoiceValue:
-        body.sub_total || 0,
 
 
       shippingCharges:
-        body.shipping_charges || 0,
+      body.shipping_charges || 0,
+
 
 
       giftwrapCharges:
-        body.giftwrap_charges || 0,
+      body.giftwrap_charges || 0,
+
 
 
       transactionCharges:
-        body.transaction_charges || 0,
+      body.transaction_charges || 0,
+
 
 
       totalDiscount:
-        body.total_discount || 0,
+      body.total_discount || 0,
 
 
 
+
+      // ===============================
       // Package
+      // ===============================
+
 
       weight:
-        body.weight || 0,
+      body.weight || 0,
 
 
       length:
-        body.length || 0,
+      body.length || 0,
 
 
       breadth:
-        body.breadth || 0,
+      body.breadth || 0,
 
 
       height:
-        body.height || 0,
+      body.height || 0,
 
 
 
       courierStatus:
-        "Not Shipped"
+      "Not Shipped"
 
     });
 
 
 
-    // ==========================
-    // Create Shipping
-    // ==========================
+    // ===============================
+    // Create Shipping Record
+    // ===============================
 
 
     const shipping = await Shipping.create({
 
-      orderId:order._id,
+      orderId:
+      order._id,
+
 
       pickupLocation:
-        body.pickup_location,
+      body.pickup_location,
 
 
       shippingStatus:
-        "Not Shipped",
+      "Not Shipped",
 
 
       totalWeight:
-        body.weight || 0,
+      body.weight || 0,
 
 
       shippingCharges:
-        body.shipping_charges || 0
+      body.shipping_charges || 0
 
     });
 
 
 
-    // ==========================
+    // ===============================
     // Response
-    // ==========================
+    // ===============================
 
 
     return res.status(201).json({
 
       success:true,
 
-      message:"Order created successfully",
+      message:
+      "Order created successfully",
 
 
       order_id:
-        order.orderId,
+      order.orderId,
 
 
       reference_id:
-        order.externalOrderId,
+      order.externalOrderId,
 
 
       shipment_id:
-        shipping._id,
+      shipping._id,
 
 
       status:
-        "NEW",
+      "NEW",
 
 
       status_code:
-        1,
+      1,
 
 
       awb_code:
-        null,
+      null,
 
 
       courier_name:
-        null,
+      null,
 
 
       billing_phone:
-        order.billingPhone
+      order.billingPhone
 
     });
 
@@ -324,13 +391,16 @@ const createCustomOrder = async (req, res) => {
 
       success:false,
 
-      error:"Failed to create order",
+      error:
+      "Failed to create order",
 
-      message:error.message
+      message:
+      error.message
 
     });
 
   }
+
 };
 
 

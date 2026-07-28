@@ -162,7 +162,7 @@ const uploadAndUpdateStatusExcel = async (req, res) => {
       // Update Order Dashboard
       // ==========================
 
-      order.shipping?.shippingStatus = status;
+      order.courierStatus = status = status;
 
       if (
         status === "Delivered" &&

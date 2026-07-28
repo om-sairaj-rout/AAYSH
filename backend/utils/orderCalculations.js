@@ -50,14 +50,14 @@ const orderCalculations = (order) => {
   let slaStatus = "Meet";
 
   if (
-    order.shipping?.shippingStatus !== "Delivered" &&
+    order.courierStatus = status !== "Delivered" &&
     actualHours > expectedHours
   ) {
     slaStatus = "Breach";
   }
 
   if (
-    order.shipping?.shippingStatus === "Delivered" &&
+    order.courierStatus = status === "Delivered" &&
     deliveryDate &&
     actualHours > expectedHours
   ) {

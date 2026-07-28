@@ -66,7 +66,7 @@ const updateOrderStatusController = async (req, res) => {
     await shipping.save();
 
     // Dashboard status
-    order.shipping?.shippingStatus = status;
+    order.courierStatus = status = status;
     await order.save();
 
     // Tracking history
