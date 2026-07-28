@@ -2,35 +2,67 @@ const getCategory = require("./categoryMapper");
 const getExpectedHours = require("./tatMapper");
 
 const orderCalculations = (order) => {
-  const pickupDate = new Date(order.pickupDate);
+  const pickupDate = order.pickupDate
+    ? new Date(order.pickupDate)
+    : new Date();
+
   const deliveryDate = order.deliveryDate
     ? new Date(order.deliveryDate)
     : null;
 
   const referenceDate = deliveryDate || new Date();
 
-  const diffTime =
-    referenceDate.getTime() - pickupDate.getTime();
-
+  // ==========================
   // ACTUAL HOURS
-  const actualHours = Math.floor(
-    diffTime / (1000 * 60 * 60)
+  // ==========================
+  const actualHours = Math.max(
+    0,
+    Math.floor(
+      (referenceDate.getTime() - pickupDate.getTime()) /
+        (1000 * 60 * 60)
+    )
   );
 
-  // AGEING (only for open shipments)
+  // ==========================
+  // AGEING (Only Open Orders)
+  // ==========================
   const ageing = deliveryDate
     ? 0
     : Math.floor(actualHours / 24);
 
+  // ==========================
   // CATEGORY
-  const category = getCategory(order.destinationCity);
+  // ==========================
+  const category =
+    order.category ||
+    getCategory(order.destinationCity);
 
+  // ==========================
   // EXPECTED HOURS
-  const expectedHours = getExpectedHours(category);
+  // ==========================
+  const expectedHours =
+    order.expectedHours ||
+    getExpectedHours(category);
 
+  // ==========================
   // SLA STATUS
-  const slaStatus =
-    actualHours > expectedHours ? "Breach" : "Meet";
+  // ==========================
+  let slaStatus = "Meet";
+
+  if (
+    order.shipping?.shippingStatus !== "Delivered" &&
+    actualHours > expectedHours
+  ) {
+    slaStatus = "Breach";
+  }
+
+  if (
+    order.shipping?.shippingStatus === "Delivered" &&
+    deliveryDate &&
+    actualHours > expectedHours
+  ) {
+    slaStatus = "Breach";
+  }
 
   return {
     ageing,

@@ -31,7 +31,13 @@ export const getOrders = async ({ status, role, userId }) => {
     }
   );
 
-  return await res.json();
+  const data = await res.json();
+
+  if (!res.ok) {
+      throw new Error(data.message);
+  }
+
+  return data;
 };
 
 export const getOrderByAwb = async (awbNumber) => {

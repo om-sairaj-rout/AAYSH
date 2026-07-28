@@ -54,7 +54,7 @@ const OrdersPage = () => {
   const getTabCount = (tabName) => {
     const source = allOrders;
     if (tabName === 'All Orders') return source.length;
-    return source.filter(order => order.courierStatus === tabName).length;
+    return source.filter(order => order.shipping?.shippingStatus === tabName).length;
   };
 
   const indexOfLastOrder = currentPage * ordersPerPage;
@@ -220,7 +220,7 @@ const OrdersPage = () => {
                     <td className="p-3">{order.destinationCity || "-"}</td>
                     <td className="p-3">{order.destinationState || "-"}</td>
                     <td className="p-3">{order.destinationPincode || "-"}</td>
-                    <td className="p-3 font-mono font-bold text-blue-800">{order.awbNumber || "-"}</td>
+                    <td className="p-3 font-mono font-bold text-blue-800">{order.shipping?.awbNumber || "-"}</td>
 
                     {canSeeWeight && (
                       <td className="p-3 font-mono text-slate-600">{order.weight ? `${order.weight} kg` : "-"}</td>
@@ -231,7 +231,7 @@ const OrdersPage = () => {
                     <td className="p-3 font-mono text-slate-900">₹{order.invoiceValue || "-"}</td>
 
                     <td className="p-3 whitespace-nowrap">
-                      {order.courierStatus === 'Not Shipped' && (
+                      {order.shipping?.shippingStatus === 'Not Shipped' && (
                         <button
                           onClick={() => handleSingleShipClick(order)}
                           className="bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs px-3 py-1.5 rounded shadow-sm transition-colors"
@@ -239,14 +239,14 @@ const OrdersPage = () => {
                           Ship Order
                         </button>
                       )}
-                      {order.courierStatus === 'Booked' && (
+                      {order.shipping?.shippingStatus === 'Booked' && (
                         <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-3 py-1.5 rounded border border-emerald-200">Booked</span>
                       )}
-                      {order.courierStatus === 'Cancelled' && (
+                      {order.shipping?.shippingStatus === 'Cancelled' && (
                         <span className="bg-rose-100 text-rose-800 font-bold text-xs px-3 py-1.5 rounded border border-rose-200">Cancelled</span>
                       )}
-                      {!['Not Shipped', 'Booked', 'Cancelled'].includes(order.courierStatus) && (
-                        <span className="text-slate-400 italic text-xs">{order.courierStatus || "No Actions"}</span>
+                      {!['Not Shipped', 'Booked', 'Cancelled'].includes(order.shipping?.shippingStatus) && (
+                        <span className="text-slate-400 italic text-xs">{order.shipping?.shippingStatus || "No Actions"}</span>
                       )}
                     </td>
                   </tr>

@@ -1,10 +1,16 @@
 const Order = require("../../models/upload/order.model");
+const Shipping = require("../../models/upload/shipping.model");
+const Tracking = require("../../models/upload/tracking.model");
 
-// ================= UPDATE STATUS + WEIGHT =================
 const updateOrderStatusController = async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { weight, courierStatus } = req.body;
+    const {
+      weight,
+      status,
+      location,
+      remarks,
+    } = req.body;
 
     const order = await Order.findById(orderId);
 
@@ -15,29 +21,66 @@ const updateOrderStatusController = async (req, res) => {
       });
     }
 
-    // update basic fields
-    order.weight = weight ?? order.weight;
-    order.courierStatus = courierStatus;
-
-    if (
-      courierStatus === "Booked" &&
-      !order.bookedAt
-    ) {
-      order.bookedAt = new Date();
+    // Update weight if changed
+    if (weight !== undefined) {
+      order.weight = weight;
+      await order.save();
     }
 
-    if (
-      courierStatus === "Delivered" &&
-      !order.deliveryDate
-    ) {
-      order.deliveryDate = new Date();
+    // Shipping record
+    let shipping = await Shipping.findOne({
+      orderId,
+    });
+
+    if (!shipping) {
+      shipping = await Shipping.create({
+        orderId,
+      });
     }
 
-    const updated = await order.save();
+    // Update shipping status
+    shipping.shippingStatus = status;
+
+    switch (status) {
+      case "Booked":
+        if (!shipping.bookedAt)
+          shipping.bookedAt = new Date();
+        break;
+
+      case "Shipped":
+        if (!shipping.shippedAt)
+          shipping.shippedAt = new Date();
+        break;
+
+      case "Out For Delivery":
+        if (!shipping.outForDeliveryAt)
+          shipping.outForDeliveryAt = new Date();
+        break;
+
+      case "Delivered":
+        if (!shipping.deliveredAt)
+          shipping.deliveredAt = new Date();
+        break;
+    }
+
+    await shipping.save();
+
+    // Dashboard status
+    order.shipping?.shippingStatus = status;
+    await order.save();
+
+    // Tracking history
+    await Tracking.create({
+      shippingId: shipping._id,
+      status,
+      location,
+      remarks,
+      updatedBy: req.user?.id || null,
+    });
 
     return res.json({
       success: true,
-      order: updated,
+      message: "Status updated successfully",
     });
 
   } catch (error) {
@@ -48,5 +91,4 @@ const updateOrderStatusController = async (req, res) => {
   }
 };
 
-module.exports = 
-  updateOrderStatusController;
+module.exports = updateOrderStatusController;

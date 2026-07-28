@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getDashboardData } from '../api/dashboardApi';
 import {
   BarChart3,
   Package,
@@ -12,8 +13,8 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-const BASE = import.meta.env.VITE_API_URL;
 
 const Dashboard = () => {
   const [selectedYear, setSelectedYear] = useState("2026");
@@ -34,26 +35,18 @@ const Dashboard = () => {
     const fetchDashboard = async () => {
       try {
         setLoading(true);
-        const res = await fetch(
-          `${BASE}/api/dashboard?year=${selectedYear}`,
-          {
-            method: "GET",
-            credentials: "include"
-          }
-        );
-        const data = await res.json();
-        if (data.success) {
-          setDashboardData({
-            stats: data.stats || {},
-            chartData: data.chartData || [],
-            topCities: data.topCities || [],
-            totalCost: data.totalCost || 0
-          });
-          // Reset to page 1 whenever year changes
-          setCurrentPage(1);
-        }
+        const data = await getDashboardData(selectedYear);
+
+        setDashboardData({
+          stats: data.stats || {},
+          chartData: data.chartData || [],
+          topCities: data.topCities || [],
+          totalCost: data.totalCost || 0,
+        });
+
+        setCurrentPage(1);
       } catch (error) {
-        console.error(error);
+        toast.error(error.message);
       } finally {
         setLoading(false);
       }

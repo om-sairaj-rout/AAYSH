@@ -46,7 +46,7 @@ const awbSchema =
       timestamps: true,
     }
   );
-console.log("ENUM VALUES:", awbSchema.path("category").enumValues);
+  
 module.exports =
   mongoose.model(
     "Awb",

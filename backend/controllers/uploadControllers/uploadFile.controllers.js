@@ -3,48 +3,28 @@ const mongoose = require("mongoose");
 
 const Order = require("../../models/upload/order.model");
 
-const UploadHistory = require(
-  "../../models/upload/uploadHistory.model"
-);
+const UploadHistory = require("../../models/upload/uploadHistory.model");
 
-const getCategory = require(
-  "../../utils/categoryMapper"
-);
-
-const getExpectedHours = require(
-  "../../utils/tatMapper"
-);
+const getCategory = require("../../utils/categoryMapper");
+const getExpectedHours = require("../../utils/tatMapper");
 
 const parseExcelDate = (value) => {
-
-  if (!value) return null;
+  if (!value) return new Date();
 
   if (typeof value === "string") {
-
     const parsedDate = new Date(value);
-
-    if (!isNaN(parsedDate)) {
-      return parsedDate;
-    }
+    if (!isNaN(parsedDate)) return parsedDate;
   }
 
   if (typeof value === "number") {
-
-    return new Date(
-      (value - 25569) * 86400 * 1000
-    );
+    return new Date((value - 25569) * 86400 * 1000);
   }
 
-  return null;
+  return new Date();
 };
 
-const uploadFileController = async (
-  req,
-  res
-) => {
-
+const uploadFileController = async (req, res) => {
   try {
-
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -59,115 +39,142 @@ const uploadFileController = async (
       });
     }
 
-    const workbook = xlsx.read(
-      req.file.buffer,
-      {
-        type: "buffer",
-      }
+    const workbook = xlsx.read(req.file.buffer, {
+      type: "buffer",
+    });
+
+    const rawData = xlsx.utils.sheet_to_json(
+      workbook.Sheets[workbook.SheetNames[0]]
     );
 
-    const rawData =
-      xlsx.utils.sheet_to_json(
-        workbook.Sheets[
-          workbook.SheetNames[0]
-        ]
-      );
-
-    if (rawData.length === 0) {
+    if (!rawData.length) {
       return res.status(400).json({
         success: false,
         message: "Excel sheet empty",
       });
     }
 
-    const historyId =
-      new mongoose.Types.ObjectId();
+    const historyId = new mongoose.Types.ObjectId();
 
-    const sanitizedOrders = rawData.map(
-      (row) => {
+    const sanitizedOrders = rawData.map((row, index) => {
+      const pickupDate = parseExcelDate(row["Pickup Date"]);
 
-        const baseOrder = {
+      const category = getCategory(
+        row["Destination City"] || ""
+      );
 
-          historyId,
+      const expectedHours =
+        getExpectedHours(category);
 
-          uploadedBy: req.user.id,
+      return {
+        // ==========================
+        // Upload
+        // ==========================
+        historyId,
+        uploadedBy: req.user.id,
 
-          pickupDate: parseExcelDate(
-            row["Pickup Date"]
-          ),
+        // ==========================
+        // Integration Fields
+        // ==========================
+        externalOrderId:
+          row["Order ID"] ||
+          `ORD-${Date.now()}-${index}`,
 
-          consignorName:
-            row["Consignor Name"] || "",
+        orderDate: pickupDate,
+        pickupDate,
 
-          consigneeName:
-            row["Consignee Name"] || "",
+        // ==========================
+        // Billing
+        // ==========================
+        consignorName:
+          row["Consignor Name"] || "",
 
-          address:
-            row["Address"] || "",
+        consigneeName:
+          row["Consignee Name"] || "",
 
-          contactNo:
-            row["Contact No"] || "",
+        billingLastName: "",
 
-          destinationCity:
-            row["Destination City"] || "",
+        address:
+          row["Address"] || "",
 
-          destinationState:
-            row["Destination State"] || "",
+        address2: "",
 
-          destinationPincode:
-            row["Destination Pincode"] || "",
+        destinationCity:
+          row["Destination City"] || "",
 
-          qty:
-            Number(row["Qty"]) || 1,
+        destinationState:
+          row["Destination State"] || "",
 
-          invoiceNo:
-            row["Invoice No/Challan No"] ||
-            "",
+        destinationPincode:
+          row["Destination Pincode"] || "",
 
-          invoiceValue:
-            Number(
-              row["Invoice Value"]
-            ) || 0,
+        billingCountry: "India",
 
-          // Manual Later
-          weight: 0,
+        billingEmail: "",
 
-          courierStatus: "Not Shipped",
+        billingPhone:
+          row["Contact No"] || "",
 
-          awbNumber: "",
-        };
+        shippingIsBilling: true,
 
-        const category = getCategory(
-  baseOrder.destinationCity
-);
+        // ==========================
+        // Order
+        // ==========================
+        paymentMethod: "COD",
 
-const expectedHours =
-  getExpectedHours(category);
+        comment: "",
 
-return {
-  ...baseOrder,
-  category,
-  expectedHours,
-};
+        orderItems: [],
 
-      }
-    );
+        qty:
+          Number(row["Qty"]) || 1,
 
-    await Order.insertMany(
-      sanitizedOrders
-    );
+        invoiceNo:
+          row["Invoice No/Challan No"] || "",
+
+        invoiceValue:
+          Number(row["Invoice Value"]) || 0,
+
+        subTotal:
+          Number(row["Invoice Value"]) || 0,
+
+        shippingCharges: 0,
+
+        giftwrapCharges: 0,
+
+        transactionCharges: 0,
+
+        totalDiscount: 0,
+
+        // ==========================
+        // Dimensions
+        // ==========================
+        weight: 0,
+
+        length: 0,
+
+        breadth: 0,
+
+        height: 0,
+
+        // ==========================
+        // Dashboard
+        // ==========================
+        courierStatus: "Not Shipped",
+
+        category,
+
+        expectedHours,
+      };
+    });
+
+    await Order.insertMany(sanitizedOrders);
 
     await UploadHistory.create({
-
       _id: historyId,
-
       fileName: req.file.originalname,
-
-      totalRows:
-        sanitizedOrders.length,
-
+      totalRows: sanitizedOrders.length,
       uploadedBy: req.user.id,
-
       isVisible: true,
     });
 
@@ -177,7 +184,6 @@ return {
     });
 
   } catch (error) {
-
     console.log(error);
 
     return res.status(500).json({

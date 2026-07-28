@@ -1,11 +1,11 @@
 const Order = require("../../models/upload/order.model");
+const Shipping = require("../../models/upload/shipping.model");
 
 const getOrdersController = async (req, res) => {
   try {
     const { status } = req.query;
 
     const isAdmin = req.user.role === "admin";
-
 
     let filter = {};
 
@@ -17,15 +17,19 @@ const getOrdersController = async (req, res) => {
     }
 
     // =========================
-    // STATUS FILTER (CLEAN VERSION)
+    // STATUS FILTER
     // =========================
     const statusMap = {
       "All Orders": null,
       "Not Shipped": "Not Shipped",
       "Booked": "Booked",
-      "Cancelled": "Cancelled",
+      "Shipped": "Shipped",
       "In Transit": "In Transit",
+      "Out For Delivery": "Out For Delivery",
       "Delivered": "Delivered",
+      "Cancelled": "Cancelled",
+      "Delayed": "Delayed",
+      "RTO": "RTO",
     };
 
     const mappedStatus = statusMap[status];
@@ -34,23 +38,41 @@ const getOrdersController = async (req, res) => {
       filter.courierStatus = mappedStatus;
     }
 
+    // =========================
+    // FETCH ORDERS
+    // =========================
+    const orders = await Order.find(filter)
+      .sort({ pickupDate: 1 })
+      .lean();
 
     // =========================
-    // FETCH ORDERS (ASC ORDER)
+    // ATTACH SHIPPING DETAILS
     // =========================
-    const orders = await Order.find(filter).sort({ pickupDate: 1 });
+    const finalOrders = await Promise.all(
+      orders.map(async (order) => {
+        const shipping = await Shipping.findOne({
+          orderId: order._id,
+        }).lean();
+
+        return {
+          ...order,
+          shipping,
+        };
+      })
+    );
 
     return res.json({
       success: true,
-      orders,
+      orders: finalOrders,
     });
 
-
   } catch (error) {
+
     return res.status(500).json({
       success: false,
       message: error.message,
     });
+
   }
 };
 

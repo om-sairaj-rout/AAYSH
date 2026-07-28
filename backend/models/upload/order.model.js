@@ -1,139 +1,407 @@
-const mongoose = require("mongoose");
+const Order = require("../../models/upload/order.model");
+const Shipping = require("../../models/upload/shipping.model");
 
-const OrderSchema = new mongoose.Schema(
-  {
-    // Upload Tracking
-    historyId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "UploadHistory",
-      required: true,
-      index: true,
-    },
 
-    uploadedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
+// Generate 8 digit internal order id
+const generateOrderId = () => {
+  return Math.floor(
+    10000000 + Math.random() * 90000000
+  ).toString();
+};
 
-    // Pickup
-    pickupDate: {
-      type: Date,
-      required: true,
-      index: true,
-    },
 
-    // Parties
-    consignorName: {
-      type: String,
-      trim: true,
-    },
+const createCustomOrder = async (req, res) => {
 
-    consigneeName: {
-      type: String,
-      trim: true,
-    },
+  try {
 
-    // Address
-    address: {
-      type: String,
-      trim: true,
-    },
+    const body = req.body;
 
-    contactNo: {
-      type: String,
-      trim: true,
-    },
 
-    // Destination
-    destinationCity: {
-      type: String,
-      trim: true,
-      index: true,
-    },
+    // ===============================
+    // Validation
+    // ===============================
 
-    destinationState: {
-      type: String,
-      trim: true,
-    },
+    if (
+      !body.order_id ||
+      !body.pickup_location ||
+      !Array.isArray(body.order_items) ||
+      body.order_items.length === 0
+    ) {
+      return res.status(400).json({
+        success:false,
+        error:
+        "Missing required fields. Required: order_id, pickup_location, order_items"
+      });
+    }
 
-    destinationPincode: {
-      type: String,
-      trim: true,
-    },
 
-    // Shipment
-    qty: {
-      type: Number,
-      default: 1,
-    },
 
-    invoiceNo: {
-      type: String,
-      trim: true,
-    },
+    // ===============================
+    // Duplicate Order Check
+    // ===============================
 
-    invoiceValue: {
-      type: Number,
-      default: 0,
-    },
+    const existingOrder = await Order.findOne({
+      externalOrderId: body.order_id
+    });
 
-    // Manual Update Later
-    weight: {
-      type: Number,
-      default: 0,
-    },
 
-    courierStatus: {
-  type: String,
-  enum: [
-    "Not Shipped",
-    "Booked",
-    "In Transit",
-    "RTO",
-    "Delivered",
-    "Cancelled",
-    "Delayed"
-  ],
-  default: "Not Shipped",
-  index: true,
-},
+    if(existingOrder){
 
-    awbNumber: {
-  type: String,
-  trim: true,
-  default: null,
-  index: true,
-},
+      return res.status(400).json({
+        success:false,
+        error:"Order already exists"
+      });
 
-deliveryDate: {
-  type: Date,
-  default: null,
-},
+    }
 
-bookedAt: {
-  type: Date,
-  default: null,
-},
 
-    // Auto Fields
-    category: {
-      type: String,
-      default: "Rest of India",
-    },
 
-    expectedHours: {
-      type: Number,
-      default: 144,
-    },
-  },
-  {
-    timestamps: true,
+    // ===============================
+    // Generate Your Order ID
+    // ===============================
+
+    let orderId;
+
+    while(true){
+
+      orderId = generateOrderId();
+
+      const exists = await Order.findOne({
+        orderId
+      });
+
+      if(!exists){
+        break;
+      }
+
+    }
+
+
+
+    // ===============================
+    // Create Order
+    // ===============================
+
+
+    const order = await Order.create({
+
+      uploadedBy:req.user.id,
+
+
+      // Your internal id
+      orderId,
+
+
+      // Client order id
+      externalOrderId:
+      body.order_id,
+
+
+
+      orderDate:
+      body.order_date
+      ? new Date(body.order_date)
+      : new Date(),
+
+
+
+      pickupDate:
+      body.order_date
+      ? new Date(body.order_date)
+      : new Date(),
+
+
+
+      pickupLocation:
+      body.pickup_location,
+
+
+
+      // ===============================
+      // Customer Mapping
+      // ===============================
+
+
+      consignorName:
+      body.consignor_name || "",
+
+
+      consigneeName:
+      body.billing_customer_name || "",
+
+
+      consigneeLastName:
+      body.billing_last_name || "",
+
+
+
+      address:
+      body.billing_address || "",
+
+
+
+      address2:
+      body.billing_address_2 || "",
+
+
+
+      destinationCity:
+      body.billing_city || "",
+
+
+
+      destinationState:
+      body.billing_state || "",
+
+
+
+      destinationPincode:
+      String(body.billing_pincode || ""),
+
+
+
+      destinationCountry:
+      body.billing_country || "India",
+
+
+
+      consigneeEmail:
+      body.billing_email || "",
+
+
+
+      billingPhone:
+      body.billing_phone || "",
+
+
+
+      shippingIsBilling:
+      body.shipping_is_billing ?? true,
+
+
+
+
+      // ===============================
+      // Order Details
+      // ===============================
+
+
+      paymentMethod:
+      body.payment_method || "COD",
+
+
+
+      comment:
+      body.comment || "",
+
+
+
+
+      orderItems:
+
+      body.order_items.map(item => ({
+
+        name:
+        item.name || "",
+
+
+        sku:
+        item.sku || "",
+
+
+        units:
+        item.units || 1,
+
+
+        sellingPrice:
+        item.selling_price || 0,
+
+
+        discount:
+        item.discount || 0,
+
+
+        tax:
+        item.tax || 0,
+
+
+        hsn:
+        String(item.hsn || "")
+
+      })),
+
+
+
+
+      qty:
+
+      body.order_items.reduce(
+        (total,item)=>
+        total + Number(item.units || 0),
+        0
+      ),
+
+
+
+
+      invoiceValue:
+      body.sub_total || 0,
+
+
+
+      subTotal:
+      body.sub_total || 0,
+
+
+
+      shippingCharges:
+      body.shipping_charges || 0,
+
+
+
+      giftwrapCharges:
+      body.giftwrap_charges || 0,
+
+
+
+      transactionCharges:
+      body.transaction_charges || 0,
+
+
+
+      totalDiscount:
+      body.total_discount || 0,
+
+
+
+
+      // ===============================
+      // Package
+      // ===============================
+
+
+      weight:
+      body.weight || 0,
+
+
+      length:
+      body.length || 0,
+
+
+      breadth:
+      body.breadth || 0,
+
+
+      height:
+      body.height || 0,
+
+
+
+      courierStatus:
+      "Not Shipped"
+
+    });
+
+
+
+    // ===============================
+    // Create Shipping Record
+    // ===============================
+
+
+    const shipping = await Shipping.create({
+
+      orderId:
+      order._id,
+
+
+      pickupLocation:
+      body.pickup_location,
+
+
+      shippingStatus:
+      "Not Shipped",
+
+
+      totalWeight:
+      body.weight || 0,
+
+
+      shippingCharges:
+      body.shipping_charges || 0
+
+    });
+
+
+
+    // ===============================
+    // Response
+    // ===============================
+
+
+    return res.status(201).json({
+
+      success:true,
+
+      message:
+      "Order created successfully",
+
+
+      order_id:
+      order.orderId,
+
+
+      reference_id:
+      order.externalOrderId,
+
+
+      shipment_id:
+      shipping._id,
+
+
+      status:
+      "NEW",
+
+
+      status_code:
+      1,
+
+
+      awb_code:
+      null,
+
+
+      courier_name:
+      null,
+
+
+      billing_phone:
+      order.billingPhone
+
+    });
+
+
+
+  } catch(error){
+
+    console.error(error);
+
+
+    return res.status(500).json({
+
+      success:false,
+
+      error:
+      "Failed to create order",
+
+      message:
+      error.message
+
+    });
+
   }
-);
 
-module.exports = mongoose.model(
-  "Order",
-  OrderSchema
-);
+};
+
+
+module.exports = createCustomOrder;

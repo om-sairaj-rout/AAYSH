@@ -20,6 +20,7 @@ const AwbPage = () => {
       try {
         setLoading(true);
         const res = await getOrderByAwb(awbNumber);
+        console.log("Fetched order details:", res);
         
         if (res?.success && res.order) {
           setOrder(res.order); 
@@ -97,7 +98,7 @@ const AwbPage = () => {
             </div>
             <div>
               <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">AWB Number</p>
-              <h1 className="text-xl font-mono font-bold text-blue-800">{order.awbNumber || "Unassigned"}</h1>
+              <h1 className="text-xl font-mono font-bold text-blue-800">{order.shipping?.awbNumber || "Unassigned"}</h1>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs border-t md:border-t-0 md:border-l border-gray-100 pt-3 md:pt-0 md:pl-6">
@@ -113,13 +114,13 @@ const AwbPage = () => {
 
               <div className="flex my-0.5">
                 <span
-                  className={`text-xs font-bold px-3 py-1 rounded-full border ${getStatusBadgeStyles(order.courierStatus)}`}
+                  className={`text-xs font-bold px-3 py-1 rounded-full border ${getStatusBadgeStyles(order.shipping?.shippingStatus)}`}
                 >
-                  {order.courierStatus || "Unknown"}
+                  {order.shipping?.shippingStatus || "Unknown"}
                 </span>
               </div>
 
-              {order.courierStatus === "Delivered" && order.deliveryDate && (
+              {order.shipping?.shippingStatus === "Delivered" && order.deliveryDate && (
                 <div className="mt-2">
                   <span className="text-slate-400 font-medium block">
                     Delivery Date

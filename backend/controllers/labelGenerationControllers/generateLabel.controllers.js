@@ -38,7 +38,7 @@ const generateLabel = async (req, res) => {
         for (let i = 0; i < orders.length; i++) {
             const order = orders[i];
 
-            if (!order.awbNumber) {
+            if (!order.shipping?.awbNumber) {
                 throw new Error(`AWB missing for order ${order._id}`);
             }
 
@@ -89,7 +89,7 @@ const generateLabel = async (req, res) => {
             doc.rect(margin, y, internalWidth, awbHeight).stroke();
 
             doc.font(fontBold).fontSize(10).text("AWB Number:", margin + 5, y + 7);
-            doc.font(fontMono).fontSize(16).text(order.awbNumber || "NOAWB", margin + 5, y + 22);
+            doc.font(fontMono).fontSize(16).text(order.shipping?.awbNumber || "NOAWB", margin + 5, y + 22);
 
             y += awbHeight;
 
@@ -129,7 +129,7 @@ const generateLabel = async (req, res) => {
             try {
                 const barcodeBuffer = await bwipjs.toBuffer({
                     bcid: "code128",       
-                    text: order.awbNumber, 
+                    text: order.shipping?.awbNumber, 
                     scale: 3,              
                     height: 12,            
                     includetext: false, 
@@ -143,7 +143,7 @@ const generateLabel = async (req, res) => {
                 });
 
                 doc.font(fontMono).fontSize(11).text(
-                    order.awbNumber, 
+                    order.shipping?.awbNumber, 
                     margin, 
                     y + 90, 
                     { align: 'center', width: internalWidth }

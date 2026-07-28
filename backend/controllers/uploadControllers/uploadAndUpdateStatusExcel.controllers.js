@@ -1,5 +1,8 @@
 const XLSX = require("xlsx");
+
 const Order = require("../../models/upload/order.model");
+const Shipping = require("../../models/upload/shipping.model");
+const Tracking = require("../../models/upload/tracking.model");
 
 const uploadAndUpdateStatusExcel = async (req, res) => {
   try {
@@ -7,101 +10,195 @@ const uploadAndUpdateStatusExcel = async (req, res) => {
     const file = req.file;
 
     if (!file) {
-      return res.status(400).json({ success: false, message: "No file uploaded" });
+      return res.status(400).json({
+        success: false,
+        message: "No file uploaded",
+      });
     }
 
     const validStatuses = new Set([
-      "Not Shipped",
       "Booked",
+      "Shipped",
       "In Transit",
+      "Out For Delivery",
       "Delivered",
       "Cancelled",
       "Delayed",
+      "RTO",
     ]);
 
-    const workbook = XLSX.read(file.buffer, { type: "buffer" });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    
-    // utils.sheet_to_json reads raw data. Let's process rows carefully.
-    const rows = XLSX.utils.sheet_to_json(sheet);
+    const workbook = XLSX.read(file.buffer, {
+      type: "buffer",
+    });
+
+    const sheet =
+      workbook.Sheets[
+        workbook.SheetNames[0]
+      ];
+
+    const rows =
+      XLSX.utils.sheet_to_json(sheet);
 
     let updated = 0;
     let notFound = 0;
-    let invalidRows = [];
+    const invalidRows = [];
 
-    for (let row of rows) {
-      const awb = row["AWB Number"] || row["AWB"] || row["awbNumber"];
-      const status = row["Status"];
-      const deliveryDate = row["Delivery Date"];
+    for (const row of rows) {
+      const awb = (
+        row["AWB Number"] ||
+        row["AWB"] ||
+        row["awbNumber"] ||
+        ""
+      )
+        .toString()
+        .trim();
 
-      let parsedDeliveryDate = null;
+      const status =
+        row["Status"]?.toString().trim();
 
-      if (deliveryDate !== undefined && deliveryDate !== null && deliveryDate !== "") {
-        let cleaned = deliveryDate.toString().trim();
+      const location =
+        (row["Location"] || "")
+          .toString()
+          .trim();
 
-        // SCENARIO A: If Excel passes date as a raw Serial Number (e.g., 46165 for 25-05-2026)
-        if (!isNaN(cleaned) && parseFloat(cleaned) > 40000) {
-          // Convert Excel serial number directly to JavaScript Date object
-          parsedDeliveryDate = XLSX.SSF.parse_date_code(parseFloat(cleaned));
-          parsedDeliveryDate = new Date(
-            Date.UTC(parsedDeliveryDate.y, parsedDeliveryDate.m - 1, parsedDeliveryDate.d)
-          );
-        } else {
-          // SCENARIO B: String format parsing supporting DD-MM-YYYY or DD/MM/YYYY
-          // Fixed escape parameters for reliable evaluation
-          const match = cleaned.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
-
-          if (match) {
-            const [, day, month, year] = match;
-            // FORCE SAFE ISO FORMAT (YYYY-MM-DD)
-            parsedDeliveryDate = new Date(
-              `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T00:00:00Z`
-            );
-          } else {
-            // Fallback for native formats like YYYY-MM-DD
-            parsedDeliveryDate = new Date(cleaned);
-          }
-        }
-
-        // Final sanity verification check
-        if (!parsedDeliveryDate || isNaN(parsedDeliveryDate.getTime())) {
-          parsedDeliveryDate = null;
-        }
-      }
+      const remarks =
+        (row["Remarks"] || "")
+          .toString()
+          .trim();
 
       if (!awb) {
-        invalidRows.push({ awb: "MISSING", status, reason: "AWB missing" });
+        invalidRows.push({
+          awb: "MISSING",
+          reason: "AWB missing",
+        });
         continue;
       }
 
       if (!validStatuses.has(status)) {
-        invalidRows.push({ awb, status, reason: "Invalid status" });
+        invalidRows.push({
+          awb,
+          reason: "Invalid status",
+        });
         continue;
       }
 
-      // Update Database
-      const order = await Order.findOneAndUpdate(
-        {
+      // ==========================
+      // Find Shipping by AWB
+      // ==========================
+
+      const shipping =
+        await Shipping.findOne({
+          awbNumber: awb,
+        });
+
+      if (!shipping) {
+        notFound++;
+
+        invalidRows.push({
+          awb,
+          reason: "Shipment not found",
+        });
+
+        continue;
+      }
+
+      // ==========================
+      // Find Order
+      // ==========================
+
+      const order =
+        await Order.findOne({
+          _id: shipping.orderId,
           uploadedBy: userId,
-          awbNumber: awb.toString().trim(),
-        },
-        {
-          $set: {
-            courierStatus: status,
-            // If delivered, apply parsed excel date. Fallback to current date if parsing failed.
-            ...(status === "Delivered" && {
-              deliveryDate: parsedDeliveryDate || new Date(),
-            }),
-          },
-        },
-        { new: true }
-      );
+        });
 
       if (!order) {
         notFound++;
-        invalidRows.push({ awb, status, reason: "Order not found" });
+
+        invalidRows.push({
+          awb,
+          reason: "Order not found",
+        });
+
         continue;
+      }
+
+      // ==========================
+      // Update Shipping
+      // ==========================
+
+      shipping.shippingStatus = status;
+
+      switch (status) {
+        case "Booked":
+          if (!shipping.bookedAt)
+            shipping.bookedAt = new Date();
+          break;
+
+        case "Shipped":
+          if (!shipping.shippedAt)
+            shipping.shippedAt = new Date();
+          break;
+
+        case "Out For Delivery":
+          if (!shipping.outForDeliveryAt)
+            shipping.outForDeliveryAt =
+              new Date();
+          break;
+
+        case "Delivered":
+          if (!shipping.deliveredAt)
+            shipping.deliveredAt =
+              new Date();
+          break;
+
+        default:
+          break;
+      }
+
+      await shipping.save();
+
+      // ==========================
+      // Update Order Dashboard
+      // ==========================
+
+      order.shipping?.shippingStatus = status;
+
+      if (
+        status === "Delivered" &&
+        !order.deliveryDate
+      ) {
+        order.deliveryDate =
+          shipping.deliveredAt ||
+          new Date();
+      }
+
+      await order.save();
+
+      // ==========================
+      // Prevent duplicate tracking
+      // ==========================
+
+      const lastTracking =
+        await Tracking.findOne({
+          shippingId: shipping._id,
+        }).sort({
+          eventTime: -1,
+        });
+
+      if (
+        !lastTracking ||
+        lastTracking.status !== status ||
+        lastTracking.location !== location
+      ) {
+        await Tracking.create({
+          shippingId: shipping._id,
+          status,
+          location,
+          remarks,
+          updatedBy:
+            req.user?.id || null,
+        });
       }
 
       updated++;
@@ -111,11 +208,13 @@ const uploadAndUpdateStatusExcel = async (req, res) => {
       success: true,
       updated,
       notFound,
-      invalidRows: invalidRows.length,
-      message: "Orders updated successfully",
+      invalidRows,
+      message:
+        "Tracking updated successfully",
     });
-
   } catch (error) {
+    console.error(error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -123,4 +222,5 @@ const uploadAndUpdateStatusExcel = async (req, res) => {
   }
 };
 
-module.exports = uploadAndUpdateStatusExcel;
+module.exports =
+  uploadAndUpdateStatusExcel;

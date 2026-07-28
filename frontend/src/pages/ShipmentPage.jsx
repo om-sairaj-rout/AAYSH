@@ -32,7 +32,7 @@ const ShipmentPage = () => {
         const validStatuses = ["Booked", "In Transit", "Delayed", "Delivered"];
 
         const filtered = (res.orders || []).filter(order =>
-          validStatuses.includes(order.courierStatus)
+          validStatuses.includes(order.shipping?.shippingStatus)
         );
 
         setAllOrders(filtered);
@@ -54,8 +54,8 @@ const ShipmentPage = () => {
     const today = new Date().toDateString();
 
     const result = allOrders.filter(order => {
-      const bookingDate = order.bookedAt
-        ? new Date(order.bookedAt).toDateString()
+      const bookingDate = order.shipping?.bookedAt
+        ? new Date(order.shipping?.bookedAt).toDateString()
         : null;
 
       const isToday = bookingDate === today;
@@ -78,8 +78,8 @@ const ShipmentPage = () => {
     const today = new Date().toDateString();
 
     return allOrders.filter(order => {
-      const bookingDate = order.bookedAt
-        ? new Date(order.bookedAt).toDateString()
+      const bookingDate = order.shipping?.bookedAt
+        ? new Date(order.shipping?.bookedAt).toDateString()
         : null;
 
       const isToday = bookingDate === today;
@@ -289,7 +289,7 @@ const ShipmentPage = () => {
                     <td className="p-3">{order.destinationState || "-"}</td>
                     <td className="p-3">{order.destinationPincode || "-"}</td>
                     <td className="p-3 font-mono font-bold text-blue-800">
-                      {order.awbNumber || "-"}
+                      {order.shipping?.awbNumber || "-"}
                     </td>
 
                     {/* Dynamic Admin-exclusive fields */}
@@ -307,27 +307,27 @@ const ShipmentPage = () => {
 
                     {/* Status Structural Badges/Labels Column */}
                     <td className="p-3 whitespace-nowrap">
-                      {order.courierStatus === 'Not Shipped' && (
+                      {order.shipping?.shippingStatus === 'Not Shipped' && (
                         <span className="bg-amber-100 text-amber-800 font-bold text-xs px-2.5 py-1 rounded-full border border-amber-200">
                           Not Shipped
                         </span>
                       )}
 
-                      {order.courierStatus === 'Booked' && (
+                      {order.shipping?.shippingStatus === 'Booked' && (
                         <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-200">
                           Booked
                         </span>
                       )}
 
-                      {order.courierStatus === 'Cancelled' && (
+                      {order.shipping?.shippingStatus === 'Cancelled' && (
                         <span className="bg-rose-100 text-rose-800 font-bold text-xs px-2.5 py-1 rounded-full border border-rose-200">
                           Cancelled
                         </span>
                       )}
 
-                      {!['Not Shipped', 'Booked', 'Cancelled'].includes(order.courierStatus) && (
+                      {!['Not Shipped', 'Booked', 'Cancelled'].includes(order.shipping?.shippingStatus) && (
                         <span className="bg-slate-100 text-slate-600 font-bold text-xs px-2.5 py-1 rounded-full border border-slate-200">
-                          {order.courierStatus || "Unknown"}
+                          {order.shipping?.shippingStatus || "Unknown"}
                         </span>
                       )}
                     </td>

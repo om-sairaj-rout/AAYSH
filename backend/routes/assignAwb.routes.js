@@ -1,8 +1,21 @@
-const express = require('express');
+const express = require("express");
 const assignAwbRouter = express.Router();
 
-const assignAwbToOrdersController = require("../controllers/assignAWBControllers/assignAwbToOrders.controllers.js");
+const {
+  checkAuth,
+} = require("../middlewares/auth.middleware");
 
-assignAwbRouter.post("/shipping/assign-awb", assignAwbToOrdersController);
+const assignAwbToOrdersController = require(
+  "../controllers/assignAWBControllers/assignAwbToOrders.controllers"
+);
+
+// ==========================
+// Assign AWB to Orders
+// ==========================
+assignAwbRouter.post(
+  "/shipping/assign-awb",
+  checkAuth,
+  assignAwbToOrdersController
+);
 
 module.exports = assignAwbRouter;

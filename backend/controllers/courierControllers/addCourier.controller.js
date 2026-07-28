@@ -9,7 +9,7 @@ const addCourier =
       const exists =
         await Courier.findOne({
           name,
-        });
+        }); 
 
       if (exists) {
         return res.status(400).json({

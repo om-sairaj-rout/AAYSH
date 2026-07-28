@@ -51,7 +51,7 @@ const AwbManagement = () => {
         loadCouriers();
       }
     } catch (err) {
-      toast.error('Failed to register new courier asset.');
+      toast.error(err.message || 'Upload failed');
     } finally {
       setLoading(false);
     }
