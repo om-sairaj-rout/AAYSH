@@ -355,10 +355,6 @@ const shipmentId = await generateUniqueId(
       order.orderId,
 
 
-      reference_id:
-      order.externalOrderId,
-
-
       shipment_id:
 shipping.shipmentId,
 
