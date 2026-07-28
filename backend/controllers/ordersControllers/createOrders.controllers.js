@@ -350,30 +350,23 @@ const shipmentId = await generateUniqueId(
       message:
       "Order created successfully",
 
-
       order_id:
       order.orderId,
-
 
       shipment_id:
 shipping.shipmentId,
 
-
       status:
       "NEW",
-
 
       status_code:
       1,
 
-
       awb_code:
       null,
 
-
       courier_name:
       null,
-
 
       billing_phone:
       order.billingPhone
