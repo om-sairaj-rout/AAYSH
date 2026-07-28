@@ -11,13 +11,16 @@ const ShippingSchema = new mongoose.Schema(
 
     shipmentId: {
       type: String,
-      default: "",
+      required: true,
+      unique: true,
       index: true,
     },
 
     awbNumber: {
       type: String,
       default: "",
+      unique: true,
+      sparse: true,
       index: true,
     },
 
@@ -40,17 +43,18 @@ const ShippingSchema = new mongoose.Schema(
     shippingStatus: {
       type: String,
       enum: [
-          "Not Shipped",
-            "Booked",
-            "Shipped",
-            "In Transit",
-            "Out For Delivery",
-            "Delivered",
-            "Cancelled",
-            "Delayed",
-            "RTO",
+        "Not Shipped",
+        "Booked",
+        "Shipped",
+        "In Transit",
+        "Out For Delivery",
+        "Delivered",
+        "Cancelled",
+        "Delayed",
+        "RTO",
       ],
       default: "Not Shipped",
+      index: true,
     },
 
     shippingCharges: {
@@ -63,13 +67,25 @@ const ShippingSchema = new mongoose.Schema(
       default: 0,
     },
 
-    bookedAt: Date,
+    bookedAt: {
+      type: Date,
+      default: null,
+    },
 
-    shippedAt: Date,
+    shippedAt: {
+      type: Date,
+      default: null,
+    },
 
-    outForDeliveryAt: Date,
+    outForDeliveryAt: {
+      type: Date,
+      default: null,
+    },
 
-    deliveredAt: Date,
+    deliveredAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

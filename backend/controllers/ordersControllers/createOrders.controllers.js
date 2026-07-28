@@ -2,11 +2,28 @@ const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 
 
-// Generate 8 digit internal order id
-const generateOrderId = () => {
+// Generate random 8 digit id
+const generateId = () => {
   return Math.floor(
     10000000 + Math.random() * 90000000
   ).toString();
+};
+
+// Generate unique id for any model
+const generateUniqueId = async (Model, field) => {
+  let id;
+
+  while (true) {
+    id = generateId();
+
+    const exists = await Model.findOne({
+      [field]: id,
+    });
+
+    if (!exists) {
+      return id;
+    }
+  }
 };
 
 
@@ -56,25 +73,19 @@ const createCustomOrder = async (req, res) => {
 
 
 
-    // ===============================
-    // Generate Your Order ID
-    // ===============================
+   // ===============================
+// Generate IDs
+// ===============================
 
-    let orderId;
+const orderId = await generateUniqueId(
+  Order,
+  "orderId"
+);
 
-    while(true){
-
-      orderId = generateOrderId();
-
-      const exists = await Order.findOne({
-        orderId
-      });
-
-      if(!exists){
-        break;
-      }
-
-    }
+const shipmentId = await generateUniqueId(
+  Shipping,
+  "shipmentId"
+);
 
 
 
@@ -311,26 +322,19 @@ const createCustomOrder = async (req, res) => {
 
     const shipping = await Shipping.create({
 
-      orderId:
-      order._id,
+  orderId: order._id,
 
+  shipmentId,
 
-      pickupLocation:
-      body.pickup_location,
+  pickupLocation: body.pickup_location,
 
+  shippingStatus: "Not Shipped",
 
-      shippingStatus:
-      "Not Shipped",
+  totalWeight: body.weight || 0,
 
+  shippingCharges: body.shipping_charges || 0
 
-      totalWeight:
-      body.weight || 0,
-
-
-      shippingCharges:
-      body.shipping_charges || 0
-
-    });
+});
 
 
 
@@ -356,7 +360,7 @@ const createCustomOrder = async (req, res) => {
 
 
       shipment_id:
-      shipping._id,
+shipping.shipmentId,
 
 
       status:
