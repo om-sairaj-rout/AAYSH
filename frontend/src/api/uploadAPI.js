@@ -6,7 +6,7 @@ export const uploadFile = async (file) => {
 
     formData.append('file', file);
 
-    const res = await fetch(`${BASE}/api/upload`, {
+    const res = await fetch(`${BASE}/api/external/upload`, {
 
         method: "POST",
 

@@ -17,7 +17,7 @@ const upload = require('../middlewares/upload.middleware.js');
 const { checkAuth, authRoles } = require('../middlewares/auth.middleware.js');
 
 uploadRouter.post(
-    '/upload',
+    '/external/upload',
     checkAuth,
     upload.single("file"),
     UploadController
