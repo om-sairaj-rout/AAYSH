@@ -10,6 +10,10 @@ const getOrdersByDate = require("../controllers/ordersControllers/getOrdersByDat
 const getOrdersController = require("../controllers/ordersControllers/getOrders.controllers");
 const getOrderByAwbController = require("../controllers/ordersControllers/getOrdersByAwb.controllers");
 const createOrderController = require("../controllers/ordersControllers/createOrders.controllers");
+const updatePickupLocation = require("../controllers/ordersControllers/updatePickupLoc.controllers");
+const updateDeliveryLocation = require("../controllers/ordersControllers/updateDeliveryAddress.controllers");
+const updateOrder = require("../controllers/ordersControllers/updateOrder.controllers");
+const cancelOrder = require("../controllers/ordersControllers/cancelOrders.controllers");
 
 // ==========================
 // Existing Routes
@@ -34,19 +38,34 @@ orderRouter.get(
 
 
 orderRouter.post(
-  "/orders/create-order",
+  "/external/orders/create-order",
   checkAuth,
   createOrderController
 );
 
-// Update Shiprocket Order
-// POST /api/shiprocket/update-order
-// const updateShiprocketOrder = require("../controllers/shiprocket/updateOrder.controller");
-// orderRouter.post(
-//   "/shiprocket/update-order",
-//   checkAuth,
-//   updateShiprocketOrder
-// );
+orderRouter.patch(
+  "/external/orders/update-pickup-location",
+  checkAuth,
+  updatePickupLocation
+);
+
+orderRouter.patch(
+  "/external/orders/update-delivery-location",
+  checkAuth,
+  updateDeliveryLocation
+);
+
+orderRouter.post(
+  "/external/orders/update-order",
+  checkAuth,
+  updateOrder
+);
+
+orderRouter.post(
+  "/external/orders/cancel-order",
+  checkAuth,
+  cancelOrder
+);
 
 // Track Shipment
 // GET /api/shiprocket/track/:awb

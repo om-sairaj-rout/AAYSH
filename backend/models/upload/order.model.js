@@ -167,6 +167,11 @@ const OrderSchema = new mongoose.Schema(
       default: "",
     },
 
+    billingAlternatePhone: {
+      type: String,
+      default: "",
+    },
+
     shippingIsBilling: {
       type: Boolean,
       default: true,
