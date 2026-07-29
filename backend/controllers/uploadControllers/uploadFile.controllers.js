@@ -322,13 +322,19 @@ invoiceValue: Number(row["Sub Total"]) || 0,
     let insertedOrders = [];
 
 try {
-  insertedOrders =
-    await Order.insertMany(orderDocs, {
-      ordered: false,
-    });
+  insertedOrders = await Order.insertMany(orderDocs, {
+    ordered: false,
+  });
 } catch (err) {
-  insertedOrders =
-    err.insertedDocs || [];
+  console.log("Inserted:", err.insertedDocs?.length);
+
+  if (err.writeErrors) {
+    err.writeErrors.forEach((e, index) => {
+      console.log(`Row ${index + 1}:`, e.errmsg || e.message);
+    });
+  }
+
+  throw err;
 }
 
     // =========================================
