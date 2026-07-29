@@ -99,19 +99,18 @@ const updateOrder = async (req, res) => {
       });
     }
 
-    // Save old status for response
-    const oldOrderStatus = shipping.shippingStatus;
-
     // ============================
-    // Prevent Update
-    // ============================
+// Prevent Update
+// ============================
 
-    if (shipping.shippingStatus !== "Not Shipped") {
-      return res.status(400).json({
-        success: false,
-        message: `Order cannot be updated because shipping status is '${shipping.shippingStatus}'.`,
-      });
-    }
+const allowedStatus = "Not Shipped";
+
+if (shipping.shippingStatus !== allowedStatus) {
+  return res.status(400).json({
+    success: false,
+    message: `Order cannot be updated because shipping status is '${shipping.shippingStatus}'. Only 'Not Shipped' orders can be updated.`,
+  });
+}
 
     // ============================
     // Update Order Dates
@@ -328,20 +327,22 @@ const updateOrder = async (req, res) => {
     // ============================
 
     return res.status(200).json({
-      success: true,
-      partially_update: notUpdatedFields.length > 0,
-      not_updated_fields: notUpdatedFields,
+  success: true,
 
-      order_id: order.externalOrderId,
-      shipment_id: shipping.shipmentId,
+  partially_update: notUpdatedFields.length > 0,
 
-      old_order_status: oldOrderStatus,
-      new_order_status: shipping.shippingStatus,
+  message:
+    notUpdatedFields.length > 0
+      ? "Order partially updated."
+      : "Order updated successfully.",
 
-      awb_code: shipping.awbNumber || "",
-      courier_company_id: shipping.courierId || "",
-      courier_name: shipping.courierName || "",
-    });
+  not_updated_fields: notUpdatedFields,
+
+  order_id: order.externalOrderId,
+  shipment_id: shipping.shipmentId,
+
+  shipping_status: shipping.shippingStatus,
+});
 
   } catch (error) {
     console.error(error);
