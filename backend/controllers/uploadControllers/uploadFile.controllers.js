@@ -125,12 +125,12 @@ const uploadFileController = async (req, res) => {
 
     for (const [index, row] of rawData.entries()) {
       const pickupDate = parseExcelDate(
-        row["Pickup Date"]
+        row["Order Date"]
       );
 
       const category = getCategory(
-        row["Destination City"] || ""
-      );
+  row["City"] || ""
+);
 
       const expectedHours =
         getExpectedHours(category);
@@ -174,55 +174,48 @@ if (alreadyExists) {
         pickupDate,
 
         pickupLocation:
-          row["Pickup Location"]?.toString().trim() ||
-          "Primary",
+  row["Pickup Location"]?.toString().trim() || "Primary",
 
-        // ==========================
-        // Customer
-        // ==========================
+consignorName:
+  row["Consignor Name"]?.toString().trim() || "",
 
-        consignorName:
-          row["Consignor Name"]?.toString().trim() || "",
+consigneeName:
+  row["Customer Name"]?.toString().trim() || "",
 
-        consigneeName:
-          row["Consignee Name"]?.toString().trim() || "",
+consigneeLastName:
+  row["Customer Last Name"]?.toString().trim() || "",
 
-        consigneeLastName:
-          row["Consignee Last Name"]?.toString().trim() || "",
+address:
+  row["Address"]?.toString().trim() || "",
 
-        address:
-          row["Address"]?.toString().trim() || "",
+address2:
+  row["Address 2"]?.toString().trim() || "",
 
-        address2:
-          row["Address 2"]?.toString().trim() || "",
+destinationCity:
+  row["City"]?.toString().trim() || "",
 
-        destinationCity:
-          row["Destination City"]?.toString().trim() || "",
+destinationState:
+  row["State"]?.toString().trim() || "",
 
-        destinationState:
-          row["Destination State"]?.toString().trim() || "",
+destinationPincode:
+  String(row["Pincode"] || "").trim(),
 
-        destinationPincode:
-          String(
-            row["Destination Pincode"] || ""
-          ).trim(),
+destinationCountry:
+  row["Country"]?.toString().trim() || "India",
 
-        destinationCountry:
-          row["Destination Country"]?.toString().trim() ||
-          "India",
+consigneeEmail:
+  row["Email"]?.toString().trim() || "",
 
-        consigneeEmail:
-          row["Email"]?.toString().trim() || "",
+billingPhone:
+  String(row["Phone"] || "").trim(),
 
-        billingPhone:
-          String(row["Contact No"] || "").trim(),
+billingAlternatePhone:
+  String(row["Alternate Phone"] || "").trim(),
 
-        billingAlternatePhone:
-          String(
-            row["Alternate Contact"] || ""
-          ).trim(),
-
-        shippingIsBilling: true,
+shippingIsBilling:
+  row["Shipping Is Billing"] === true ||
+  row["Shipping Is Billing"] === "TRUE" ||
+  row["Shipping Is Billing"] === "true",
 
         // ==========================
         // Order
@@ -236,19 +229,32 @@ if (alreadyExists) {
         comment:
           row["Comment"]?.toString().trim() || "",
 
-        orderItems: [],
+        // ==========================
+// Order Items
+// ==========================
 
-        qty: Number(row["Qty"]) || 1,
+orderItems: [
+  {
+    name: row["Product Name"]?.toString().trim() || "",
+    sku: row["SKU"]?.toString().trim() || "",
+    units: Number(row["Units"]) || 1,
+    sellingPrice: Number(row["Selling Price"]) || 0,
+    discount: Number(row["Discount"]) || 0,
+    tax: Number(row["Tax"]) || 0,
+    hsn: row["HSN"]?.toString().trim() || "",
+  },
+],
 
-        invoiceNo: String(
-  row["Invoice No/Challan No"] || ""
-).trim(),
+qty: Number(row["Units"]) || 1,
 
-        invoiceValue:
-          Number(row["Invoice Value"]) || 0,
+// Invoice will be generated later
+invoiceNo: "",
 
-        subTotal:
-          Number(row["Invoice Value"]) || 0,
+// Client provides subtotal
+subTotal: Number(row["Sub Total"]) || 0,
+
+// Initially same as subtotal
+invoiceValue: Number(row["Sub Total"]) || 0,
 
         shippingCharges:
           Number(row["Shipping Charges"]) || 0,
@@ -260,7 +266,7 @@ if (alreadyExists) {
           Number(row["Transaction Charges"]) || 0,
 
         totalDiscount:
-          Number(row["Discount"]) || 0,
+  Number(row["Total Discount"]) || 0,
 
         // ==========================
         // Package

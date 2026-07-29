@@ -4,20 +4,56 @@ import { Download, FileSpreadsheet } from 'lucide-react';
 const TemplatePage = () => {
   const handleDownloadTemplate = () => {
     const templateData = [
-      {
-        "Pickup Date": "07-05-2026",
-        "Consignor Name": "ABC Pvt Ltd",
-        "Consignee Name": "Rohan Singh",
-        "Address": "B-15 Vindhiyashree Appartment, Main Road Burari, Delhi",
-        "Contact No": "9234567890",
-        "Destination City": "Nagpur",
-        "Destination State": "Uttar Pradesh",
-        "Destination Pincode": 203131,
-        "Qty": 2,
-        "Invoice No/Challan No": "SER/RET/0124",
-        "Invoice Value": 1770,
-      }
-    ];
+  {
+    "Order ID": "CLIENT-ORDER-10011",
+    "Order Date": "2026-07-28",
+
+    "Pickup Location": "Primary",
+
+    "Consignor Name": "XYZ COMPANY",
+
+    "Customer Name": "Rahul",
+    "Customer Last Name": "Sharma",
+
+    "Address": "Sector 62",
+    "Address 2": "Near Metro Station",
+
+    "City": "Noida",
+    "State": "Uttar Pradesh",
+    "Pincode": "201309",
+    "Country": "India",
+
+    "Email": "rahul@example.com",
+    "Phone": "9876543210",
+    "Alternate Phone": "9876543211",
+
+    "Shipping Is Billing": true,
+
+    "Payment Method": "COD",
+
+    "Comment": "Deliver before 6 PM",
+
+    "Product Name": "Wireless Headphones",
+    "SKU": "WH-001",
+    "Units": 1,
+    "Selling Price": 1499,
+    "Discount": 100,
+    "Tax": 18,
+    "HSN": "8518",
+
+    "Sub Total": 1499,
+
+    "Shipping Charges": 50,
+    "Giftwrap Charges": 0,
+    "Transaction Charges": 0,
+    "Total Discount": 100,
+
+    "Weight": 0.5,
+    "Length": 20,
+    "Breadth": 15,
+    "Height": 10
+  }
+];
 
     const worksheet = XLSX.utils.json_to_sheet(templateData);
     const workbook = XLSX.utils.book_new();
