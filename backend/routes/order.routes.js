@@ -49,7 +49,7 @@ orderRouter.patch(
   updatePickupLocation
 );
 
-orderRouter.patch(
+orderRouter.post(
   "/external/orders/update-delivery-location",
   checkAuth,
   updateDeliveryLocation
