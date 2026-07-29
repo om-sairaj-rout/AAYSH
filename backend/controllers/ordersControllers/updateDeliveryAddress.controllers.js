@@ -21,12 +21,22 @@ const updateCustomerDeliveryAddress = async (req, res) => {
     // Validation
     // ===========================
 
-    if (!order_id) {
-      return res.status(400).json({
-        success: false,
-        message: "order_id is required.",
-      });
-    }
+    if (
+  !order_id ||
+  !shipping_customer_name ||
+  !shipping_phone ||
+  !shipping_address ||
+  !shipping_city ||
+  !shipping_state ||
+  !shipping_country ||
+  !shipping_pincode
+) {
+  return res.status(400).json({
+    success: false,
+    message:
+      "Required fields: order_id, shipping_customer_name, shipping_phone, shipping_address, shipping_city, shipping_state, shipping_country, shipping_pincode.",
+  });
+}
 
     const order = await Order.findOne({
       externalOrderId: order_id,
