@@ -35,11 +35,12 @@ const loginUserExternal = async (req, res) => {
 
 
     // Set token in cookie
-    res.cookie("token",token,{
-      httpOnly: true, // prevent client-side access to the cookie
-      secure: true, // true in production with HTTPS
-      sameSite: "none", // adjust based on your needs
-      path: "/", 
+    // Set token in cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", // was: true
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // was: "none"
+      path: "/",
     });
     
 

@@ -38,8 +38,8 @@ const loginUser = async (req, res) => {
     // Set token in cookie
     res.cookie("token",token,{
       httpOnly: true, // prevent client-side access to the cookie
-      secure: true, // true in production with HTTPS
-      sameSite: "none", // adjust based on your needs
+      secure: process.env.NODE_ENV === "production", // true in production with HTTPS
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // adjust based on your needs
       path: "/", 
     });
     
