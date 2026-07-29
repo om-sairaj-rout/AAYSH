@@ -73,13 +73,21 @@ const updatePickupLocation = async (req, res) => {
       updatedOrders.push(id);
     }
 
-    return res.status(200).json({
-      success: true,
-      message: "Pickup location updated successfully.",
-      updated_orders: updatedOrders,
-      failed_orders: failedOrders,
-      pickup_location,
-    });
+    if (failedOrders.length > 0) {
+  return res.status(400).json({
+    success: false,
+    message: "Some orders could not be updated.",
+    failed_orders: failedOrders,
+  });
+}
+
+return res.status(200).json({
+  success: true,
+  message: "Pickup location updated successfully.",
+  updated_orders: updatedOrders,
+  pickup_location,
+});
+
   } catch (error) {
     console.error(error);
 
