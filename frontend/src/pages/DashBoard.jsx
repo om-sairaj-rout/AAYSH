@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getDashboardData } from '../api/dashboardApi';
+import { getDashboardData } from '../api/dashboardAPI';
 import {
   BarChart3,
   Package,
