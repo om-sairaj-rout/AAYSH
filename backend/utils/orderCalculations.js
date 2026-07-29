@@ -1,7 +1,7 @@
 const getCategory = require("./categoryMapper");
 const getExpectedHours = require("./tatMapper");
 
-const orderCalculations = (order) => {
+const orderCalculations = (order, shipping) => {
   const pickupDate = order.pickupDate
     ? new Date(order.pickupDate)
     : new Date();
@@ -47,22 +47,22 @@ const orderCalculations = (order) => {
   // ==========================
   // SLA STATUS
   // ==========================
-  let slaStatus = "Meet";
+let slaStatus = "Meet";
 
-  if (
-    order.courierStatus !== "Delivered" &&
-    actualHours > expectedHours
-  ) {
-    slaStatus = "Breach";
-  }
+if (
+  shipping?.shippingStatus !== "Delivered" &&
+  actualHours > expectedHours
+) {
+  slaStatus = "Breach";
+}
 
-  if (
-    order.courierStatus === "Delivered" &&
-    deliveryDate &&
-    actualHours > expectedHours
-  ) {
-    slaStatus = "Breach";
-  }
+if (
+  shipping?.shippingStatus === "Delivered" &&
+  deliveryDate &&
+  actualHours > expectedHours
+) {
+  slaStatus = "Breach";
+}
 
   return {
     ageing,

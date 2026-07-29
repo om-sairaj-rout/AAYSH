@@ -16,16 +16,22 @@ const uploadAndUpdateStatusExcel = async (req, res) => {
       });
     }
 
-    const validStatuses = new Set([
-      "Booked",
-      "Shipped",
-      "In Transit",
-      "Out For Delivery",
-      "Delivered",
-      "Cancelled",
-      "Delayed",
-      "RTO",
-    ]);
+    const statusMap = {
+  "booked": "Booked",
+  "shipped": "Shipped",
+  "in transit": "In Transit",
+  "out for delivery": "Out For Delivery",
+  "out for delivery ": "Out For Delivery",
+  "delivered": "Delivered",
+  "cancelled": "Cancelled",
+  "canceled": "Cancelled",
+  "rto": "RTO",
+  "returned": "Returned",
+  "exchange": "Exchange",
+  "Pending": "Pending",
+  "delayed": "Delayed",
+  "delivery attempt failed": "Delivery Attempt Failed",
+};
 
     const workbook = XLSX.read(file.buffer, {
       type: "buffer",
@@ -53,8 +59,16 @@ const uploadAndUpdateStatusExcel = async (req, res) => {
         .toString()
         .trim();
 
-      const status =
-        row["Status"]?.toString().trim();
+      const rawStatus = (
+  row["New Status"] ||
+  row["Status"] ||
+  ""
+)
+  .toString()
+  .trim();
+
+const status =
+  statusMap[rawStatus.toLowerCase()] || null;
 
       const location =
         (row["Location"] || "")
@@ -66,6 +80,26 @@ const uploadAndUpdateStatusExcel = async (req, res) => {
           .toString()
           .trim();
 
+      const failureReason =
+  (row["Failure Reason"] || "")
+    .toString()
+    .trim();
+
+      const trackingDateTime =
+  row["Tracking Date & Time"] ||
+  row["Tracking Date"] ||
+  "";
+
+  let eventTime = new Date();
+
+if (trackingDateTime) {
+  const parsed = new Date(trackingDateTime);
+
+  if (!isNaN(parsed)) {
+    eventTime = parsed;
+  }
+}
+
       if (!awb) {
         invalidRows.push({
           awb: "MISSING",
@@ -74,7 +108,7 @@ const uploadAndUpdateStatusExcel = async (req, res) => {
         continue;
       }
 
-      if (!validStatuses.has(status)) {
+      if (!status) {
         invalidRows.push({
           awb,
           reason: "Invalid status",
@@ -129,32 +163,58 @@ const uploadAndUpdateStatusExcel = async (req, res) => {
 
       shipping.shippingStatus = status;
 
-      switch (status) {
-        case "Booked":
-          if (!shipping.bookedAt)
-            shipping.bookedAt = new Date();
-          break;
+     switch (status) {
+  case "Booked":
+    if (!shipping.bookedAt)
+      shipping.bookedAt = eventTime;
+    break;
 
-        case "Shipped":
-          if (!shipping.shippedAt)
-            shipping.shippedAt = new Date();
-          break;
+  case "Shipped":
+    if (!shipping.shippedAt)
+      shipping.shippedAt = eventTime;
+    break;
 
-        case "Out For Delivery":
-          if (!shipping.outForDeliveryAt)
-            shipping.outForDeliveryAt =
-              new Date();
-          break;
+  case "In Transit":
+    shipping.inTransitAt = eventTime;
+    break;
 
-        case "Delivered":
-          if (!shipping.deliveredAt)
-            shipping.deliveredAt =
-              new Date();
-          break;
+  case "Out For Delivery":
+  shipping.outForDeliveryAt = eventTime;
+  shipping.deliveryAttempts += 1;
+  shipping.attemptFailureReason = "";
+  break;
 
-        default:
-          break;
-      }
+  case "Delivered":
+    shipping.deliveredAt = eventTime;
+    break;
+
+  case "Delivery Attempt Failed":
+  shipping.attemptFailureReason = failureReason;
+  break;
+
+  case "Cancelled":
+    shipping.cancelledAt = eventTime;
+    break;
+
+  case "RTO":
+    shipping.rtoAt = eventTime;
+    break;
+
+  case "Returned":
+    shipping.returnedAt = eventTime;
+    break;
+
+  case "Exchange":
+    shipping.exchangeAt = eventTime;
+    break;
+
+  case "Delayed":
+    shipping.delayedAt = eventTime;
+    break;
+
+  default:
+    break;
+}
 
       await shipping.save();
 
@@ -162,15 +222,13 @@ const uploadAndUpdateStatusExcel = async (req, res) => {
       // Update Order Dashboard
       // ==========================
 
-      order.courierStatus = status = status;
-
       if (
         status === "Delivered" &&
         !order.deliveryDate
       ) {
         order.deliveryDate =
-          shipping.deliveredAt ||
-          new Date();
+  shipping.deliveredAt ||
+  eventTime;
       }
 
       await order.save();
@@ -186,19 +244,22 @@ const uploadAndUpdateStatusExcel = async (req, res) => {
           eventTime: -1,
         });
 
-      if (
-        !lastTracking ||
-        lastTracking.status !== status ||
-        lastTracking.location !== location
-      ) {
+     if (
+  !lastTracking ||
+  lastTracking.status !== status ||
+  lastTracking.location !== location ||
+  lastTracking.remarks !== remarks ||
+lastTracking.failureReason !== failureReason
+){
         await Tracking.create({
-          shippingId: shipping._id,
-          status,
-          location,
-          remarks,
-          updatedBy:
-            req.user?.id || null,
-        });
+  shippingId: shipping._id,
+  status,
+  location,
+  remarks,
+  failureReason,
+  eventTime,
+  updatedBy: req.user?.id || null,
+});
       }
 
       updated++;

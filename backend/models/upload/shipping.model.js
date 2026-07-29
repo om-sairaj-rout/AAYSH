@@ -43,19 +43,32 @@ const ShippingSchema = new mongoose.Schema(
     shippingStatus: {
       type: String,
       enum: [
-        "Not Shipped",
-        "Booked",
-        "Shipped",
-        "In Transit",
-        "Out For Delivery",
-        "Delivered",
-        "Cancelled",
-        "Delayed",
-        "RTO",
-      ],
-      default: "Not Shipped",
+  "Pending",
+  "Booked",
+  "Shipped",
+  "In Transit",
+  "Out For Delivery",
+  "Delivered",
+  "Cancelled",
+  "RTO",
+  "Returned",
+  "Exchange",
+  "Delayed",
+  "Delivery Attempt Failed",
+],
+      default: "Pending",
       index: true,
     },
+
+    deliveryAttempts: {
+  type: Number,
+  default: 0,
+},
+
+attemptFailureReason: {
+  type: String,
+  default: "",
+},
 
     shippingCharges: {
       type: Number,
@@ -67,25 +80,56 @@ const ShippingSchema = new mongoose.Schema(
       default: 0,
     },
 
-    bookedAt: {
-      type: Date,
-      default: null,
-    },
+bookedAt: {
+  type: Date,
+  default: null,
+},
 
-    shippedAt: {
-      type: Date,
-      default: null,
-    },
+shippedAt: {
+  type: Date,
+  default: null,
+},
 
-    outForDeliveryAt: {
-      type: Date,
-      default: null,
-    },
+inTransitAt: {
+  type: Date,
+  default: null,
+},
 
-    deliveredAt: {
-      type: Date,
-      default: null,
-    },
+outForDeliveryAt: {
+  type: Date,
+  default: null,
+},
+
+deliveredAt: {
+  type: Date,
+  default: null,
+},
+
+cancelledAt: {
+  type: Date,
+  default: null,
+},
+
+rtoAt: {
+  type: Date,
+  default: null,
+},
+
+returnedAt: {
+  type: Date,
+  default: null,
+},
+
+exchangeAt: {
+  type: Date,
+  default: null,
+},
+
+delayedAt: {
+  type: Date,
+  default: null,
+},
+
   },
   {
     timestamps: true,

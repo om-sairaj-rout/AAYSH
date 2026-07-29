@@ -140,7 +140,7 @@ const OrdersPage = () => {
         {/* ================= SEGMENT TABS & BULK ACTIONS BAR ================= */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 bg-white p-3 rounded-xl shadow-sm">
           <div className="flex flex-wrap items-center gap-1.5">
-            {['All Orders', 'Not Shipped', 'Booked'].map((tabName) => {
+            {['All Orders', 'Pending', 'Booked'].map((tabName) => {
               const isActive = activeSegment === tabName;
               return (
                 <button
@@ -231,7 +231,7 @@ const OrdersPage = () => {
                     <td className="p-3 font-mono text-slate-900">₹{order.invoiceValue || "-"}</td>
 
                     <td className="p-3 whitespace-nowrap">
-                      {order.shipping?.shippingStatus === 'Not Shipped' && (
+                      {order.shipping?.shippingStatus === 'Pending' && (
                         <button
                           onClick={() => handleSingleShipClick(order)}
                           className="bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs px-3 py-1.5 rounded shadow-sm transition-colors"
@@ -245,7 +245,7 @@ const OrdersPage = () => {
                       {order.shipping?.shippingStatus === 'Cancelled' && (
                         <span className="bg-rose-100 text-rose-800 font-bold text-xs px-3 py-1.5 rounded border border-rose-200">Cancelled</span>
                       )}
-                      {!['Not Shipped', 'Booked', 'Cancelled'].includes(order.shipping?.shippingStatus) && (
+                      {!['Pending', 'Booked', 'Cancelled'].includes(order.shipping?.shippingStatus) && (
                         <span className="text-slate-400 italic text-xs">{order.shipping?.shippingStatus || "No Actions"}</span>
                       )}
                     </td>

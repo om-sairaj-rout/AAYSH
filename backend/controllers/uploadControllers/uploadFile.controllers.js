@@ -288,7 +288,6 @@ invoiceValue: Number(row["Sub Total"]) || 0,
         // Dashboard
         // ==========================
 
-        courierStatus: "Not Shipped",
 
         category,
 
@@ -305,7 +304,7 @@ invoiceValue: Number(row["Sub Total"]) || 0,
         pickupLocation:
           orderDoc.pickupLocation,
 
-        shippingStatus: "Not Shipped",
+        shippingStatus: "Pending",
 
         shippingCharges:
           orderDoc.shippingCharges,

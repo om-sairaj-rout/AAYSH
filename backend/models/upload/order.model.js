@@ -255,29 +255,6 @@ const OrderSchema = new mongoose.Schema(
       default: 0,
     },
 
-
-    // =====================================
-    // Dashboard / SLA
-    // =====================================
-
-    courierStatus: {
-      type: String,
-      enum: [
-        "Not Shipped",
-        "Booked",
-        "Shipped",
-        "In Transit",
-        "Out For Delivery",
-        "Delivered",
-        "Cancelled",
-        "Delayed",
-        "RTO",
-      ],
-      default: "Not Shipped",
-      index: true,
-    },
-
-
     category: {
       type: String,
       default: "Rest of India",

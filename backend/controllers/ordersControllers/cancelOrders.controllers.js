@@ -68,7 +68,6 @@ const cancelOrder = async (req, res) => {
         continue;
       }
 
-      order.courierStatus = "Cancelled";
 shipping.shippingStatus = "Cancelled";
 
       await order.save();

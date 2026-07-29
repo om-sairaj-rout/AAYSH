@@ -23,19 +23,33 @@ export const getOrdersByDate = async (fromDate, toDate) => {
 };
 
 export const getOrders = async ({ status, role, userId }) => {
+
+  const params = new URLSearchParams();
+
+  params.append("role", role);
+  params.append("userId", userId);
+
+  if(status){
+    params.append("status", status);
+  }
+
+
   const res = await fetch(
-    `${import.meta.env.VITE_API_URL}/api/orders?status=${status}&role=${role}&userId=${userId}`,
+    `${import.meta.env.VITE_API_URL}/api/orders?${params.toString()}`,
     {
-      method: "GET",
-      credentials: "include",
+      method:"GET",
+      credentials:"include"
     }
   );
 
+
   const data = await res.json();
 
-  if (!res.ok) {
-      throw new Error(data.message);
+
+  if(!res.ok){
+    throw new Error(data.message);
   }
+
 
   return data;
 };

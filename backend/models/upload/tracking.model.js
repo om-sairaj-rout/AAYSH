@@ -12,14 +12,19 @@ const TrackingSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: [
-        "Booked",
-        "Shipped",
-        "In Transit",
-        "Out For Delivery",
-        "Delivered",
-        "Cancelled",
-        "RTO",
-      ],
+  "Pending",
+  "Booked",
+  "Shipped",
+  "In Transit",
+  "Out For Delivery",
+  "Delivered",
+  "Cancelled",
+  "RTO",
+  "Returned",
+  "Exchange",
+  "Delayed",
+  "Delivery Attempt Failed",
+],
       required: true,
     },
 
@@ -32,6 +37,11 @@ const TrackingSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    failureReason: {
+  type: String,
+  default: "",
+},
 
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,

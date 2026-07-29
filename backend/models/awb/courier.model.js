@@ -9,6 +9,10 @@ const courierSchema =
         unique: true,
         trim: true,
       },
+      supportsPrime: {
+  type: Boolean,
+  default: false,
+},
     },
     {
       timestamps: true,

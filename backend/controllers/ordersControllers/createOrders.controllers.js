@@ -303,7 +303,6 @@ const expectedHours =
       body.height || 0,
 
 
-      courierStatus: "Not Shipped",
 
 category,
 
@@ -326,7 +325,7 @@ expectedHours,
 
   pickupLocation: body.pickup_location,
 
-  shippingStatus: "Not Shipped",
+  shippingStatus: "Pending",
 
   totalWeight: body.weight || 0,
 

@@ -26,18 +26,27 @@ const downloadUserOrdersExcel = async (req, res) => {
       }
 
       // Skip delivered shipments
-      if (shipping.shippingStatus === "Delivered" ||
-    shipping.shippingStatus === "Cancelled" ||
-    shipping.shippingStatus === "RTO") {
-        continue;
-      }
+      const finalStatuses = [
+  "Delivered",
+  "Cancelled",
+  "RTO",
+  "Returned",
+  "Exchange",
+];
+
+if (finalStatuses.includes(shipping.shippingStatus)) {
+  continue;
+}
 
       excelData.push({
-        "AWB Number": shipping.awbNumber,
-        Status: shipping.shippingStatus,
-        Location: "",
-        Remarks: "",
-      });
+  "AWB Number": shipping.awbNumber,
+  "Current Status": shipping.shippingStatus,
+  "New Status": "",
+  "Location": "",
+  "Failure Reason": "",
+  "Remarks": "",
+  "Tracking Date & Time": "",
+});
     }
 
     const worksheet =

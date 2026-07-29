@@ -18,6 +18,9 @@ const getCouriers =
 const uploadAwbSheet =
   require("../controllers/courierControllers/uploadAwbSheet.controller");
 
+const getCouriersExternal =
+  require("../controllers/courierControllers/getCourierExternal.controllers");
+
 
 // ==========================
 // ADD COURIER
@@ -36,6 +39,12 @@ courierRouter.get(
   "/courier/all",
   checkAuth,
   getCouriers
+);
+
+courierRouter.get(
+  "/external/courier/courierList",
+  checkAuth,
+  getCouriersExternal
 );
 
 // ==========================

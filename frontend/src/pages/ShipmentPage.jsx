@@ -307,9 +307,9 @@ const ShipmentPage = () => {
 
                     {/* Status Structural Badges/Labels Column */}
                     <td className="p-3 whitespace-nowrap">
-                      {order.shipping?.shippingStatus === 'Not Shipped' && (
+                      {order.shipping?.shippingStatus === 'Pending' && (
                         <span className="bg-amber-100 text-amber-800 font-bold text-xs px-2.5 py-1 rounded-full border border-amber-200">
-                          Not Shipped
+                          Pending
                         </span>
                       )}
 
@@ -325,7 +325,7 @@ const ShipmentPage = () => {
                         </span>
                       )}
 
-                      {!['Not Shipped', 'Booked', 'Cancelled'].includes(order.shipping?.shippingStatus) && (
+                      {!['Pending', 'Booked', 'Cancelled'].includes(order.shipping?.shippingStatus) && (
                         <span className="bg-slate-100 text-slate-600 font-bold text-xs px-2.5 py-1 rounded-full border border-slate-200">
                           {order.shipping?.shippingStatus || "Unknown"}
                         </span>
