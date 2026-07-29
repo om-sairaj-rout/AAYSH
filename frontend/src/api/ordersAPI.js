@@ -23,7 +23,7 @@ export const getOrdersByDate = async (fromDate, toDate) => {
 };
 
 export const getOrders = async ({ status, role, userId }) => {
-
+   console.log("status before params =", status);
   const params = new URLSearchParams();
 
   params.append("role", role);

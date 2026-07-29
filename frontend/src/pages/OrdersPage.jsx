@@ -23,6 +23,7 @@ const OrdersPage = () => {
   const canSeeWeight = isAdmin || user?.showWeight;
 
   const fetchOrders = async (status) => {
+    console.log("fetchOrders status =", status);
     try {
       if (!userId) return;
       const apiStatus = status === 'All Orders' ? undefined : status;
@@ -145,7 +146,9 @@ const OrdersPage = () => {
               return (
                 <button
                   key={tabName}
-                  onClick={() => setActiveSegment(tabName)}
+                  onClick={() => {
+                    console.log("Tab clicked:", tabName);
+                    setActiveSegment(tabName);}}
                   className={`px-4 py-2 text-sm font-semibold rounded-lg border transition-all flex items-center gap-2 ${
                     isActive
                       ? 'bg-[#1E293B] border-[#1E293B] text-white shadow-sm'
