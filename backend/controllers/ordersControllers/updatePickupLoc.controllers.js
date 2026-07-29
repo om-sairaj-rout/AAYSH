@@ -31,7 +31,7 @@ const updatePickupLocation = async (req, res) => {
     // ===========================
 
     for (const id of order_id) {
-      const order = await Order.findOne({ orderId: id });
+      const order = await Order.findOne({ externalOrderId: id });
 
       if (!order) {
         failedOrders.push({

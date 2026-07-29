@@ -26,7 +26,7 @@ const cancelOrder = async (req, res) => {
 
     for (const id of order_id) {
       const order = await Order.findOne({
-        orderId: id,
+        externalOrderId: id,
       });
 
       if (!order) {
@@ -84,7 +84,7 @@ const cancelOrder = async (req, res) => {
       });
 
       cancelledOrders.push({
-        order_id: order.orderId,
+        order_id: order.externalOrderId,
         shipment_id: shipping.shipmentId,
         old_status: oldStatus,
         new_status: "Cancelled",

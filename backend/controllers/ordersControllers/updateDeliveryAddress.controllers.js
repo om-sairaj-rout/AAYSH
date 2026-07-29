@@ -29,7 +29,7 @@ const updateCustomerDeliveryAddress = async (req, res) => {
     }
 
     const order = await Order.findOne({
-      orderId: order_id,
+      externalOrderId: order_id,
     });
 
     if (!order) {
@@ -95,7 +95,7 @@ const updateCustomerDeliveryAddress = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Customer delivery address updated successfully.",
-      order_id: order.orderId,
+      order_id: order.externalOrderId,
       updated_address: {
         customer_name: order.consigneeName,
         phone: order.billingPhone,

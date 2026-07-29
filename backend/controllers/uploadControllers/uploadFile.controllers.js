@@ -40,25 +40,6 @@ const generateId = () => {
   ).toString();
 };
 
-// =========================================
-// Generate Unique Order ID
-// =========================================
-
-const generateUniqueOrderId = async () => {
-  let id;
-
-  while (true) {
-    id = generateId();
-
-    const exists = await Order.findOne({
-      orderId: id,
-    });
-
-    if (!exists) {
-      return id;
-    }
-  }
-};
 
 // =========================================
 // Generate Unique Shipment ID
@@ -154,9 +135,6 @@ const uploadFileController = async (req, res) => {
       const expectedHours =
         getExpectedHours(category);
 
-      const orderId =
-        await generateUniqueOrderId();
-
       const shipmentId =
         await generateUniqueShipmentId();
 
@@ -186,7 +164,6 @@ if (alreadyExists) {
         // IDs
         // ==========================
 
-        orderId,
         externalOrderId,
 
         // ==========================
@@ -315,7 +292,7 @@ if (alreadyExists) {
       orderDocs.push(orderDoc);
 
       shippingDocs.push({
-        orderId, // temporary, replaced after Order.insertMany()
+        externalOrderId, 
 
         shipmentId,
 
@@ -359,7 +336,7 @@ try {
 const orderIdMap = new Map();
 
 insertedOrders.forEach((order) => {
-  orderIdMap.set(order.orderId, order._id);
+  orderIdMap.set(order.externalOrderId, order._id);
 });
 
 // =========================================
@@ -368,7 +345,7 @@ insertedOrders.forEach((order) => {
 
 const shippingRecords = shippingDocs
   .map((shipping) => ({
-    orderId: orderIdMap.get(shipping.orderId),
+    orderId: orderIdMap.get(shipping.externalOrderId),
 
     shipmentId: shipping.shipmentId,
 

@@ -78,7 +78,7 @@ const updateOrder = async (req, res) => {
     // ============================
 
     const order = await Order.findOne({
-      orderId: order_id,
+      externalOrderId: order_id,
     });
 
     if (!order) {
@@ -332,7 +332,7 @@ const updateOrder = async (req, res) => {
       partially_update: notUpdatedFields.length > 0,
       not_updated_fields: notUpdatedFields,
 
-      order_id: order.orderId,
+      order_id: order.externalOrderId,
       shipment_id: shipping.shipmentId,
 
       old_order_status: oldOrderStatus,
