@@ -68,10 +68,8 @@ const cancelOrder = async (req, res) => {
         continue;
       }
 
-      const oldStatus = shipping.shippingStatus;
-
       order.courierStatus = "Cancelled";
-      shipping.shippingStatus = "Cancelled";
+shipping.shippingStatus = "Cancelled";
 
       await order.save();
       await shipping.save();
@@ -83,20 +81,18 @@ const cancelOrder = async (req, res) => {
         updatedBy: req.user?.id || null,
       });
 
-      cancelledOrders.push({
-        order_id: order.externalOrderId,
-        shipment_id: shipping.shipmentId,
-        old_status: oldStatus,
-        new_status: "Cancelled",
-      });
+      cancelledOrders.push(order.externalOrderId);
     }
 
     return res.status(200).json({
-      success: true,
-      message: "Cancel order request processed.",
-      cancelled_orders: cancelledOrders,
-      failed_orders: failedOrders,
-    });
+  success: true,
+  message:
+    failedOrders.length > 0
+      ? "Some orders were cancelled and some failed."
+      : "Order cancelled successfully.",
+  cancelled_orders: cancelledOrders,
+  failed_orders: failedOrders,
+});
 
   } catch (error) {
     console.error(error);
