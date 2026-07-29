@@ -84,7 +84,15 @@ shipping.shippingStatus = "Cancelled";
       cancelledOrders.push(order.externalOrderId);
     }
 
-    return res.status(200).json({
+    if (cancelledOrders.length === 0) {
+  return res.status(400).json({
+    success: false,
+    message: "No orders were cancelled.",
+    failed_orders: failedOrders,
+  });
+}
+
+return res.status(200).json({
   success: true,
   message:
     failedOrders.length > 0
