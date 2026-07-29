@@ -1,5 +1,7 @@
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
+const getCategory = require("../../utils/categoryMapper");
+const getExpectedHours = require("../../utils/tatMapper");
 
 
 // Generate random 8 digit id
@@ -9,15 +11,15 @@ const generateId = () => {
   ).toString();
 };
 
-// Generate unique id for any model
-const generateUniqueId = async (Model, field) => {
+// Generate unique shipment id
+const generateUniqueShipmentId = async () => {
   let id;
 
   while (true) {
     id = generateId();
 
-    const exists = await Model.findOne({
-      [field]: id,
+    const exists = await Shipping.findOne({
+      shipmentId: id,
     });
 
     if (!exists) {
@@ -77,30 +79,24 @@ const createCustomOrder = async (req, res) => {
 // Generate IDs
 // ===============================
 
-const orderId = await generateUniqueId(
-  Order,
-  "orderId"
-);
-
-const shipmentId = await generateUniqueId(
-  Shipping,
-  "shipmentId"
-);
-
+const shipmentId = await generateUniqueShipmentId();
 
 
     // ===============================
     // Create Order
     // ===============================
+    const category = getCategory(
+  body.billing_city || ""
+);
 
+const expectedHours =
+  getExpectedHours(category);
 
     const order = await Order.create({
 
       uploadedBy:req.user.id,
 
 
-      // Your internal id
-      orderId,
 
 
       // Client order id
@@ -307,9 +303,11 @@ const shipmentId = await generateUniqueId(
       body.height || 0,
 
 
+      courierStatus: "Not Shipped",
 
-      courierStatus:
-      "Not Shipped"
+category,
+
+expectedHours,
 
     });
 
@@ -351,7 +349,7 @@ const shipmentId = await generateUniqueId(
       "Order created successfully",
 
       order_id:
-      order.orderId,
+order.externalOrderId,
 
       shipment_id:
 shipping.shipmentId,

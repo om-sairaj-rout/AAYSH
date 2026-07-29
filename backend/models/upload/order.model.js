@@ -63,23 +63,6 @@ const OrderSchema = new mongoose.Schema(
       index: true,
     },
 
-
-    // =====================================
-    // Order IDs
-    // =====================================
-
-    // Your internal order number
-    // Example: 24537287
-    orderId: {
-      type: String,
-      required: true,
-      unique: true,
-      index: true,
-    },
-
-
-    // Client website order id
-    // Example: AMAZON-ORD-123
     externalOrderId: {
       type: String,
       required: true,
