@@ -329,14 +329,8 @@ if (shipping.shippingStatus !== allowedStatus) {
     return res.status(200).json({
   success: true,
 
-  partially_update: notUpdatedFields.length > 0,
+  message:"Order updated successfully.",
 
-  message:
-    notUpdatedFields.length > 0
-      ? "Order partially updated."
-      : "Order updated successfully.",
-
-  not_updated_fields: notUpdatedFields,
 
   order_id: order.externalOrderId,
   shipment_id: shipping.shipmentId,
