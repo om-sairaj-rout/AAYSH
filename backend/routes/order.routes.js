@@ -9,6 +9,7 @@ const {
 const getOrdersByDate = require("../controllers/ordersControllers/getOrdersByDate.controllers");
 const getOrdersController = require("../controllers/ordersControllers/getOrders.controllers");
 const getAllOrdersController = require("../controllers/ordersControllers/getAllOrders.controllers");
+const getSpecificOrderController = require("../controllers/ordersControllers/getSpecificOrder.controllers");
 const getOrderByAwbController = require("../controllers/ordersControllers/getOrdersByAwb.controllers");
 const createOrderController = require("../controllers/ordersControllers/createOrders.controllers");
 const updatePickupLocation = require("../controllers/ordersControllers/updatePickupLoc.controllers");
@@ -35,6 +36,12 @@ orderRouter.get(
   "/external/orders",
   checkAuth,
   getAllOrdersController
+);
+
+orderRouter.get(
+  "/external/orders/:orderId",
+  checkAuth,
+  getSpecificOrderController
 );
 
 orderRouter.get(
