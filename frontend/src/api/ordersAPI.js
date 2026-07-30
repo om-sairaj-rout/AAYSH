@@ -22,34 +22,60 @@ export const getOrdersByDate = async (fromDate, toDate) => {
   return res.json();
 };
 
-export const getOrders = async ({ status, role, userId }) => {
-   console.log("status before params =", status);
+export const getOrders = async (
+  status,
+  from,
+  to,
+  search,
+  paymentMethod,
+  pickupLocation,
+  courierName
+) => {
   const params = new URLSearchParams();
 
-  params.append("role", role);
-  params.append("userId", userId);
-
-  if(status){
+  if (status) {
     params.append("status", status);
   }
 
+  if (from) {
+    params.append("from", from);
+  }
+
+  if (to) {
+    params.append("to", to);
+  }
+
+  if (search) {
+    params.append("search", search);
+  }
+
+  if (paymentMethod) {
+    params.append("payment_method", paymentMethod);
+  }
+
+  if (pickupLocation) {
+    params.append("pickup_location", pickupLocation);
+  }
+
+  if (courierName) {
+    params.append("courier_name", courierName);
+  }
 
   const res = await fetch(
-    `${import.meta.env.VITE_API_URL}/api/orders?${params.toString()}`,
+    `${BASE}/api/orders?${params.toString()}`,
     {
-      method:"GET",
-      credentials:"include"
+      method: "GET",
+      credentials: "include",
     }
   );
 
-
   const data = await res.json();
 
-
-  if(!res.ok){
-    throw new Error(data.message);
+  if (!res.ok) {
+    throw new Error(
+      data.message || "Failed to fetch orders"
+    );
   }
-
 
   return data;
 };

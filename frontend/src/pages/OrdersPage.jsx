@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 
 const OrdersPage = () => {
   const [activeSegment, setActiveSegment] = useState('All Orders');
-  const [allOrders, setAllOrders] = useState([]);
+  const [counts, setCounts] = useState({});
   const [orders, setOrders] = useState([]);
   const [selectedOrders, setSelectedOrders] = useState([]);
   const { isAdmin, user } = useSelector((state) => state.auth);
@@ -18,45 +18,34 @@ const OrdersPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage, setOrdersPerPage] = useState(25);
 
-  const role = isAdmin ? "admin" : "user";
-  const userId = user?._id;
   const canSeeWeight = isAdmin || user?.showWeight;
 
   const fetchOrders = async (status) => {
-    console.log("fetchOrders status =", status);
-    try {
-      if (!userId) return;
-      const apiStatus = status === 'All Orders' ? undefined : status;
-      const res = await getOrders({
-        status: apiStatus,
-        role,
-        userId,
-      });
+  try {
+    const res = await getOrders(
+      status === "All Orders" ? undefined : status
+    );
 
-      if (res?.success) {
-        const data = res.orders || [];
-        if (status === 'All Orders') {
-          setAllOrders(data);
-        }
-        setOrders(data);
-      }
-    } catch (err) {
-      console.error(err);
+    if (res.success) {
+      setOrders(res.orders || []);
+      setCounts(res.counts || {});
     }
-  };
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   useEffect(() => {
-    if (!userId) return;
-    fetchOrders(activeSegment);
-    setSelectedOrders([]);
-    setCurrentPage(1);
-  }, [activeSegment, role, userId]);
+  fetchOrders(activeSegment);
+
+  setSelectedOrders([]);
+  setCurrentPage(1);
+
+}, [activeSegment]);
 
   const getTabCount = (tabName) => {
-    const source = allOrders;
-    if (tabName === 'All Orders') return source.length;
-    return source.filter(order => order.shipping?.shippingStatus === tabName).length;
-  };
+  return counts[tabName] || 0;
+};
 
   const indexOfLastOrder = currentPage * ordersPerPage;
   const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
@@ -87,7 +76,12 @@ const OrdersPage = () => {
   };
 
   const handleBulkShipClick = () => {
-    const matchingSelectedDetails = allOrders.filter(o => selectedOrders.includes(o._id));
+    const matchingSelectedDetails = orders.filter(o =>
+  selectedOrders.includes(o._id)
+);
+
+setOrdersToShip(matchingSelectedDetails);
+setIsCourierModalOpen(true);
     setOrdersToShip(matchingSelectedDetails);
     setIsCourierModalOpen(true);
   };
