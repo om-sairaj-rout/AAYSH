@@ -12,7 +12,7 @@ const generateLabel = async (req, res) => {
             return res.status(400).json({ success: false, message: "No order IDs provided" });
         }
 
-        // Fetch orders and populate shipping reference details
+        // Fetch orders and populate reference details
         const orders = await Order.find({ _id: { $in: orderIds } }).lean();
 
         if (!orders || orders.length === 0) {
@@ -53,41 +53,39 @@ const generateLabel = async (req, res) => {
 
             let y = margin;
 
-            // ================= 1. BRANDING & LOGO HEADER BOX =================
-            const headerHeight = 45;
+            // ================= 1. BRANDING & LOGO HEADER BOX (ENLARGED LOGO) =================
+            const headerHeight = 52; // Increased header height to fit larger logo safely
             doc.rect(margin, y, printWidth, headerHeight).stroke();
 
-            // LOGO PLACEHOLDER ZONE (Left Box)
+            // LOGO ZONE (Left Header)
             const logoPath = path.join(__dirname, "../../assets/aaysh_logo_2.png"); 
-            const logoWidth = 90;
-            const logoHeight = 35;
+            const logoWidth = 115; // Increased logo width
+            const logoHeight = 42; // Increased logo height
 
             if (fs.existsSync(logoPath)) {
-                // Renders actual logo image bounded cleanly to prevent collision
                 doc.image(logoPath, margin + 5, y + 5, {
                     fit: [logoWidth, logoHeight],
                     align: "left",
                     valign: "center"
                 });
             } else {
-                // Fallback structured logo placeholder text
-                doc.font(fontBold).fontSize(12).fillColor("#1E293B").text("AAYSH", margin + 5, y + 10, { continued: true });
+                // Fallback structured text branding
+                doc.font(fontBold).fontSize(14).fillColor("#1E293B").text("AAYSH", margin + 6, y + 10, { continued: true });
                 doc.fillColor("#0D9488").text("EXPRESS");
-                doc.font(fontNormal).fontSize(6).fillColor("#64748B").text("LOGISTICS & FULFILLMENT", margin + 5, y + 26);
+                doc.font(fontNormal).fontSize(6.5).fillColor("#64748B").text("LOGISTICS & FULFILLMENT", margin + 6, y + 28);
             }
 
-            // PAYMENT & COURIER BADGE (Right Header Box)
+            // ORDER DATE ZONE (Right Header Box - Formerly COD location)
             const rightHeaderX = margin + printWidth - 95;
             doc.moveTo(rightHeaderX, y).lineTo(rightHeaderX, y + headerHeight).stroke();
 
-            const paymentType = (order.paymentMethod || "COD").toUpperCase();
-            doc.fillColor("#000000");
-            doc.font(fontBold).fontSize(11).text(paymentType, rightHeaderX + 5, y + 8, {
+            doc.font(fontBold).fontSize(6.5).fillColor("#475569").text("ORDER DATE", rightHeaderX + 5, y + 8, {
                 width: 85,
                 align: "center"
             });
 
-            doc.font(fontBold).fontSize(9).text(`₹${order.invoiceValue || 0}`, rightHeaderX + 5, y + 24, {
+            const formattedOrderDate = order.orderDate ? new Date(order.orderDate).toLocaleDateString('en-GB') : "N/A";
+            doc.font(fontBold).fontSize(9.5).fillColor("#000000").text(formattedOrderDate, rightHeaderX + 5, y + 22, {
                 width: 85,
                 align: "center"
             });
@@ -101,6 +99,7 @@ const generateLabel = async (req, res) => {
             const awbNo = order.shipping?.awbNumber || order.externalOrderId || "NOAWB";
 
             try {
+                // Barcode generated directly from AWB Number
                 const barcodeBuffer = await bwipjs.toBuffer({
                     bcid: "code128",
                     text: awbNo,
@@ -109,7 +108,7 @@ const generateLabel = async (req, res) => {
                     includetext: false
                 });
 
-                const bcRenderWidth = 200;
+                const bcRenderWidth = 210;
                 const bcX = margin + (printWidth / 2) - (bcRenderWidth / 2);
 
                 doc.image(barcodeBuffer, bcX, y + 8, { width: bcRenderWidth, height: 38 });
@@ -131,14 +130,14 @@ const generateLabel = async (req, res) => {
             y += barcodeBoxHeight;
 
             // ================= 3. CONSIGNEE / SHIP TO ADDRESS =================
-            const consigneeHeight = 105;
+            const consigneeHeight = 100;
             doc.rect(margin, y, printWidth, consigneeHeight).stroke();
 
-            doc.font(fontBold).fontSize(7).fillColor("#475569").text("SHIP TO (CONSIGNEE):", margin + 6, y + 6);
+            doc.font(fontBold).fontSize(7).fillColor("#475569").text("SHIP TO (CONSIGNEE):", margin + 6, y + 5);
 
             // Consignee Full Name
             const fullName = `${order.consigneeName || ''} ${order.consigneeLastName || ''}`.trim().toUpperCase() || "CUSTOMER";
-            doc.font(fontBold).fontSize(11).fillColor("#000000").text(fullName, margin + 6, y + 17, {
+            doc.font(fontBold).fontSize(11).fillColor("#000000").text(fullName, margin + 6, y + 16, {
                 width: printWidth - 12,
                 ellipsis: true
             });
@@ -150,37 +149,37 @@ const generateLabel = async (req, res) => {
                 fullAddress += `, ${(order.address2).toUpperCase()}`;
             }
 
-            doc.text(fullAddress, margin + 6, y + 32, {
+            doc.text(fullAddress, margin + 6, y + 30, {
                 width: printWidth - 12,
-                height: 32,
+                height: 30,
                 ellipsis: true
             });
 
             // City, State, Pincode
             const destinationLine = `${(order.destinationCity || '').toUpperCase()}, ${(order.destinationState || '').toUpperCase()} - ${order.destinationPincode || ''}`;
-            doc.font(fontBold).fontSize(9.5).text(destinationLine, margin + 6, y + 68, {
+            doc.font(fontBold).fontSize(9.5).text(destinationLine, margin + 6, y + 64, {
                 width: printWidth - 12,
                 ellipsis: true
             });
 
             // Contact Info
             const phoneStr = order.billingPhone || order.contactNo || "N/A";
-            doc.font(fontNormal).fontSize(8.5).text(`TEL: ${phoneStr}`, margin + 6, y + 86);
+            doc.font(fontNormal).fontSize(8.5).text(`TEL: ${phoneStr}`, margin + 6, y + 82);
 
             y += consigneeHeight;
 
             // ================= 4. SHIPPER / CONSIGNOR DETAILS =================
-            const shipperHeight = 42;
+            const shipperHeight = 40;
             doc.rect(margin, y, printWidth, shipperHeight).stroke();
 
-            doc.font(fontBold).fontSize(7).fillColor("#475569").text("RETURN ADDRESS (CONSIGNOR):", margin + 6, y + 5);
-            doc.font(fontBold).fontSize(8).fillColor("#000000").text((order.consignorName || "ABC MANUFACTURING LTD.").toUpperCase(), margin + 6, y + 15, {
+            doc.font(fontBold).fontSize(7).fillColor("#475569").text("RETURN ADDRESS (CONSIGNOR):", margin + 6, y + 4);
+            doc.font(fontBold).fontSize(8).fillColor("#000000").text((order.consignorName || "ABC MANUFACTURING LTD.").toUpperCase(), margin + 6, y + 14, {
                 width: printWidth - 12,
                 ellipsis: true
             });
 
             const pickupLoc = order.pickupLocation ? `Hub: ${order.pickupLocation}` : "DEFAULT WAREHOUSE HUB, NOIDA, UP - 201301";
-            doc.font(fontNormal).fontSize(7.5).text(pickupLoc, margin + 6, y + 27, {
+            doc.font(fontNormal).fontSize(7.5).text(pickupLoc, margin + 6, y + 25, {
                 width: printWidth - 12,
                 ellipsis: true
             });
@@ -208,14 +207,13 @@ const generateLabel = async (req, res) => {
                 ellipsis: true
             });
 
-            // Col 3: Order Date
-            doc.font(fontBold).fontSize(6.5).fillColor("#475569").text("ORDER DATE", margin + (colWidth * 2) + 4, y + 5);
-            const formattedDate = order.orderDate ? new Date(order.orderDate).toLocaleDateString('en-GB') : "N/A";
-            doc.font(fontNormal).fontSize(8).fillColor("#000000").text(formattedDate, margin + (colWidth * 2) + 4, y + 20);
+            // Col 3: Invoice Value (Shifted here from top header)
+            doc.font(fontBold).fontSize(6.5).fillColor("#475569").text("INVOICE VALUE", margin + (colWidth * 2) + 4, y + 5);
+            doc.font(fontBold).fontSize(9.5).fillColor("#000000").text(`₹${order.invoiceValue || 0}`, margin + (colWidth * 2) + 4, y + 20);
 
             y += metaHeight;
 
-            // ================= 6. ITEM BREAKDOWN / FOOTER ROUTING =================
+            // ================= 6. ITEM BREAKDOWN & PAYMENT MODE FOOTER =================
             const footerHeight = (LABEL_HEIGHT - margin) - y;
             doc.rect(margin, y, printWidth, footerHeight).stroke();
 
@@ -228,16 +226,26 @@ const generateLabel = async (req, res) => {
 
             doc.font(fontNormal).fontSize(7).fillColor("#334155").text(itemSummary, margin + 6, y + 6, {
                 width: printWidth - 12,
-                height: 22,
+                height: 18,
                 ellipsis: true
             });
 
-            // Routing Destination Strip
+            // Routing Destination Strip & PAYMENT BADGE (NEW COD / PREPAID POSITION)
+            const paymentType = (order.paymentMethod || "COD").toUpperCase();
+            
             doc.font(fontBold).fontSize(8).fillColor("#000000").text(
-                `DESTINATION: ${(order.destinationCity || "ROI").toUpperCase()} (${(order.destinationState || "IN").toUpperCase()})`,
+                `DEST: ${(order.destinationCity || "ROI").toUpperCase()} (${(order.destinationState || "IN").toUpperCase()})`,
                 margin + 6,
-                y + 30,
-                { width: printWidth - 12, ellipsis: true }
+                y + 28,
+                { width: printWidth - 80, ellipsis: true }
+            );
+
+            // Payment Type Badge on Footer Right
+            doc.font(fontBold).fontSize(10).fillColor("#000000").text(
+                `[ ${paymentType} ]`,
+                margin + printWidth - 75,
+                y + 26,
+                { width: 70, align: "right" }
             );
         }
 
