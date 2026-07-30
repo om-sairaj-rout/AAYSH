@@ -15,40 +15,46 @@ const ShipmentPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage, setOrdersPerPage] = useState(25);
 
-  const role = isAdmin ? "admin" : "user";
-  const userId = user?._id;
   const canSeeWeight = isAdmin || user?.showWeight;
 
   const fetchOrders = async () => {
-    try {
-      if (!userId) return;
+  try {
+    const res = await getOrders();
 
-      const res = await getOrders({
-        role,
-        userId,
-      });
+    if (res.success) {
+      const validStatuses = [
+         "Booked",
+  "Shipped",
+  "In Transit",
+  "Out For Delivery",
+  "Delivered",
+  "Cancelled",
+  "RTO",
+  "Returned",
+  "Exchange",
+  "Delayed",
+  "Delivery Attempt Failed",
+      ];
 
-      if (res?.success) {
-        const validStatuses = ["Booked", "In Transit", "Delayed", "Delivered"];
-
-        const filtered = (res.orders || []).filter(order =>
+      setAllOrders(
+        (res.orders || []).filter(order =>
           validStatuses.includes(order.shipping?.shippingStatus)
-        );
-
-        setAllOrders(filtered);
-      }
-    } catch (err) {
-      console.error(err);
+        )
+      );
     }
-  };
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   useEffect(() => {
-    if (!userId) return;
+  fetchOrders();
+}, []);
 
-    fetchOrders();
-    setSelectedOrders([]);
-    setCurrentPage(1);
-  }, [role, userId]);
+useEffect(() => {
+  setSelectedOrders([]);
+  setCurrentPage(1);
+}, [activeTab]);
 
   useEffect(() => {
     const today = new Date().toDateString();
@@ -313,19 +319,73 @@ const ShipmentPage = () => {
                         </span>
                       )}
 
-                      {order.shipping?.shippingStatus === 'Booked' && (
-                        <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-200">
-                          Booked
-                        </span>
-                      )}
+                      {order.shipping?.shippingStatus === "Booked" && (
+  <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-200">
+    Booked
+  </span>
+)}
 
-                      {order.shipping?.shippingStatus === 'Cancelled' && (
-                        <span className="bg-rose-100 text-rose-800 font-bold text-xs px-2.5 py-1 rounded-full border border-rose-200">
-                          Cancelled
-                        </span>
-                      )}
+{order.shipping?.shippingStatus === "Shipped" && (
+  <span className="bg-indigo-100 text-indigo-800 font-bold text-xs px-2.5 py-1 rounded-full border border-indigo-200">
+    Shipped
+  </span>
+)}
 
-                      {!['Pending', 'Booked', 'Cancelled'].includes(order.shipping?.shippingStatus) && (
+{order.shipping?.shippingStatus === "In Transit" && (
+  <span className="bg-blue-100 text-blue-800 font-bold text-xs px-2.5 py-1 rounded-full border border-blue-200">
+    In Transit
+  </span>
+)}
+
+{order.shipping?.shippingStatus === "Out For Delivery" && (
+  <span className="bg-cyan-100 text-cyan-800 font-bold text-xs px-2.5 py-1 rounded-full border border-cyan-200">
+    Out For Delivery
+  </span>
+)}
+
+{order.shipping?.shippingStatus === "Delivered" && (
+  <span className="bg-green-100 text-green-800 font-bold text-xs px-2.5 py-1 rounded-full border border-green-200">
+    Delivered
+  </span>
+)}
+
+{order.shipping?.shippingStatus === "Cancelled" && (
+  <span className="bg-rose-100 text-rose-800 font-bold text-xs px-2.5 py-1 rounded-full border border-rose-200">
+    Cancelled
+  </span>
+)}
+
+{order.shipping?.shippingStatus === "RTO" && (
+  <span className="bg-red-100 text-red-800 font-bold text-xs px-2.5 py-1 rounded-full border border-red-200">
+    RTO
+  </span>
+)}
+
+{order.shipping?.shippingStatus === "Returned" && (
+  <span className="bg-orange-100 text-orange-800 font-bold text-xs px-2.5 py-1 rounded-full border border-orange-200">
+    Returned
+  </span>
+)}
+
+{order.shipping?.shippingStatus === "Exchange" && (
+  <span className="bg-purple-100 text-purple-800 font-bold text-xs px-2.5 py-1 rounded-full border border-purple-200">
+    Exchange
+  </span>
+)}
+
+{order.shipping?.shippingStatus === "Delayed" && (
+  <span className="bg-yellow-100 text-yellow-800 font-bold text-xs px-2.5 py-1 rounded-full border border-yellow-200">
+    Delayed
+  </span>
+)}
+
+{order.shipping?.shippingStatus === "Delivery Attempt Failed" && (
+  <span className="bg-pink-100 text-pink-800 font-bold text-xs px-2.5 py-1 rounded-full border border-pink-200">
+    Delivery Attempt Failed
+  </span>
+)}
+
+                      {!['Pending','Shipped','Booked', 'Cancelled','In Transit', 'Delivered', 'RTO', 'Delayed', 'Delivery Attempt Failed'].includes(order.shipping?.shippingStatus) && (
                         <span className="bg-slate-100 text-slate-600 font-bold text-xs px-2.5 py-1 rounded-full border border-slate-200">
                           {order.shipping?.shippingStatus || "Unknown"}
                         </span>

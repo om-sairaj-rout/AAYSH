@@ -5,6 +5,300 @@ import SelectCourier from './SelectCourier';
 import { shipOrdersAPI } from '../api/shipingAPI';
 import { toast } from 'react-hot-toast';
 
+/* ================= ORDER DETAILS & TRACKING MODAL ================= */
+const OrderDetailsModal = ({ isOpen, onClose, order }) => {
+  if (!isOpen || !order) return null;
+
+  const awbNumber = order.shipping?.awbNumber;
+  const currentStatus = order.shipping?.shippingStatus || 'Pending';
+  const trackingHistory = order.shipping?.trackingHistory || []; // Array of TrackingSchema documents
+
+  // Extract latest checkpoint location if available
+  const latestLocation = trackingHistory.length > 0 && trackingHistory[0]?.location ? trackingHistory[0].location : null;
+
+  // Main Tracking Steps definition for top bar
+  const trackingSteps = ['Pending', 'Booked', 'In Transit', 'Delivered'];
+  
+  const getStepStatus = (stepName) => {
+    if (['Cancelled', 'RTO', 'Returned'].includes(currentStatus)) return 'error';
+    const currentIndex = trackingSteps.indexOf(currentStatus);
+    const stepIndex = trackingSteps.indexOf(stepName);
+
+    if (currentIndex === -1) return 'upcoming';
+    if (stepIndex < currentIndex) return 'completed';
+    if (stepIndex === currentIndex) return 'current';
+    return 'upcoming';
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in duration-200 my-8">
+        
+        {/* Modal Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+          <div>
+            <div className="flex items-center gap-3">
+              <h3 className="text-lg font-bold text-slate-800">
+                Order #{order.externalOrderId || order.invoiceNo || order._id?.slice(-6)}
+              </h3>
+              <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full border ${
+                currentStatus === 'Delivered' ? 'bg-green-100 text-green-800 border-green-200' :
+                ['In Transit', 'Shipped', 'Out For Delivery'].includes(currentStatus) ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                currentStatus === 'Booked' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                ['Cancelled', 'RTO', 'Returned'].includes(currentStatus) ? 'bg-rose-100 text-rose-800 border-rose-200' :
+                'bg-orange-100 text-orange-800 border-orange-200'
+              }`}>
+                {currentStatus}
+              </span>
+              <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                {order.paymentMethod || 'COD'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Order Date: {order.orderDate ? new Date(order.orderDate).toLocaleString() : 'N/A'} | Pickup Date: {order.pickupDate ? new Date(order.pickupDate).toLocaleDateString() : 'N/A'}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+
+          {/* ================= TRACKING BAR & HISTORY ================= */}
+          {awbNumber ? (
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-5 space-y-5">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Tracking Information</span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-slate-500">AWB Number:</span>
+                    <span className="font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 text-xs">
+                      {awbNumber}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* LIVE CURRENT CITY / LOCATION BADGE */}
+                  {latestLocation && (
+                    <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-md flex items-center gap-1.5 shadow-xs">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
+                      </span>
+                      Location: {latestLocation}
+                    </span>
+                  )}
+
+                  {order.shipping?.courierName && (
+                    <span className="text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-3 py-1 rounded-md shadow-xs">
+                      Courier: {order.shipping.courierName}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Special Status Alert */}
+              {['Cancelled', 'RTO', 'Returned'].includes(currentStatus) ? (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-xs font-semibold flex items-center gap-2">
+                  <span>⚠️</span> Order shipping status is marked as <strong>{currentStatus}</strong>.
+                </div>
+              ) : (
+                /* Standard Step Progress Bar */
+                <div className="relative flex items-center justify-between pt-2 px-2">
+                  <div className="absolute top-[21px] left-6 right-6 h-1 bg-slate-200 -z-0">
+                    <div 
+                      className="h-full bg-indigo-600 transition-all duration-300"
+                      style={{
+                        width: `${
+                          currentStatus === 'Delivered' ? 100 :
+                          ['In Transit', 'Shipped', 'Out For Delivery'].includes(currentStatus) ? 66 :
+                          currentStatus === 'Booked' ? 33 : 0
+                        }%`
+                      }}
+                    />
+                  </div>
+
+                  {trackingSteps.map((step) => {
+                    const status = getStepStatus(step);
+                    return (
+                      <div key={step} className="relative z-10 flex flex-col items-center text-center">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                          status === 'completed' ? 'bg-indigo-600 text-white shadow-sm' :
+                          status === 'current' ? 'bg-indigo-600 text-white ring-4 ring-indigo-100 shadow-sm' :
+                          'bg-white border-2 border-slate-300 text-slate-400'
+                        }`}>
+                          {status === 'completed' ? '✓' : ''}
+                          {status === 'current' ? '•' : ''}
+                        </div>
+                        <span className={`text-[11px] font-semibold mt-2 ${
+                          status === 'current' ? 'text-indigo-600 font-bold' :
+                          status === 'completed' ? 'text-slate-700' : 'text-slate-400'
+                        }`}>
+                          {step}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ================= TRACKING HISTORY TIMELINE ================= */}
+              {trackingHistory.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                    Transit Checkpoints & Updates ({trackingHistory.length})
+                  </h5>
+                  <div className="relative pl-6 space-y-4 before:absolute before:left-2 font-sans before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                    {trackingHistory.map((event, idx) => (
+                      <div key={idx} className="relative text-xs">
+                        {/* Timeline dot */}
+                        <div className={`absolute -left-[19px] top-1 w-2.5 h-2.5 rounded-full border-2 bg-white ${
+                          idx === 0 ? 'border-blue-600 bg-blue-600 ring-2 ring-blue-100' : 'border-slate-400'
+                        }`} />
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-bold text-slate-800">
+                            {event.status} {event.location ? `— ${event.location}` : ''}
+                          </span>
+                          <span className="text-[11px] text-slate-400">
+                            {event.eventTime ? new Date(event.eventTime).toLocaleString() : ''}
+                          </span>
+                        </div>
+                        {event.remarks && (
+                          <p className="text-slate-600 mt-0.5 bg-white p-1.5 rounded border border-slate-200/60 inline-block text-[11px]">
+                            {event.remarks}
+                          </p>
+                        )}
+                        {event.failureReason && (
+                          <p className="text-red-600 font-semibold mt-0.5">Reason: {event.failureReason}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-4 text-xs text-amber-800 flex items-center justify-between">
+              <span>⚠️ No AWB assigned yet. Ship this order to generate tracking details.</span>
+            </div>
+          )}
+
+          {/* ================= DETAILS GRID ================= */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            {/* Consignor Details */}
+            <div className="border border-slate-100 bg-slate-50/50 p-4 rounded-xl space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Consignor (Sender)</h4>
+              <p className="text-sm font-semibold text-slate-800">{order.consignorName || 'N/A'}</p>
+              <p className="text-xs text-slate-500">Pickup Location: {order.pickupLocation || 'Default Warehouse'}</p>
+            </div>
+
+            {/* Consignee Details */}
+            <div className="border border-slate-100 bg-slate-50/50 p-4 rounded-xl space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Consignee (Receiver)</h4>
+              <p className="text-sm font-semibold text-slate-800">
+                {`${order.consigneeName || ''} ${order.consigneeLastName || ''}`.trim() || 'N/A'}
+              </p>
+              <p className="text-xs text-slate-600">
+                {order.address} {order.address2 ? `, ${order.address2}` : ''}
+              </p>
+              <p className="text-xs text-slate-600">
+                {order.destinationCity ? `${order.destinationCity}, ` : ''}
+                {order.destinationState || ''} {order.destinationPincode ? `- ${order.destinationPincode}` : ''}, {order.destinationCountry || 'India'}
+              </p>
+              <div className="text-xs font-medium text-slate-700 mt-1 space-y-0.5">
+                <p>📞 {order.billingPhone || order.contactNo || 'N/A'} {order.billingAlternatePhone ? `/ ${order.billingAlternatePhone}` : ''}</p>
+                {order.consigneeEmail && <p>✉️ {order.consigneeEmail}</p>}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Product Items Breakdown */}
+          <div className="border border-slate-100 rounded-xl overflow-hidden">
+            <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-100 flex justify-between items-center">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Order Items</h4>
+              <span className="text-xs font-semibold text-slate-500">Total Items: {order.qty || 1}</span>
+            </div>
+            
+            {order.orderItems && order.orderItems.length > 0 ? (
+              <div className="divide-y divide-slate-100">
+                {order.orderItems.map((item, idx) => (
+                  <div key={idx} className="p-3 text-xs flex flex-wrap justify-between items-center gap-2">
+                    <div>
+                      <p className="font-semibold text-slate-800">{item.name || `Item #${idx + 1}`}</p>
+                      <p className="text-[11px] text-slate-400">
+                        {item.sku ? `SKU: ${item.sku}` : ''} {item.hsn ? `| HSN: ${item.hsn}` : ''}
+                      </p>
+                    </div>
+                    <div className="text-right font-mono">
+                      <p className="font-bold text-slate-700">₹{item.sellingPrice || 0} x {item.units || 1}</p>
+                      {(item.discount > 0 || item.tax > 0) && (
+                        <p className="text-[10px] text-slate-400">
+                          Disc: ₹{item.discount} | Tax: ₹{item.tax}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 text-xs text-slate-400 italic">No itemized details recorded.</div>
+            )}
+
+            {/* Financial Overview & Package Details */}
+            <div className="border-t border-slate-100 bg-slate-50/50 p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+              <div>
+                <span className="text-slate-400 block font-medium">Invoice Value</span>
+                <span className="font-mono font-bold text-slate-900">₹{order.invoiceValue || 0}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-medium">Subtotal</span>
+                <span className="font-mono font-bold text-slate-700">₹{order.subTotal || 0}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-medium">Shipping Charges</span>
+                <span className="font-mono font-bold text-slate-700">₹{order.shippingCharges || 0}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-medium">Package Weight & Box</span>
+                <span className="font-mono font-bold text-slate-700">
+                  {order.weight ? `${order.weight} kg` : 'N/A'}
+                  {order.length ? ` (${order.length}x${order.breadth}x${order.height} cm)` : ''}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {order.comment && (
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs text-slate-600">
+              <strong className="text-slate-700 block mb-0.5">Comments / Notes:</strong>
+              {order.comment}
+            </div>
+          )}
+
+        </div>
+
+        {/* Modal Footer */}
+        <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-lg transition-colors shadow-sm"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ================= MAIN ORDERS PAGE COMPONENT ================= */
 const OrdersPage = () => {
   const [activeSegment, setActiveSegment] = useState('All Orders');
   const [counts, setCounts] = useState({});
@@ -15,53 +309,54 @@ const OrdersPage = () => {
   const [isCourierModalOpen, setIsCourierModalOpen] = useState(false);
   const [ordersToShip, setOrdersToShip] = useState([]);
 
+  // Modal State for Order Details & Tracking
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage, setOrdersPerPage] = useState(25);
 
   const canSeeWeight = isAdmin || user?.showWeight;
 
   const fetchOrders = async () => {
-  try {
-    const res = await getOrders();
+    try {
+      const res = await getOrders();
 
-    if (res.success) {
-      setAllOrders(res.orders || []);
-      setCounts(res.counts || {});
+      if (res.success) {
+        setAllOrders(res.orders || []);
+        setCounts(res.counts || {});
+      }
+    } catch (err) {
+      console.error(err);
     }
-  } catch (err) {
-    console.error(err);
-  }
-};
+  };
 
   useEffect(() => {
-  fetchOrders();
-}, []);
+    fetchOrders();
+  }, []);
 
-useEffect(() => {
-  setSelectedOrders([]);
-  setCurrentPage(1);
-}, [activeSegment]);
+  useEffect(() => {
+    setSelectedOrders([]);
+    setCurrentPage(1);
+  }, [activeSegment]);
 
-const getTabCount = (tabName) => {
-  return counts[tabName] || 0;
-};
+  const getTabCount = (tabName) => {
+    return counts[tabName] || 0;
+  };
 
   const indexOfLastOrder = currentPage * ordersPerPage;
   const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
 
   const filteredOrders = allOrders.filter((order) => {
-  if (activeSegment === "All Orders") return true;
+    if (activeSegment === "All Orders") return true;
 
-  return order.shipping?.shippingStatus === activeSegment;
-});
+    return order.shipping?.shippingStatus === activeSegment;
+  });
 
   const currentOrders = filteredOrders.slice(
-  indexOfFirstOrder,
-  indexOfLastOrder
-);
-
-const totalPages =
-  Math.ceil(filteredOrders.length / ordersPerPage) || 1;
+    indexOfFirstOrder,
+    indexOfLastOrder
+  );
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
@@ -87,12 +382,17 @@ const totalPages =
   };
 
   const handleBulkShipClick = () => {
-   const matchingSelectedDetails = allOrders.filter(o =>
-  selectedOrders.includes(o._id)
-);
+    const matchingSelectedDetails = allOrders.filter(o =>
+      selectedOrders.includes(o._id)
+    );
 
     setOrdersToShip(matchingSelectedDetails);
     setIsCourierModalOpen(true);
+  };
+
+  const handleRowClick = (order) => {
+    setSelectedOrderDetails(order);
+    setIsDetailsModalOpen(true);
   };
 
   const handleCourierSelectionConfirm = async (modalData) => {
@@ -104,7 +404,7 @@ const totalPages =
 
       const payload = {
         courierId: modalData.courierId,
-        isPrime: Boolean(modalData.isPrime), // Sends prime service option to backend
+        isPrime: Boolean(modalData.isPrime),
         orders: orderPayloads
       };
 
@@ -150,7 +450,8 @@ const totalPages =
                 <button
                   key={tabName}
                   onClick={() => {
-                    setActiveSegment(tabName);}}
+                    setActiveSegment(tabName);
+                  }}
                   className={`px-4 py-2 text-sm font-semibold rounded-lg border transition-all flex items-center gap-2 ${
                     isActive
                       ? 'bg-[#1E293B] border-[#1E293B] text-white shadow-sm'
@@ -206,8 +507,12 @@ const totalPages =
               {currentOrders.map((order) => {
                 const isChecked = selectedOrders.includes(order._id);
                 return (
-                  <tr key={order._id} className={`hover:bg-slate-50/60 transition-colors ${isChecked ? 'bg-indigo-50/20' : ''}`}>
-                    <td className="p-4 text-center">
+                  <tr 
+                    key={order._id} 
+                    onClick={() => handleRowClick(order)}
+                    className={`hover:bg-slate-50/80 transition-colors cursor-pointer ${isChecked ? 'bg-indigo-50/20' : ''}`}
+                  >
+                    <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={isChecked}
@@ -221,7 +526,7 @@ const totalPages =
                     <td className="p-3">{order.consignorName || "-"}</td>
                     <td className="p-3">{order.consigneeName || "-"}</td>
                     <td className="p-3 max-w-xs truncate" title={order.address}>{order.address || "-"}</td>
-                    <td className="p-3">{order.contactNo || "-"}</td>
+                    <td className="p-3">{order.billingPhone || order.contactNo || "-"}</td>
                     <td className="p-3">{order.destinationCity || "-"}</td>
                     <td className="p-3">{order.destinationState || "-"}</td>
                     <td className="p-3">{order.destinationPincode || "-"}</td>
@@ -235,7 +540,7 @@ const totalPages =
                     <td className="p-3 font-mono">{order.invoiceNo || "-"}</td>
                     <td className="p-3 font-mono text-slate-900">₹{order.invoiceValue || "-"}</td>
 
-                    <td className="p-3 whitespace-nowrap">
+                    <td className="p-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       {order.shipping?.shippingStatus === 'Pending' && (
                         <button
                           onClick={() => handleSingleShipClick(order)}
@@ -244,20 +549,30 @@ const totalPages =
                           Ship Order
                         </button>
                       )}
-                      {order.shipping?.shippingStatus === 'Booked' && (
-                        <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-3 py-1.5 rounded border border-emerald-200">Booked</span>
+                      {order.shipping?.shippingStatus === "Booked" && (
+                        <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-200">
+                          Booked
+                        </span>
                       )}
-                      {order.shipping?.shippingStatus === 'Cancelled' && (
-                        <span className="bg-rose-100 text-rose-800 font-bold text-xs px-3 py-1.5 rounded border border-rose-200">Cancelled</span>
+                      {order.shipping?.shippingStatus === "Cancelled" && (
+                        <span className="bg-rose-100 text-rose-800 font-bold text-xs px-2.5 py-1 rounded-full border border-rose-200">
+                          Cancelled
+                        </span>
                       )}
-                      {order.shipping?.shippingStatus === 'RTO' && (
-                        <span className="bg-rose-100 text-lime-800 font-bold text-xs px-3 py-1.5 rounded border border-rose-200">RTO</span>
+                      {order.shipping?.shippingStatus === "RTO" && (
+                        <span className="bg-red-100 text-red-800 font-bold text-xs px-2.5 py-1 rounded-full border border-red-200">
+                          RTO
+                        </span>
                       )}
-                      {order.shipping?.shippingStatus === 'Delivered' && (
-                        <span className="bg-rose-100 text-pink-800 font-bold text-xs px-3 py-1.5 rounded border border-rose-200">Delivered</span>
+                      {order.shipping?.shippingStatus === "Delivered" && (
+                        <span className="bg-green-100 text-green-800 font-bold text-xs px-2.5 py-1 rounded-full border border-green-200">
+                          Delivered
+                        </span>
                       )}
-                      {order.shipping?.shippingStatus === 'In Transit' && (
-                        <span className="bg-rose-100 text-orange-800 font-bold text-xs px-3 py-1.5 rounded border border-rose-200">In Transit</span>
+                      {order.shipping?.shippingStatus === "In Transit" && (
+                        <span className="bg-blue-100 text-blue-800 font-bold text-xs px-2.5 py-1 rounded-full border border-blue-200">
+                          In Transit
+                        </span>
                       )}
                       {!['Pending', 'Booked', 'Cancelled','RTO','Delivered','In Transit'].includes(order.shipping?.shippingStatus) && (
                         <span className="text-slate-400 italic text-xs">{order.shipping?.shippingStatus || "No Actions"}</span>
@@ -290,9 +605,9 @@ const totalPages =
             </select>
             <span className="text-xs text-slate-400">
               Showing {filteredOrders.length > 0 ? indexOfFirstOrder + 1 : 0}
--
-{Math.min(indexOfLastOrder, filteredOrders.length)}
-of {filteredOrders.length} orders
+              -
+              {Math.min(indexOfLastOrder, filteredOrders.length)}
+              of {filteredOrders.length} orders
             </span>
           </div>
         </div>
@@ -305,6 +620,13 @@ of {filteredOrders.length} orders
         selectedOrdersCount={ordersToShip.length}
         onClose={() => { setIsCourierModalOpen(false); setOrdersToShip([]); }}
         onConfirm={handleCourierSelectionConfirm}
+      />
+
+      {/* ================= ORDER DETAILS & TRACKING MODAL ================= */}
+      <OrderDetailsModal 
+        isOpen={isDetailsModalOpen}
+        onClose={() => { setIsDetailsModalOpen(false); setSelectedOrderDetails(null); }}
+        order={selectedOrderDetails}
       />
     </div>
   );
