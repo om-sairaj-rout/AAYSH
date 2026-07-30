@@ -3,6 +3,7 @@ const bwipjs = require("bwip-js");
 const path = require("path");
 const fs = require("fs");
 const Order = require("../../models/upload/order.model"); 
+const Shipping = require("../../models/upload/shipping.model");
 
 const generateLabel = async (req, res) => {
     try {
@@ -14,6 +15,18 @@ const generateLabel = async (req, res) => {
 
         // Fetch orders and populate reference details
         const orders = await Order.find({ _id: { $in: orderIds } }).lean();
+
+        const shippings = await Shipping.find({
+            orderId: { $in: orderIds }
+        }).lean();
+
+        const shippingMap = new Map(
+            shippings.map(s => [s.orderId.toString(), s])
+        );
+
+        orders.forEach(order => {
+            order.shipping = shippingMap.get(order._id.toString()) || null;
+        });
 
         if (!orders || orders.length === 0) {
             return res.status(404).json({ success: false, message: "Orders not found" });
@@ -224,27 +237,30 @@ const generateLabel = async (req, res) => {
                 itemSummary += "General Parcel Goods";
             }
 
-            doc.font(fontNormal).fontSize(7).fillColor("#334155").text(itemSummary, margin + 6, y + 6, {
+            doc.font(fontNormal).fontSize(7).fillColor("#334155").text(itemSummary, margin + 6, y + 5, {
                 width: printWidth - 12,
-                height: 18,
+                height: 16,
                 ellipsis: true
             });
 
-            // Routing Destination Strip & PAYMENT BADGE (NEW COD / PREPAID POSITION)
-            const paymentType = (order.paymentMethod || "COD").toUpperCase();
-            
+            // Courier Name + Destination City Strip
+            const courierNameStr = (order.shipping?.courierName || "SURFACE").toUpperCase();
+            const destCityStr = (order.destinationCity || "ROI").toUpperCase();
+            const destStateStr = (order.destinationState || "IN").toUpperCase();
+
             doc.font(fontBold).fontSize(8).fillColor("#000000").text(
-                `DEST: ${(order.destinationCity || "ROI").toUpperCase()} (${(order.destinationState || "IN").toUpperCase()})`,
+                `COURIER: ${courierNameStr} | DEST: ${destCityStr} (${destStateStr})`,
                 margin + 6,
-                y + 28,
+                y + 25,
                 { width: printWidth - 80, ellipsis: true }
             );
 
             // Payment Type Badge on Footer Right
+            const paymentType = (order.paymentMethod || "COD").toUpperCase();
             doc.font(fontBold).fontSize(10).fillColor("#000000").text(
                 `[ ${paymentType} ]`,
                 margin + printWidth - 75,
-                y + 26,
+                y + 24,
                 { width: 70, align: "right" }
             );
         }
