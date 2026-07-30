@@ -21,6 +21,7 @@ const getAllOrders = async (req, res) => {
   from,
   to,
 } = req.query;
+console.log("status =", status);
 
     const orderFilter = {};
 
@@ -111,18 +112,66 @@ if (payment_method) {
 
     let total = 0;
 
-    const orders = await Order.find(orderFilter)
-      .sort({ [sortField]: sortOrder })
-      .skip((page - 1) * per_page)
-      .limit(Number(per_page))
-      .lean();
+    let ordersQuery = Order.find(orderFilter)
+  .sort({ [sortField]: sortOrder });
+
+const allOrders = await ordersQuery.lean();
+
+const filteredOrders = [];
+
+for (const order of allOrders) {
+  const shipping = await Shipping.findOne({
+    orderId: order._id,
+  }).lean();
+
+
+  if (
+    status &&
+    shipping?.shippingStatus !== status
+  ) {
+    continue;
+  }
+
+
+  if (
+    pickup_location &&
+    shipping?.pickupLocation !== pickup_location
+  ) {
+    continue;
+  }
+
+
+  if (
+    courier_name &&
+    shipping?.courierName?.toLowerCase() !==
+      courier_name.toLowerCase()
+  ) {
+    continue;
+  }
+
+
+  filteredOrders.push({
+    order,
+    shipping
+  });
+}
+
+
+const total = filteredOrders.length;
+
+
+const orders = filteredOrders
+  .slice(
+    (page - 1) * per_page,
+    page * per_page
+  );
 
     const data = [];
 
-    for (const order of orders) {
-      const shipping = await Shipping.findOne({
-        orderId: order._id,
-      }).lean();
+    for (const item of orders) {
+
+const order = item.order;
+const shipping = item.shipping;
 
       // =========================
       // SHIPPING FILTERS
