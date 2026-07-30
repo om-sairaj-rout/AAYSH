@@ -124,11 +124,6 @@ const getOrdersController = async (req, res) => {
       statusCounts[shippingStatus] =
         (statusCounts[shippingStatus] || 0) + 1;
 
-     finalOrders.push({
-  ...order,
-  shipping: shippingData,
-});
-
       if (
         pickup_location &&
         shippingData.pickupLocation !== pickup_location
