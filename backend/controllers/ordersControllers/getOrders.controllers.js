@@ -1,5 +1,6 @@
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
+const Tracking = require("../../models/upload/tracking.model");
 
 const getOrdersController = async (req, res) => {
   try {
@@ -110,6 +111,16 @@ const getOrdersController = async (req, res) => {
         orderId: order._id,
       }).lean();
 
+      let trackingHistory = [];
+
+if (shipping) {
+  trackingHistory = await Tracking.find({
+    shippingId: shipping._id,
+  })
+    .sort({ eventTime: -1 })
+    .lean();
+}
+
       const shippingData =
         shipping || {
           shippingStatus: "Pending",
@@ -140,9 +151,12 @@ const getOrdersController = async (req, res) => {
       }
 
       finalOrders.push({
-        ...order,
-        shipping: shippingData,
-      });
+  ...order,
+  shipping: {
+    ...shippingData,
+    trackingHistory,
+  },
+});
     }
 
     return res.status(200).json({
