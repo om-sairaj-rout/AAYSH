@@ -96,7 +96,7 @@ const generateLabel = async (req, res) => {
             const barcodeBoxHeight = 70;
             doc.rect(margin, y, printWidth, barcodeBoxHeight).stroke();
 
-            const awbNo = order.shipping?.awbNumber || order.externalOrderId || "NOAWB";
+            const awbNo = order.shipping?.awbNumber;
 
             try {
                 // Barcode generated directly from AWB Number
@@ -209,7 +209,7 @@ const generateLabel = async (req, res) => {
 
             // Col 3: Invoice Value (Shifted here from top header)
             doc.font(fontBold).fontSize(6.5).fillColor("#475569").text("INVOICE VALUE", margin + (colWidth * 2) + 4, y + 5);
-            doc.font(fontBold).fontSize(9.5).fillColor("#000000").text(`₹${order.invoiceValue || 0}`, margin + (colWidth * 2) + 4, y + 20);
+            doc.font(fontBold).fontSize(9.5).fillColor("#000000").text(`Rs ${order.invoiceValue || 0}`, margin + (colWidth * 2) + 4, y + 20);
 
             y += metaHeight;
 
