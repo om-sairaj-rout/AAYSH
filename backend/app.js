@@ -16,6 +16,7 @@ const assignAwbRouter = require('./routes/assignAwb.routes');
 const generateLabelRouter = require('./routes/labelGeneration.routes');
 const contactRouter = require('./routes/contact.routes');
 const shipmentRouter = require('./routes/shipment.routes');
+const trackingRouter = require('./routes/tracking.routes');
 
 connectToDB();
 
@@ -35,6 +36,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/api', authRouter);
 app.use('/api', shipmentRouter);
+app.use('/api', trackingRouter);
 app.use('/api', uploadRouter);
 app.use('/api', orderRouter);
 app.use('/api', dashboardRouter);

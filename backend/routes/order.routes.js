@@ -81,13 +81,4 @@ orderRouter.post(
   cancelOrder
 );
 
-// Track Shipment
-// GET /api/shiprocket/track/:awb
-// const trackShipment = require("../controllers/shiprocket/trackShipment.controller");
-// orderRouter.get(
-//   "/shiprocket/track/:awb",
-//   checkAuth,
-//   trackShipment
-// );
-
 module.exports = orderRouter;
