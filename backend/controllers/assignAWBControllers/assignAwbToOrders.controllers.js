@@ -41,6 +41,19 @@ const assignAwbToOrders = async (req, res) => {
     const updatedOrders = [];
 
     for (const item of orders) {
+
+// Check if AWB is already assigned
+const existingShipping = await Shipping.findOne({
+  orderId: item.orderId,
+}).lean();
+
+if (existingShipping?.awbNumber) {
+  return res.status(400).json({
+    success: false,
+    message: "One or more selected orders already have an AWB assigned.",
+  });
+}
+
       const category = getAwbCategory(item.weight, isPrime);
 
       const awb = await Awb.findOneAndUpdate(

@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast';
 const OrdersPage = () => {
   const [activeSegment, setActiveSegment] = useState('All Orders');
   const [counts, setCounts] = useState({});
-  const [orders, setOrders] = useState([]);
+  const [allOrders, setAllOrders] = useState([]);
   const [selectedOrders, setSelectedOrders] = useState([]);
   const { isAdmin, user } = useSelector((state) => state.auth);
 
@@ -20,14 +20,12 @@ const OrdersPage = () => {
 
   const canSeeWeight = isAdmin || user?.showWeight;
 
-  const fetchOrders = async (status) => {
+  const fetchOrders = async () => {
   try {
-    const res = await getOrders(
-      status === "All Orders" ? undefined : status
-    );
+    const res = await getOrders();
 
     if (res.success) {
-      setOrders(res.orders || []);
+      setAllOrders(res.orders || []);
       setCounts(res.counts || {});
     }
   } catch (err) {
@@ -36,21 +34,34 @@ const OrdersPage = () => {
 };
 
   useEffect(() => {
-  fetchOrders(activeSegment);
+  fetchOrders();
+}, []);
 
+useEffect(() => {
   setSelectedOrders([]);
   setCurrentPage(1);
-
 }, [activeSegment]);
 
-  const getTabCount = (tabName) => {
+const getTabCount = (tabName) => {
   return counts[tabName] || 0;
 };
 
   const indexOfLastOrder = currentPage * ordersPerPage;
   const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-  const currentOrders = (orders || []).slice(indexOfFirstOrder, indexOfLastOrder);
-  const totalPages = Math.ceil((orders?.length || 0) / ordersPerPage) || 1;
+
+  const filteredOrders = allOrders.filter((order) => {
+  if (activeSegment === "All Orders") return true;
+
+  return order.shipping?.shippingStatus === activeSegment;
+});
+
+  const currentOrders = filteredOrders.slice(
+  indexOfFirstOrder,
+  indexOfLastOrder
+);
+
+const totalPages =
+  Math.ceil(filteredOrders.length / ordersPerPage) || 1;
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
@@ -76,12 +87,10 @@ const OrdersPage = () => {
   };
 
   const handleBulkShipClick = () => {
-    const matchingSelectedDetails = orders.filter(o =>
+   const matchingSelectedDetails = allOrders.filter(o =>
   selectedOrders.includes(o._id)
 );
 
-setOrdersToShip(matchingSelectedDetails);
-setIsCourierModalOpen(true);
     setOrdersToShip(matchingSelectedDetails);
     setIsCourierModalOpen(true);
   };
@@ -108,7 +117,7 @@ setIsCourierModalOpen(true);
         setSelectedOrders([]);
         setOrdersToShip([]);
 
-        fetchOrders(activeSegment);
+        fetchOrders();
       } else {
         toast.error(res.message);
       }
@@ -135,13 +144,12 @@ setIsCourierModalOpen(true);
         {/* ================= SEGMENT TABS & BULK ACTIONS BAR ================= */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 bg-white p-3 rounded-xl shadow-sm">
           <div className="flex flex-wrap items-center gap-1.5">
-            {['All Orders', 'Pending', 'Booked'].map((tabName) => {
+            {['All Orders', 'Pending', 'Booked','In Transit','Delivered','RTO','Cancelled'].map((tabName) => {
               const isActive = activeSegment === tabName;
               return (
                 <button
                   key={tabName}
                   onClick={() => {
-                    console.log("Tab clicked:", tabName);
                     setActiveSegment(tabName);}}
                   className={`px-4 py-2 text-sm font-semibold rounded-lg border transition-all flex items-center gap-2 ${
                     isActive
@@ -242,7 +250,16 @@ setIsCourierModalOpen(true);
                       {order.shipping?.shippingStatus === 'Cancelled' && (
                         <span className="bg-rose-100 text-rose-800 font-bold text-xs px-3 py-1.5 rounded border border-rose-200">Cancelled</span>
                       )}
-                      {!['Pending', 'Booked', 'Cancelled'].includes(order.shipping?.shippingStatus) && (
+                      {order.shipping?.shippingStatus === 'RTO' && (
+                        <span className="bg-rose-100 text-lime-800 font-bold text-xs px-3 py-1.5 rounded border border-rose-200">RTO</span>
+                      )}
+                      {order.shipping?.shippingStatus === 'Delivered' && (
+                        <span className="bg-rose-100 text-pink-800 font-bold text-xs px-3 py-1.5 rounded border border-rose-200">Delivered</span>
+                      )}
+                      {order.shipping?.shippingStatus === 'In Transit' && (
+                        <span className="bg-rose-100 text-orange-800 font-bold text-xs px-3 py-1.5 rounded border border-rose-200">In Transit</span>
+                      )}
+                      {!['Pending', 'Booked', 'Cancelled','RTO','Delivered','In Transit'].includes(order.shipping?.shippingStatus) && (
                         <span className="text-slate-400 italic text-xs">{order.shipping?.shippingStatus || "No Actions"}</span>
                       )}
                     </td>
@@ -272,7 +289,10 @@ setIsCourierModalOpen(true);
               <option value={100}>100 Rows</option>
             </select>
             <span className="text-xs text-slate-400">
-              Showing {orders.length > 0 ? indexOfFirstOrder + 1 : 0} - {Math.min(indexOfLastOrder, orders.length)} of {orders.length} orders
+              Showing {filteredOrders.length > 0 ? indexOfFirstOrder + 1 : 0}
+-
+{Math.min(indexOfLastOrder, filteredOrders.length)}
+of {filteredOrders.length} orders
             </span>
           </div>
         </div>
