@@ -22,7 +22,8 @@ import { useNavigate } from 'react-router-dom';
 import WhatsAppBut from "../components/WhatsAppBut";
 import { submitContactForm } from "../api/contactAPI";
 import { getOrderByAwb } from '../api/ordersAPI';
-import { toast } from 'react-hot-toast'; // Imported for toast alerts
+import { toast } from 'react-hot-toast';
+import OrderTracker from '../components/OrderTracker'; // Imported OrderTracker component
 
 const HomePage = () => {
   const [awbNumber, setAwbNumber] = useState('');
@@ -31,7 +32,7 @@ const HomePage = () => {
   const [submitted, setSubmitted] = useState(false);
   const navigate = useNavigate();
 
-  // New Inline Tracking States
+  // Inline Tracking States
   const [orderData, setOrderData] = useState(null);
   const [loadingTrack, setLoadingTrack] = useState(false);
   const [trackError, setTrackError] = useState(null);
@@ -42,7 +43,6 @@ const HomePage = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Updated: Core tracking logic renders content dynamically on the exact same view
   const handleTrack = async (e) => {
     e.preventDefault();
 
@@ -51,7 +51,7 @@ const HomePage = () => {
     try {
       setLoadingTrack(true);
       setTrackError(null);
-      setShowTrackingResult(true); // Open container view to present status state
+      setShowTrackingResult(true);
 
       const res = await getOrderByAwb(awbNumber.trim());
 
@@ -75,6 +75,8 @@ const HomePage = () => {
       case 'Booked': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       case 'Not Shipped': return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'Cancelled': return 'bg-rose-100 text-rose-800 border-rose-200';
+      case 'In Transit': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Delivered': return 'bg-blue-100 text-blue-800 border-blue-200';
       default: return 'bg-slate-100 text-slate-600 border-slate-200';
     }
   };
@@ -89,11 +91,11 @@ const HomePage = () => {
         setSubmitted(true);
         setFormData({ name: "", email: "", businessName: "", message: "" });
       } else {
-        toast.error(res.message || "Failed to send"); // Swapped alert with toast
+        toast.error(res.message || "Failed to send");
       }
     } catch (err) {
       console.log(err);
-      toast.error("Server error"); // Swapped alert with toast
+      toast.error("Server error");
     } finally {
       setIsSubmitting(false);
     }
@@ -197,13 +199,13 @@ const HomePage = () => {
         </div>
       </header>
 
-      {/* DYNAMIC TRACKING DISPLAY AREA (Renders inline upon search submission) */}
+      {/* DYNAMIC TRACKING DISPLAY AREA */}
       {showTrackingResult && (
         <section className="bg-slate-100/50 py-12 border-b border-slate-200 animate-fadeIn">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <button 
               onClick={() => { setShowTrackingResult(false); setAwbNumber(''); }}
-              className="absolute -top-4 right-4 p-2 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-slate-600 transition-colors shadow-sm"
+              className="absolute -top-4 right-4 p-2 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-slate-600 transition-colors shadow-sm z-10"
               title="Close tracking details"
             >
               <X className="w-4 h-4" />
@@ -230,7 +232,7 @@ const HomePage = () => {
                     </div>
                     <div>
                       <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">AWB Number</p>
-                      <h1 className="text-xl font-mono font-bold text-blue-800">{orderData.awbNumber || "Unassigned"}</h1>
+                      <h1 className="text-xl font-mono font-bold text-blue-800">{orderData.shipping?.awbNumber || orderData.awbNumber || "Unassigned"}</h1>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs border-t md:border-t-0 md:border-l border-gray-100 pt-3 md:pt-0 md:pl-6">
@@ -244,23 +246,31 @@ const HomePage = () => {
                     <div>
                       <span className="text-slate-400 font-medium block">Status</span>
                       <div className="flex my-0.5">
-                        <span className={`text-xs font-bold px-3 py-1 rounded-full border ${getStatusBadgeStyles(orderData.courierStatus)}`}>
-                          {orderData.courierStatus || "Unknown"}
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full border ${getStatusBadgeStyles(orderData.shipping?.shippingStatus || orderData.courierStatus)}`}>
+                          {orderData.shipping?.shippingStatus || orderData.courierStatus || "Unknown"}
                         </span>
                       </div>
                     </div>
-                    {orderData.courierStatus === "Delivered" && orderData.deliveryDate && (
-                <div className="mt-2">
-                  <span className="text-slate-400 font-medium block">
-                    Delivery Date
-                  </span>
-                  <span className="font-semibold text-slate-700 flex items-center gap-1 mt-0.5">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    {new Date(orderData.deliveryDate).toLocaleDateString("en-GB")}
-                  </span>
-                </div>
-              )}
+                    {(orderData.shipping?.shippingStatus === "Delivered" || orderData.courierStatus === "Delivered") && orderData.deliveryDate && (
+                      <div className="mt-2">
+                        <span className="text-slate-400 font-medium block">Delivery Date</span>
+                        <span className="font-semibold text-slate-700 flex items-center gap-1 mt-0.5">
+                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                          {new Date(orderData.deliveryDate).toLocaleDateString("en-GB")}
+                        </span>
+                      </div>
+                    )}
                   </div>
+                </div>
+
+                {/* Integrated Order Tracker Component */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-2">
+                  <OrderTracker 
+                    awbNumber={orderData.shipping?.awbNumber || orderData.awbNumber}
+                    currentStatus={orderData.shipping?.shippingStatus || orderData.courierStatus || 'Pending'}
+                    trackingHistory={orderData.shipping?.trackingHistory || orderData.trackingHistory || []}
+                    courierName={orderData.shipping?.courierName || orderData.courierName}
+                  />
                 </div>
 
                 {/* Sender & Recipient Split Cards */}
@@ -272,9 +282,8 @@ const HomePage = () => {
                     </div>
                     <div className="p-4 space-y-2 text-sm">
                       <p className="font-bold text-slate-800">{orderData.consignorName || "ABC Manufacturing Ltd."}</p>
-                      <div className="text-slate-600 space-y-1">
-                        <p>45 Science Park Drive,</p>
-                        <p>Tech City, CA 94043</p>
+                      <div className="text-slate-600 space-y-1 text-xs">
+                        <p>Pickup Location: {orderData.pickupLocation || "Default Warehouse"}</p>
                       </div>
                     </div>
                   </div>
@@ -286,8 +295,12 @@ const HomePage = () => {
                     </div>
                     <div className="p-4 space-y-3 text-sm">
                       <div>
-                        <p className="font-bold text-slate-800 text-base">{orderData.consigneeName ? orderData.consigneeName.toUpperCase() : "-"}</p>
-                        <p className="text-slate-600 mt-1 font-medium leading-relaxed">{orderData.address ? orderData.address.toUpperCase() : "-"}</p>
+                        <p className="font-bold text-slate-800 text-base">
+                          {`${orderData.consigneeName || ''} ${orderData.consigneeLastName || ''}`.trim().toUpperCase() || "-"}
+                        </p>
+                        <p className="text-slate-600 mt-1 font-medium leading-relaxed text-xs">
+                          {orderData.address ? orderData.address.toUpperCase() : "-"} {orderData.address2 ? `, ${orderData.address2.toUpperCase()}` : ''}
+                        </p>
                       </div>
                       <div className="pt-2 border-t border-gray-50 grid grid-cols-2 gap-2 text-xs">
                         <div>
@@ -300,7 +313,7 @@ const HomePage = () => {
                           <span className="text-slate-400 block font-medium">Contact Lines</span>
                           <span className="font-semibold text-slate-700 mt-0.5 flex items-center gap-1">
                             <Phone className="w-3 h-3 text-slate-400" />
-                            {orderData.contactNo || "-"}
+                            {orderData.billingPhone || orderData.contactNo || "-"}
                           </span>
                         </div>
                       </div>
@@ -325,7 +338,7 @@ const HomePage = () => {
                     </div>
                     <div className="p-4">
                       <span className="text-[11px] font-bold tracking-wider uppercase text-slate-400 block">Invoice Value</span>
-                      <span className="text-lg font-bold text-emerald-700 font-mono block mt-1 text-emerald-700">₹{orderData.invoiceValue || "0.00"}</span>
+                      <span className="text-lg font-bold text-emerald-700 font-mono block mt-1">₹{orderData.invoiceValue || "0.00"}</span>
                     </div>
                   </div>
                 </div>

@@ -1,4 +1,5 @@
 const Order = require("../../models/upload/order.model");
+const Shipping = require("../../models/upload/shipping.model");
 
 const getDashboardController = async (req, res) => {
   try {
@@ -13,7 +14,26 @@ const getDashboardController = async (req, res) => {
       filter.uploadedBy = req.user.id;
     }
 
-    let orders = await Order.find(filter);
+    let orders = await Order.find(filter).lean();
+
+const orderIds = orders.map(order => order._id);
+
+const shippingList = await Shipping.find({
+  orderId: { $in: orderIds }
+}).lean();
+
+const shippingMap = {};
+
+shippingList.forEach(shipping => {
+  shippingMap[shipping.orderId.toString()] = shipping;
+});
+
+orders = orders.map(order => ({
+  ...order,
+  shipping: shippingMap[order._id.toString()] || {
+    shippingStatus: "Pending"
+  }
+}));
 
     // =========================
     // YEAR FILTER
@@ -36,41 +56,36 @@ const getDashboardController = async (req, res) => {
     // STATS
     // =========================
 
-    const totalOrders = orders.length;
+const totalOrders = orders.length;
 
-    const deliveredOrders = orders.filter(
-      (o) =>
-        (o.courierStatus || "").toLowerCase() ===
-        "delivered"
-    ).length;
+const deliveredOrders = orders.filter(
+  o => o.shipping?.shippingStatus === "Delivered"
+).length;
 
-    const inTransitOrders = orders.filter((o) => {
+const inTransitOrders = orders.filter(o =>
+  [
+    "Shipped",
+    "In Transit",
+    "Out For Delivery"
+  ].includes(o.shipping?.shippingStatus)
+).length;
 
-      const status =
-        (o.courierStatus || "").toLowerCase();
+const delayedOrders = orders.filter(
+  o => o.shipping?.shippingStatus === "Delayed"
+).length;
 
-      return (
-        status === "shipped" ||
-        status === "in transit" ||
-        status === "out for delivery"
-      );
+const cancelledOrders = orders.filter(
+  o => o.shipping?.shippingStatus === "Cancelled"
+).length;
 
-    }).length;
+const rtoOrders = orders.filter(
+  o => o.shipping?.shippingStatus === "RTO"
+).length;
 
-    const delayedOrders = orders.filter((o) => {
-
-      const status =
-        (o.courierStatus || "").toLowerCase();
-
-      return status === "delayed";
-
-    }).length;
-
-    const totalCost = orders.reduce(
-      (acc, curr) =>
-        acc + Number(curr.invoiceValue || 0),
-      0
-    );
+const totalCost = orders.reduce(
+  (sum, order) => sum + Number(order.invoiceValue || 0),
+  0
+);
 
     // =========================
     // CHART DATA
@@ -147,11 +162,13 @@ const getDashboardController = async (req, res) => {
       success: true,
 
       stats: {
-        totalOrders,
-        deliveredOrders,
-        inTransitOrders,
-        delayedOrders,
-      },
+  totalOrders,
+  deliveredOrders,
+  inTransitOrders,
+  delayedOrders,
+  cancelledOrders,
+  rtoOrders,
+},
 
       chartData,
 

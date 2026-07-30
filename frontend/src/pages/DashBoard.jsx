@@ -11,10 +11,11 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  XCircle,
+  RotateCcw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-
 
 const Dashboard = () => {
   const [selectedYear, setSelectedYear] = useState("2026");
@@ -84,124 +85,133 @@ const Dashboard = () => {
     {
       label: 'Delayed',
       value: dashboardData.stats.delayedOrders || 0,
-      icon: <AlertCircle className="text-red-600" />,
+      icon: <AlertCircle className="text-amber-600" />,
       trend: `${dashboardData.stats.delayedOrders || 0}`,
+      color: 'bg-amber-50'
+    },
+    {
+      label: 'Cancelled',
+      value: dashboardData.stats.cancelledOrders || 0,
+      icon: <XCircle className="text-rose-600" />,
+      trend: `${dashboardData.stats.cancelledOrders || 0}`,
+      color: 'bg-rose-50'
+    },
+    {
+      label: 'RTO',
+      value: dashboardData.stats.rtoOrders || 0,
+      icon: <RotateCcw className="text-red-600" />,
+      trend: `${dashboardData.stats.rtoOrders || 0}`,
       color: 'bg-red-50'
     },
   ];
 
   const currentYear = new Date().getFullYear();
 
-const yearOptions = Array.from(
-  { length: 3 },
-  (_, i) => currentYear - i
-);
+  const yearOptions = Array.from(
+    { length: 3 },
+    (_, i) => currentYear - i
+  );
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] font-sans text-slate-700">
       <main className="flex-1 p-8 overflow-y-auto">
         
-        {/* Metric Cards Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Metric Cards Section (Adjusted to grid-cols-2 md:grid-cols-3 lg:grid-cols-6) */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           {stats.map((stat, idx) => (
             <div
               key={idx}
-              className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 transition-transform hover:scale-[1.02]"
+              className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 transition-transform hover:scale-[1.02]"
             >
-              <div className="flex justify-between items-start mb-4">
-                <div className={`p-3 rounded-xl ${stat.color}`}>
+              <div className="flex justify-between items-start mb-3">
+                <div className={`p-2.5 rounded-xl ${stat.color}`}>
                   {stat.icon}
                 </div>
               </div>
-              <p className="text-slate-500 text-sm font-medium">{stat.label}</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-1">{stat.value}</h3>
+              <p className="text-slate-500 text-xs font-medium">{stat.label}</p>
+              <h3 className="text-xl font-black text-slate-900 mt-1">{stat.value}</h3>
             </div>
           ))}
         </div>
 
         {/* Annual Performance Histogram */}
-<div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-8">
-  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
-    <div>
-      <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-        <BarChart3 size={20} className="text-blue-500" />
-        Annual Performance
-      </h2>
-      <p className="text-xs text-slate-400 font-medium">Data overview for the year {selectedYear}</p>
-    </div>
-    <div className="flex items-center gap-6">
-      <div className="relative group">
-        <CalendarDays size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <select
-  value={selectedYear}
-  onChange={(e) => setSelectedYear(e.target.value)}
-  className="pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 appearance-none focus:outline-none cursor-pointer"
->
-  {yearOptions.map((year) => (
-    <option key={year} value={year}>
-      FY {year}
-    </option>
-  ))}
-</select>
-        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-      </div>
-       <div className="hidden lg:flex gap-4 text-[10px] font-bold uppercase tracking-widest">
-
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
-          Orders
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-orange-400 rounded-sm"></div>
-          Cost
-        </div>
-
-      </div>
-    </div>
-  </div>
-
-  <div className="flex items-end justify-between h-72 border-b border-slate-100 pb-2 gap-1 overflow-x-auto lg:overflow-visible">
-    {dashboardData.chartData.map((item, idx) => {
-      // Find dynamic limits to scale both datasets visually apart from each other safely inside the h-72 container
-      const maxOrdersVal = Math.max(...dashboardData.chartData.map(d => d.orders || 0), 1);
-      const maxCostVal = Math.max(...dashboardData.chartData.map(d => d.cost || 0), 1);
-
-      // Orders top out lower visually, Costs top out near the top ceiling of the container
-      const orderBarHeight = Math.max((item.orders / maxOrdersVal) * 140, 16); 
-      const costBarHeight = Math.max((item.cost / maxCostVal) * 230, 16);
-
-      return (
-        <div key={idx} className="flex flex-col items-center group flex-1 min-w-11.25">
-          <div className="flex items-end gap-0.5 mb-3">
-            
-            {/* Orders Bar */}
-            <div
-              style={{ height: `${orderBarHeight}px` }}
-              className="w-3 md:w-4 bg-blue-500 rounded-t-sm transition-all group-hover:bg-blue-600 relative"
-            >
-              <span className="absolute -top-8 left-[20%] -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-slate-800 text-white text-[9px] py-1 px-2 rounded z-10 whitespace-nowrap">
-                {item.orders}
-              </span>
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-8">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <BarChart3 size={20} className="text-blue-500" />
+                Annual Performance
+              </h2>
+              <p className="text-xs text-slate-400 font-medium">Data overview for the year {selectedYear}</p>
             </div>
-
-            {/* Cost Bar */}
-            <div
-              style={{ height: `${costBarHeight}px` }}
-              className="w-3 md:w-4 bg-orange-400 rounded-t-sm transition-all group-hover:bg-orange-500 relative"
-            >
-              <span className="absolute -top-8 left-[80%] -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-slate-800 text-white text-[9px] py-1 px-2 rounded z-10 whitespace-nowrap">
-                ₹{item.cost}
-              </span>
+            <div className="flex items-center gap-6">
+              <div className="relative group">
+                <CalendarDays size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className="pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 appearance-none focus:outline-none cursor-pointer"
+                >
+                  {yearOptions.map((year) => (
+                    <option key={year} value={year}>
+                      FY {year}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
+              <div className="hidden lg:flex gap-4 text-[10px] font-bold uppercase tracking-widest">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
+                  Orders
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-orange-400 rounded-sm"></div>
+                  Cost
+                </div>
+              </div>
             </div>
-
           </div>
-          <span className="text-[10px] font-bold text-slate-400 uppercase">{item.name}</span>
+
+          <div className="flex items-end justify-between h-72 border-b border-slate-100 pb-2 gap-1 overflow-x-auto lg:overflow-visible">
+            {dashboardData.chartData.map((item, idx) => {
+              const maxOrdersVal = Math.max(...dashboardData.chartData.map(d => d.orders || 0), 1);
+              const maxCostVal = Math.max(...dashboardData.chartData.map(d => d.cost || 0), 1);
+
+              const orderBarHeight = Math.max((item.orders / maxOrdersVal) * 140, 16); 
+              const costBarHeight = Math.max((item.cost / maxCostVal) * 230, 16);
+
+              return (
+                <div key={idx} className="flex flex-col items-center group flex-1 min-w-11.25">
+                  <div className="flex items-end gap-0.5 mb-3">
+                    
+                    {/* Orders Bar */}
+                    <div
+                      style={{ height: `${orderBarHeight}px` }}
+                      className="w-3 md:w-4 bg-blue-500 rounded-t-sm transition-all group-hover:bg-blue-600 relative"
+                    >
+                      <span className="absolute -top-8 left-[20%] -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-slate-800 text-white text-[9px] py-1 px-2 rounded z-10 whitespace-nowrap">
+                        {item.orders}
+                      </span>
+                    </div>
+
+                    {/* Cost Bar */}
+                    <div
+                      style={{ height: `${costBarHeight}px` }}
+                      className="w-3 md:w-4 bg-orange-400 rounded-t-sm transition-all group-hover:bg-orange-500 relative"
+                    >
+                      <span className="absolute -top-8 left-[80%] -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-slate-800 text-white text-[9px] py-1 px-2 rounded z-10 whitespace-nowrap">
+                        ₹{item.cost}
+                      </span>
+                    </div>
+
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">{item.name}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      );
-    })}
-  </div>
-</div>
 
         {/* Bottom Section */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
@@ -260,7 +270,7 @@ const yearOptions = Array.from(
                 </tbody>
               </table>
               
-              {/* Empty state padding to keep height consistent */}
+              {/* Empty state padding */}
               {currentCities.length === 0 && !loading && (
                  <div className="p-12 text-center text-slate-400 text-sm">No city data available.</div>
               )}

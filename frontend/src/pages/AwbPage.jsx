@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Package, Truck, User, Building, FileText, Calendar, Phone } from 'lucide-react';
 import { getOrderByAwb } from '../api/ordersAPI'; 
+import OrderTracker from '../components/OrderTracker'; // <--- Imported OrderTracker Component
 
 const AwbPage = () => {
   const { awbNumber } = useParams(); 
@@ -73,6 +74,7 @@ const AwbPage = () => {
       case 'Not Shipped': return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'Cancelled': return 'bg-rose-100 text-rose-800 border-rose-200';
       case 'Delivered': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'In Transit': return 'bg-blue-100 text-blue-800 border-blue-200';
       default: return 'bg-slate-100 text-slate-600 border-slate-200';
     }
   };
@@ -91,6 +93,7 @@ const AwbPage = () => {
           </button>
         </div>
 
+        {/* ================= TOP SHIPMENT SUMMARY HEADER ================= */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
@@ -135,6 +138,17 @@ const AwbPage = () => {
           </div>
         </div>
 
+        {/* ================= INTEGRATED ORDER TRACKER ================= */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-2">
+          <OrderTracker 
+            awbNumber={order.shipping?.awbNumber}
+            currentStatus={order.shipping?.shippingStatus || 'Pending'}
+            trackingHistory={order.shipping?.trackingHistory || []}
+            courierName={order.shipping?.courierName}
+          />
+        </div>
+
+        {/* ================= SHIPPER & CONSIGNEE DETAILS ================= */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -144,9 +158,8 @@ const AwbPage = () => {
             </div>
             <div className="p-4 space-y-2 text-sm">
               <p className="font-bold text-slate-800">{order.consignorName || "ABC Manufacturing Ltd."}</p>
-              <div className="text-slate-600 space-y-1">
-                <p>45 Science Park Drive,</p>
-                <p>Tech City, CA 94043</p>
+              <div className="text-slate-600 space-y-1 text-xs">
+                <p>Pickup Location: {order.pickupLocation || "Default Warehouse"}</p>
               </div>
             </div>
           </div>
@@ -158,8 +171,12 @@ const AwbPage = () => {
             </div>
             <div className="p-4 space-y-3 text-sm">
               <div>
-                <p className="font-bold text-slate-800 text-base">{order.consigneeName ? order.consigneeName.toUpperCase() : "-"}</p>
-                <p className="text-slate-600 mt-1 font-medium leading-relaxed">{order.address ? order.address.toUpperCase() : "-"}</p>
+                <p className="font-bold text-slate-800 text-base">
+                  {`${order.consigneeName || ''} ${order.consigneeLastName || ''}`.trim().toUpperCase() || "-"}
+                </p>
+                <p className="text-slate-600 mt-1 font-medium leading-relaxed text-xs">
+                  {order.address ? order.address.toUpperCase() : "-"} {order.address2 ? `, ${order.address2.toUpperCase()}` : ''}
+                </p>
               </div>
               
               <div className="pt-2 border-t border-gray-50 grid grid-cols-2 gap-2 text-xs">
@@ -173,7 +190,7 @@ const AwbPage = () => {
                   <span className="text-slate-400 block font-medium">Contact Lines</span>
                   <span className="font-semibold text-slate-700 mt-0.5 flex items-center gap-1">
                     <Phone className="w-3 h-3 text-slate-400" />
-                    {order.contactNo || "-"}
+                    {order.billingPhone || order.contactNo || "-"}
                   </span>
                 </div>
               </div>
@@ -182,6 +199,7 @@ const AwbPage = () => {
 
         </div>
 
+        {/* ================= FINANCIAL & MANIFEST SPECIFICATIONS ================= */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="border-b border-gray-100 bg-[#FAFAFA] px-4 py-3 flex items-center gap-2 text-slate-500">
             <FileText className="w-4 h-4 text-blue-500" />
