@@ -24,8 +24,14 @@ const AwbPage = () => {
         console.log("Fetched order details:", res);
         
         if (res?.success && res.order) {
-          setOrder(res.order); 
-        } else {
+  setOrder({
+    ...res.order,
+    shipping: {
+      ...res.shipping,
+      trackingHistory: res.tracking || [],
+    },
+  });
+} else {
           setError("No shipment information found matching this AWB number.");
         }
       } catch (err) {

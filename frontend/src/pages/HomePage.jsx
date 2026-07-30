@@ -55,9 +55,15 @@ const HomePage = () => {
 
       const res = await getOrderByAwb(awbNumber.trim());
 
-      if (res?.success && res?.order) {
-        setOrderData(res.order);
-      } else {
+      if (res?.success && res.order) {
+  setOrderData({
+    ...res.order,
+    shipping: {
+      ...res.shipping,
+      trackingHistory: res.tracking,
+    },
+  });
+} else {
         setOrderData(null);
         setTrackError("No shipment information found matching this AWB number.");
       }
