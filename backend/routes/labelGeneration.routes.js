@@ -6,7 +6,7 @@ const generateInvoiceController = require("../controllers/labelGenerationControl
 const generateManifestController = require("../controllers/labelGenerationControllers/generateManifest.controllers.js");
 const generateLabelExternalController = require("../controllers/labelGenerationControllers/generateLabelExternal.controllers.js");
 const generateInvoiceExternalController = require("../controllers/labelGenerationControllers/generateInvoiceExternal.controllers.js");
-const generateManifestExternalController = require("../controllers/labelGenerationControllers/generateManifest.controllers.js");
+const generateManifestExternalController = require("../controllers/labelGenerationControllers/generateManifestExternal.controllers.js");
 
 generateLabelRouter.post("/pdf/labels", generateLabelController);
 generateLabelRouter.post("/pdf/invoices", generateInvoiceController);
