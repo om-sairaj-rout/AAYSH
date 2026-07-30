@@ -6,17 +6,21 @@ const getAllOrders = async (req, res) => {
     const isAdmin = req.user.role === "admin";
 
     const {
-      page = 1,
-      per_page = 25,
-      sort = "DESC",
-      sort_by = "createdAt",
-      from,
-      to,
-      search,
-      filter_by,
-      filter,
-      pickup_location,
-    } = req.query;
+  page = 1,
+  per_page = 25,
+  sort = "DESC",
+  sort_by = "createdAt",
+
+  search,
+
+  status,
+  payment_method,
+  pickup_location,
+  courier_name,
+
+  from,
+  to,
+} = req.query;
 
     const orderFilter = {};
 
@@ -41,52 +45,71 @@ const getAllOrders = async (req, res) => {
       }
     }
 
-    // =========================
-    // SEARCH
-    // Searches Order ID
-    // =========================
-    if (search) {
-      orderFilter.externalOrderId = {
+   // =========================
+// SEARCH
+// External Order ID, AWB, Customer Name, Phone
+// =========================
+if (search) {
+  const shippingOrders = await Shipping.find({
+    awbNumber: {
+      $regex: search,
+      $options: "i",
+    },
+  }).select("orderId");
+
+  orderFilter.$or = [
+    {
+      externalOrderId: {
         $regex: search,
         $options: "i",
-      };
-    }
+      },
+    },
+    {
+      consigneeName: {
+        $regex: search,
+        $options: "i",
+      },
+    },
+    {
+      consigneeLastName: {
+        $regex: search,
+        $options: "i",
+      },
+    },
+    {
+      billingPhone: {
+        $regex: search,
+        $options: "i",
+      },
+    },
+    {
+      _id: {
+        $in: shippingOrders.map((x) => x.orderId),
+      },
+    },
+  ];
+}
 
-    // =========================
-    // FILTERS ON ORDER MODEL
-    // =========================
-    if (filter_by && filter) {
-      switch (filter_by) {
-        case "payment_method":
-          orderFilter.paymentMethod = filter;
-          break;
-
-        case "channel_order_id":
-          orderFilter.externalOrderId = {
-            $regex: filter,
-            $options: "i",
-          };
-          break;
-
-        case "delivery_country":
-          orderFilter.destinationCountry = filter;
-          break;
-      }
-    }
+// =========================
+// PAYMENT FILTER
+// =========================
+if (payment_method) {
+  orderFilter.paymentMethod = payment_method;
+}
 
     const sortOrder = sort.toUpperCase() === "ASC" ? 1 : -1;
 
     const allowedSortFields = {
-      id: "externalOrderId",
-      created_at: "createdAt",
-      order_date: "orderDate",
-      pickup_date: "pickupDate",
-    };
+  createdAt: "createdAt",
+  orderDate: "orderDate",
+  pickupDate: "pickupDate",
+  invoiceValue: "invoiceValue",
+};
 
     const sortField =
       allowedSortFields[sort_by] || "createdAt";
 
-    const total = await Order.countDocuments(orderFilter);
+    const total = 0;
 
     const orders = await Order.find(orderFilter)
       .sort({ [sortField]: sortOrder })
@@ -104,21 +127,27 @@ const getAllOrders = async (req, res) => {
       // =========================
       // SHIPPING FILTERS
       // =========================
-      if (pickup_location) {
-        if (
-          shipping?.pickupLocation !== pickup_location
-        ) {
-          continue;
-        }
-      }
+  if (
+  status &&
+  shipping?.shippingStatus !== status
+) {
+  continue;
+}
 
-      if (
-        filter_by === "status" &&
-        filter &&
-        shipping?.shippingStatus !== filter
-      ) {
-        continue;
-      }
+if (
+  pickup_location &&
+  shipping?.pickupLocation !== pickup_location
+) {
+  continue;
+}
+
+if (
+  courier_name &&
+  shipping?.courierName.toLowerCase() !==
+    courier_name.toLowerCase()
+) {
+  continue;
+}
 
       data.push({
         order_id: order.externalOrderId,
@@ -185,6 +214,8 @@ const getAllOrders = async (req, res) => {
       });
     }
 
+    total = data.length;
+    
     return res.status(200).json({
       success: true,
       data,
