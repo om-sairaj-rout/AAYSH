@@ -3,8 +3,8 @@ import { useSelector } from "react-redux";
 import { ChevronLeft, ChevronRight, MoreHorizontal, FileText, ClipboardList, Tag } from 'lucide-react';
 import { getOrders } from '../api/ordersAPI';
 import { generateLabelAPI } from "../api/labelAPI";
-import { generateInvoiceAPI } from "../api/invoiceAPI";
-import { generateManifestAPI } from "../api/manifestAPI";
+import { generateInvoiceAPI } from "../api/labelAPI";
+import { generateManifestAPI } from "../api/labelAPI";
 import { toast } from 'react-hot-toast';
 
 /* ================= ROW DOWNLOAD DROPDOWN COMPONENT ================= */
@@ -178,7 +178,7 @@ const ShipmentPage = () => {
     }
   };
 
-  // Helper function for PDF blob downloads
+  // PDF Blob Downloader
   const downloadPdf = (blob, filename) => {
     const url = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
     const link = document.createElement("a");
@@ -190,7 +190,7 @@ const ShipmentPage = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  // Single Document Handlers
+  // Single Actions
   const handlePrintLabel = async (orderId) => {
     try {
       const blob = await generateLabelAPI({ orderIds: [orderId] });
@@ -221,7 +221,7 @@ const ShipmentPage = () => {
     }
   };
 
-  // Bulk Document Handlers
+  // Bulk Actions
   const handleBulkPrintLabels = async () => {
     try {
       const blob = await generateLabelAPI({ orderIds: selectedOrders });
@@ -407,7 +407,7 @@ const ShipmentPage = () => {
                       ₹{order.invoiceValue || "-"}
                     </td>
 
-                    {/* Shipping Status Column */}
+                    {/* Status Column */}
                     <td className="p-3 whitespace-nowrap">
                       {order.shipping?.shippingStatus === 'Pending' && (
                         <span className="bg-amber-100 text-amber-800 font-bold text-xs px-2.5 py-1 rounded-full border border-amber-200">
@@ -488,7 +488,7 @@ const ShipmentPage = () => {
                       )}
                     </td>
 
-                    {/* Download Action Dropdown Column (3-Dots Menu) */}
+                    {/* Download Column (3-Dots Menu Dropdown) */}
                     <td className="p-3 whitespace-nowrap text-center">
                       <ActionDropdown 
                         order={order}
