@@ -11,7 +11,7 @@ const courierSchema =
       },
       supportsPrime: {
   type: Boolean,
-  default: false,
+  default: true,
 },
     },
     {
