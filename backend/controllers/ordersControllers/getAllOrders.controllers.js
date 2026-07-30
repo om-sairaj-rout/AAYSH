@@ -110,7 +110,6 @@ if (payment_method) {
     const sortField =
       allowedSortFields[sort_by] || "createdAt";
 
-    let total = 0;
 
     let ordersQuery = Order.find(orderFilter)
   .sort({ [sortField]: sortOrder });
@@ -263,7 +262,6 @@ if (
       });
     }
 
-    total = data.length;
 
     return res.status(200).json({
       success: true,
