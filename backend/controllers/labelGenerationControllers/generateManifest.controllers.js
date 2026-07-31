@@ -93,20 +93,43 @@ const generateManifest = async (req, res) => {
         const drawHeader = (yPos) => {
             // ================= 1. CENTER BRAND HEADER =================
             // Centered Title Block
-            const titleY = yPos + 5;
-            doc.font(fontBold).fontSize(16).fillColor("#0F172A").text("AAYSH ", margin, titleY, {
-                align: "center",
-                width: printWidth,
-                continued: true
-            });
-            doc.fillColor("#0D9488").text("EXPRESS");
+           const titleY = yPos + 5;
 
-            doc.font(fontNormal).fontSize(8).fillColor("#64748B").text(
-                "CARGO HANDOVER MANIFEST",
-                margin,
-                titleY + 18,
-                { align: "center", width: printWidth }
-            );
+doc.font(fontBold).fontSize(16);
+
+// Calculate text widths
+const aayshWidth = doc.widthOfString("AAYSH ");
+const expressWidth = doc.widthOfString("EXPRESS");
+const totalWidth = aayshWidth + expressWidth;
+
+// Center both words together
+const startX = (doc.page.width - totalWidth) / 2;
+
+// Draw AAYSH
+doc.fillColor("#0F172A");
+doc.text("AAYSH ", startX, titleY, {
+    lineBreak: false
+});
+
+// Draw EXPRESS
+doc.fillColor("#0D9488");
+doc.text("EXPRESS", startX + aayshWidth, titleY, {
+    lineBreak: false
+});
+
+// Subtitle
+doc.font(fontNormal)
+   .fontSize(8)
+   .fillColor("#64748B")
+   .text(
+       "CARGO HANDOVER MANIFEST",
+       margin,
+       titleY + 22,
+       {
+           align: "center",
+           width: printWidth
+       }
+   );
 
             // Subtitle Date
             const nowFormatted = new Date().toLocaleString("en-US", {
@@ -202,7 +225,7 @@ const generateManifest = async (req, res) => {
         doc.rect(margin, footerY, printWidth, footerHeight).strokeColor("#000000").lineWidth(0.75).stroke();
 
         // Subheader Title
-        doc.font(fontBold).fontSize(8.5).fillColor("#000000").text(`To Be Filled By ${courier} Executive`, margin + 8, footerY + 6);
+        doc.font(fontBold).fontSize(8.5).fillColor("#000000").text(`To Be Filled By ${courier} Executive`, margin + 8, footerY + 10);
 
         const colWidth = printWidth / 2;
 
@@ -226,10 +249,26 @@ const generateManifest = async (req, res) => {
         
         // Address Block positioned directly below Seller Signature
         doc.font(fontNormal).fontSize(7.5).fillColor("#333333");
-        doc.text(sellerAddress, rightColX, footerY + 56, { width: colWidth - 16, height: 32 });
-        
-        // Contact Number directly below Address
-        doc.font(fontBold).fontSize(8).fillColor("#000000").text(`Contact: ${sellerContact || "N/A"}`, rightColX, footerY + 92);
+        doc.text(
+    sellerAddress,
+    rightColX,
+    footerY + 56,
+    {
+        width: colWidth - 16
+    }
+);
+
+// Position after address
+const contactY = doc.y + 5;
+
+doc.font(fontBold)
+   .fontSize(8)
+   .fillColor("#000000")
+   .text(
+       `Contact: ${sellerContact || "N/A"}`,
+       rightColX,
+       contactY
+   );
 
         // System Generated Document Note
         doc.font(fontNormal).fontSize(7).fillColor("#666666").text("This is a system generated document", margin, pageHeight - 18, { align: "center" });
