@@ -2,7 +2,7 @@ const PDFDocument = require("pdfkit");
 const bwipjs = require("bwip-js");
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
-const User = require("../../models/user.model"); // adjust path if needed
+const User = require("../../models/user.model");
 
 const drawBarcode128 = async (doc, code, x, y) => {
     if (!code) return;
@@ -26,30 +26,30 @@ const generateManifest = async (req, res) => {
         const { orderIds, courierName } = req.body;
 
         const orders = await Order.find({
-    _id: { $in: orderIds }
-}).lean();
+            _id: { $in: orderIds }
+        }).lean();
 
-if (!orders.length) {
-    return res.status(404).json({
-        success: false,
-        message: "Orders not found"
-    });
-}
+        if (!orders.length) {
+            return res.status(404).json({
+                success: false,
+                message: "Orders not found"
+            });
+        }
 
-const shippings = await Shipping.find({
-    orderId: { $in: orderIds }
-}).lean();
+        const shippings = await Shipping.find({
+            orderId: { $in: orderIds }
+        }).lean();
 
-const seller = await User.findById(
-    orders[0].uploadedBy
-).lean();
+        const seller = await User.findById(
+            orders[0].uploadedBy
+        ).lean();
 
-if (!seller) {
-    return res.status(404).json({
-        success: false,
-        message: "Seller not found"
-    });
-}
+        if (!seller) {
+            return res.status(404).json({
+                success: false,
+                message: "Seller not found"
+            });
+        }
 
         const shippingMap = new Map(
             shippings.map(s => [s.orderId.toString(), s])
@@ -59,7 +59,8 @@ if (!seller) {
             order.shipping = shippingMap.get(order._id.toString()) || null;
         });
 
-        const doc = new PDFDocument({ margin: 25, size: "A4" });
+        // Set autoFirstPage to true and disable automatic page creation
+        const doc = new PDFDocument({ margin: 25, size: "A4", autoFirstPage: true });
 
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", "attachment; filename=aaysh_express_manifest.pdf");
@@ -76,41 +77,36 @@ if (!seller) {
         // Dynamic Details
         const manifestId = `MANIFEST-${Date.now().toString().slice(-4)}`;
         const courier = courierName || orders[0]?.shipping?.courierName || "Xpressbees Surface";
-        const sellerName =
-    seller.company_name || seller.username;
+        const sellerName = seller.company_name || seller.username;
 
-const sellerAddress = [
-    seller.address,
-    seller.city,
-    `${seller.state} - ${seller.zip_code}`,
-    seller.country,
-]
-.filter(Boolean)
-.join(", ");
+        const sellerAddress = [
+            seller.address,
+            seller.city,
+            `${seller.state} - ${seller.zip_code}`,
+            seller.country,
+        ]
+        .filter(Boolean)
+        .join(", ");
 
-const sellerContact =
-    seller.mobile_number;
+        const sellerContact = seller.mobile_number;
 
         const drawHeader = (yPos) => {
-            // ================= 1. CENTER LOGO HEADER =================
-            doc.font(fontBold)
-   .fontSize(16)
-   .fillColor("#0F172A")
-   .text("AAYSH", margin + 10, yPos + 5, {
-       continued: true
-   });
+            // ================= 1. CENTER BRAND HEADER =================
+            // Centered Title Block
+            const titleY = yPos + 5;
+            doc.font(fontBold).fontSize(16).fillColor("#0F172A").text("AAYSH ", margin, titleY, {
+                align: "center",
+                width: printWidth,
+                continued: true
+            });
+            doc.fillColor("#0D9488").text("EXPRESS");
 
-doc.fillColor("#0D9488")
-   .text("EXPRESS");
-
-doc.font(fontNormal)
-   .fontSize(8)
-   .fillColor("#64748B")
-   .text(
-       "CARGO HANDOVER MANIFEST",
-       margin + 10,
-       yPos + 25
-   );
+            doc.font(fontNormal).fontSize(8).fillColor("#64748B").text(
+                "CARGO HANDOVER MANIFEST",
+                margin,
+                titleY + 18,
+                { align: "center", width: printWidth }
+            );
 
             // Subtitle Date
             const nowFormatted = new Date().toLocaleString("en-US", {
@@ -118,9 +114,9 @@ doc.font(fontNormal)
                 hour: "numeric", minute: "2-digit", hour12: true
             });
             doc.font(fontNormal).fontSize(8.5).fillColor("#475569");
-            doc.text(`Generated on: ${nowFormatted}`, margin, yPos + 32, { align: "center", width: printWidth });
+            doc.text(`Generated on: ${nowFormatted}`, margin, titleY + 30, { align: "center", width: printWidth });
 
-            const row2Y = yPos + 50;
+            const row2Y = titleY + 48;
 
             // ================= 2. LEFT & RIGHT METADATA ROW =================
             // Left Column: Seller & Courier
@@ -135,9 +131,9 @@ doc.font(fontNormal)
             doc.text(`Total shipments to dispatch: ${orders.length}`, rightX, row2Y + 14, { align: "right", width: 220 });
 
             // Divider Line
-            doc.moveTo(margin, row2Y + 34).lineTo(margin + printWidth, row2Y + 34).strokeColor("#CCCCCC").lineWidth(0.75).stroke();
+            doc.moveTo(margin, row2Y + 32).lineTo(margin + printWidth, row2Y + 32).strokeColor("#CCCCCC").lineWidth(0.75).stroke();
 
-            return row2Y + 42;
+            return row2Y + 40;
         };
 
         let y = drawHeader(margin);
@@ -159,51 +155,42 @@ doc.font(fontNormal)
 
         y = drawTableHeader(y);
 
-        // ================= TABLE ROWS =================
-        const rowHeight = 38;
-        const maxTableY = pageHeight - 165; 
+        // ================= TABLE ROWS (SINGLE PAGE ENFORCED) =================
+        const rowHeight = 35;
 
         for (let i = 0; i < orders.length; i++) {
             const order = orders[i];
-
-            if (y + rowHeight > maxTableY) {
-                doc.addPage();
-                y = drawHeader(margin);
-                y = drawTableHeader(y);
-            }
 
             doc.rect(margin, y, printWidth, rowHeight).strokeColor("#000000").lineWidth(0.5).stroke();
 
             const orderNo = order.externalOrderId || order.orderNumber || "2782";
             const contents = order.orderItems?.length
-    ? order.orderItems
-          .map(item => item.name || item.sku)
-          .join(", ")
-    : "General Parcel";
+                ? order.orderItems.map(item => item.name || item.sku).join(", ")
+                : "General Parcel";
             const awbNo = String(order.shipping?.awbNumber || "");
 
             doc.font(fontNormal).fontSize(8.5).fillColor("#000000");
             
             // Checkbox + S.no
-            doc.rect(margin + 6, y + 13, 9, 9).stroke();
-            doc.text(`${i + 1}`, margin + 20, y + 13);
+            doc.rect(margin + 6, y + 12, 9, 9).stroke();
+            doc.text(`${i + 1}`, margin + 20, y + 12);
 
             // Order No
-            doc.text(orderNo, margin + 45, y + 13, { width: 90, ellipsis: true });
+            doc.text(orderNo, margin + 45, y + 12, { width: 90, ellipsis: true });
 
             // Contents
-            doc.text(contents, margin + 145, y + 13, { width: 140, ellipsis: true });
+            doc.text(contents, margin + 145, y + 12, { width: 140, ellipsis: true });
 
             // AWB No
-            doc.text(awbNo, margin + 295, y + 13, { width: 125, ellipsis: true });
+            doc.text(awbNo, margin + 295, y + 12, { width: 125, ellipsis: true });
 
             // Clean Vector Barcode
             await drawBarcode128(
-    doc,
-    awbNo,
-    margin + 425,
-    y + 5
-);
+                doc,
+                awbNo,
+                margin + 425,
+                y + 4
+            );
 
             y += rowHeight;
         }
@@ -234,12 +221,15 @@ doc.font(fontNormal)
         doc.text("Seller Name: ", rightColX, footerY + 22, { continued: true })
            .font(fontBold).text(sellerName);
 
+        // Seller Signature Line
         doc.font(fontNormal).text("Seller Signature: ____________________", rightColX, footerY + 39);
         
-        // Address Block & Contact Details
+        // Address Block positioned directly below Seller Signature
         doc.font(fontNormal).fontSize(7.5).fillColor("#333333");
-        doc.text(sellerAddress, rightColX, footerY + 55, { width: colWidth - 16, height: 35 });
-        doc.font(fontBold).fontSize(8).fillColor("#000000").text(`Contact: ${sellerContact}`, rightColX, footerY + 95);
+        doc.text(sellerAddress, rightColX, footerY + 56, { width: colWidth - 16, height: 32 });
+        
+        // Contact Number directly below Address
+        doc.font(fontBold).fontSize(8).fillColor("#000000").text(`Contact: ${sellerContact || "N/A"}`, rightColX, footerY + 92);
 
         // System Generated Document Note
         doc.font(fontNormal).fontSize(7).fillColor("#666666").text("This is a system generated document", margin, pageHeight - 18, { align: "center" });
