@@ -270,9 +270,6 @@ doc.font(fontBold)
        contactY
    );
 
-        // System Generated Document Note
-        doc.font(fontNormal).fontSize(7).fillColor("#666666").text("This is a system generated document", margin, pageHeight - 18, { align: "center" });
-
         doc.end();
 
     } catch (err) {
