@@ -1,58 +1,23 @@
 const PDFDocument = require("pdfkit");
-const path = require("path");
-const fs = require("fs");
+const bwipjs = require("bwip-js");
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
+const User = require("../../models/user.model"); // adjust path if needed
 
-// Helper function to draw dynamic Code 128 (Pattern-B) vector barcodes in PDFKit
-const drawBarcode128 = (doc, code, x, y, options = {}) => {
-    const height = options.height || 18;
-    const widthFactor = options.widthFactor || 0.85;
+const drawBarcode128 = async (doc, code, x, y) => {
+    if (!code) return;
 
-    // Code 128 subset B mapping table (patterns of bar/space widths)
-    const CODE128_PATTERNS = [
-        "212222", "222122", "222221", "121223", "121322", "131222", "122213", "122312",
-        "132212", "221213", "221312", "231212", "112232", "122132", "122231", "113222",
-        "123122", "123221", "223211", "221132", "221231", "213212", "223112", "312131",
-        "311222", "321122", "321221", "312212", "322112", "322211", "212123", "212321",
-        "232121", "111323", "131123", "131321", "112313", "132113", "132311", "211313",
-        "231113", "231311", "112133", "112331", "132131", "113123", "113321", "133121",
-        "313121", "211331", "231131", "213113", "213311", "213131", "311123", "311321",
-        "313112", "331121", "312113", "312311", "332111", "314111", "221411", "431111",
-        "111224", "111422", "121124", "121421", "141122", "141221", "112214", "112412",
-        "122114", "122411", "142112", "142211", "241211", "221114", "413111", "241112",
-        "134111", "111242", "121142", "121241", "114212", "124112", "124211", "411212",
-        "421112", "421211", "212141", "214121", "412121", "111143", "111341", "131141",
-        "114113", "114311", "411113", "411311", "113141", "114131", "311141", "411131",
-        "211412", "211214", "211232", "2331112"
-    ];
+    const png = await bwipjs.toBuffer({
+        bcid: "code128",
+        text: String(code),
+        scale: 2,
+        height: 12,
+        includetext: false,
+    });
 
-    let checkSum = 104; // Start Code B index
-    const codeUnits = [104];
-
-    for (let i = 0; i < code.length; i++) {
-        const codeVal = code.charCodeAt(i) - 32;
-        codeUnits.push(codeVal);
-        checkSum += codeVal * (i + 1);
-    }
-
-    codeUnits.push(checkSum % 103);
-    codeUnits.push(106); // Stop pattern index
-
-    let currX = x;
-    doc.fillColor("#000000");
-
-    codeUnits.forEach((unitIndex) => {
-        const pattern = CODE128_PATTERNS[unitIndex];
-        if (!pattern) return;
-
-        for (let p = 0; p < pattern.length; p++) {
-            const width = parseInt(pattern[p], 10) * widthFactor;
-            if (p % 2 === 0) { // Bar
-                doc.rect(currX, y, width, height).fill();
-            }
-            currX += width;
-        }
+    doc.image(png, x, y, {
+        width: 105,
+        height: 28,
     });
 };
 
@@ -60,12 +25,31 @@ const generateManifest = async (req, res) => {
     try {
         const { orderIds, courierName } = req.body;
 
-        if (!orderIds || orderIds.length === 0) {
-            return res.status(400).json({ success: false, message: "No order IDs provided" });
-        }
+        const orders = await Order.find({
+    _id: { $in: orderIds }
+}).lean();
 
-        const orders = await Order.find({ _id: { $in: orderIds } }).lean();
-        const shippings = await Shipping.find({ orderId: { $in: orderIds } }).lean();
+if (!orders.length) {
+    return res.status(404).json({
+        success: false,
+        message: "Orders not found"
+    });
+}
+
+const shippings = await Shipping.find({
+    orderId: { $in: orderIds }
+}).lean();
+
+const seller = await User.findById(
+    orders[0].uploadedBy
+).lean();
+
+if (!seller) {
+    return res.status(404).json({
+        success: false,
+        message: "Seller not found"
+    });
+}
 
         const shippingMap = new Map(
             shippings.map(s => [s.orderId.toString(), s])
@@ -74,10 +58,6 @@ const generateManifest = async (req, res) => {
         orders.forEach(order => {
             order.shipping = shippingMap.get(order._id.toString()) || null;
         });
-
-        if (!orders || orders.length === 0) {
-            return res.status(404).json({ success: false, message: "Orders not found" });
-        }
 
         const doc = new PDFDocument({ margin: 25, size: "A4" });
 
@@ -96,20 +76,41 @@ const generateManifest = async (req, res) => {
         // Dynamic Details
         const manifestId = `MANIFEST-${Date.now().toString().slice(-4)}`;
         const courier = courierName || orders[0]?.shipping?.courierName || "Xpressbees Surface";
-        const sellerName = orders[0]?.sellerName || "FIBERISE FIT PRIVATE LIMITED";
-        const sellerAddress = orders[0]?.pickupAddress || "A 153, Sector 136, Noida, Meerut Division, Uttar Pradesh - 201304 pride corporate park Gautam Buddha Nagar, Uttar Pradesh-201304.";
-        const sellerContact = orders[0]?.sellerContact || "8679036275";
+        const sellerName =
+    seller.company_name || seller.username;
+
+const sellerAddress = [
+    seller.address,
+    seller.city,
+    `${seller.state} - ${seller.zip_code}`,
+    seller.country,
+]
+.filter(Boolean)
+.join(", ");
+
+const sellerContact =
+    seller.mobile_number;
 
         const drawHeader = (yPos) => {
             // ================= 1. CENTER LOGO HEADER =================
-            const logoPath = path.join(__dirname, "../../assets/aaysh_logo_2.png");
-            if (fs.existsSync(logoPath)) {
-                doc.image(logoPath, (doc.page.width - 150) / 2, yPos, { width: 150, align: "center" });
-            } else {
-                // Fallback Centered Text Logo
-                doc.font(fontBold).fontSize(18).fillColor("#0F172A");
-                doc.text("AAYSH EXPRESS", margin, yPos, { align: "center", width: printWidth });
-            }
+            doc.font(fontBold)
+   .fontSize(16)
+   .fillColor("#0F172A")
+   .text("AAYSH", margin + 10, yPos + 5, {
+       continued: true
+   });
+
+doc.fillColor("#0D9488")
+   .text("EXPRESS");
+
+doc.font(fontNormal)
+   .fontSize(8)
+   .fillColor("#64748B")
+   .text(
+       "CARGO HANDOVER MANIFEST",
+       margin + 10,
+       yPos + 25
+   );
 
             // Subtitle Date
             const nowFormatted = new Date().toLocaleString("en-US", {
@@ -174,8 +175,12 @@ const generateManifest = async (req, res) => {
             doc.rect(margin, y, printWidth, rowHeight).strokeColor("#000000").lineWidth(0.5).stroke();
 
             const orderNo = order.externalOrderId || order.orderNumber || "2782";
-            const contents = order.itemsSummary || "Starter pack (SKU-Test Pack)";
-            const awbNo = order.shipping?.awbNumber || "14112366160873";
+            const contents = order.orderItems?.length
+    ? order.orderItems
+          .map(item => item.name || item.sku)
+          .join(", ")
+    : "General Parcel";
+            const awbNo = String(order.shipping?.awbNumber || "");
 
             doc.font(fontNormal).fontSize(8.5).fillColor("#000000");
             
@@ -193,8 +198,12 @@ const generateManifest = async (req, res) => {
             doc.text(awbNo, margin + 295, y + 13, { width: 125, ellipsis: true });
 
             // Clean Vector Barcode
-            drawBarcode128(doc, awbNo, margin + 430, y + 8, { height: 16, widthFactor: 0.75 });
-            doc.font(fontNormal).fontSize(7).fillColor("#333333").text(awbNo, margin + 430, y + 26);
+            await drawBarcode128(
+    doc,
+    awbNo,
+    margin + 425,
+    y + 5
+);
 
             y += rowHeight;
         }
