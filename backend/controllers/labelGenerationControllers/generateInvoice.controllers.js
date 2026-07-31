@@ -64,7 +64,7 @@ const generateInvoice = async (req, res) => {
             let y = margin;
 
             // ================= 1. BRAND LOGO HEADER =================
-            const logoPath = path.join(__dirname, "../../assets/fiberise_logo.jpeg");
+            const logoPath = path.join(__dirname, "../../assets/fiberise_logo.jpg");
             if (fs.existsSync(logoPath)) {
                 doc.image(logoPath, margin, y, { width: 140 });
             } else {
@@ -150,7 +150,6 @@ const generateInvoice = async (req, res) => {
                 { label: "INVOICE DATE", val: `: ${nowFormatted}` },
                 { label: "ORDER NO.", val: `: ${orderNo}` },
                 { label: "ORDER DATE", val: `: ${nowFormatted}` },
-                { label: "CHANNEL", val: `: ${order.channel || 'Fiberise Fit (Shopify)'}` },
                 { label: "SHIPPED BY", val: `: ${courier}` },
                 { label: "AWB NO.", val: `: ${awbNo}` },
                 { label: "PAYMENT METHOD", val: `: ${paymentMethod}` },
