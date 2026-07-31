@@ -86,7 +86,7 @@ const generateLabel = async (req, res) => {
             doc.rect(margin, y, printWidth, headerHeight).strokeColor("#000000").stroke();
 
             // LOGO ZONE (Left Header)
-            const logoPath = path.join(__dirname, "../../assets/fiberise_logo.jpeg"); 
+            const logoPath = path.join(__dirname, "../../assets/fiberise_logo.jpg"); 
             const logoWidth = 115; 
             const logoHeight = 42; 
 
