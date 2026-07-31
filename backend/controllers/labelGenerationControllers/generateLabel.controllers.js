@@ -64,16 +64,31 @@ const generateLabel = async (req, res) => {
                .rect(margin, margin, printWidth, LABEL_HEIGHT - (margin * 2))
                .stroke();
 
-            let y = margin;
+            // ================= 0. AAYSH EXPRESS TOP BORDER STRAP =================
+            const strapHeight = 16;
+            doc.rect(margin, margin, printWidth, strapHeight)
+               .fillColor("#0F172A")
+               .fill();
 
-            // ================= 1. BRANDING & LOGO HEADER BOX (ENLARGED LOGO) =================
-            const headerHeight = 52; // Increased header height to fit larger logo safely
-            doc.rect(margin, y, printWidth, headerHeight).stroke();
+            doc.font(fontBold)
+               .fontSize(9)
+               .fillColor("#FFFFFF")
+               .text("AAYSH EXPRESS", margin, margin + 4, {
+                   width: printWidth,
+                   align: "center"
+               });
+
+            // Start content Y position right below the top strap
+            let y = margin + strapHeight;
+
+            // ================= 1. BRANDING & LOGO HEADER BOX =================
+            const headerHeight = 52; 
+            doc.rect(margin, y, printWidth, headerHeight).strokeColor("#000000").stroke();
 
             // LOGO ZONE (Left Header)
-            const logoPath = path.join(__dirname, "../../assets/aaysh_logo_2.png"); 
-            const logoWidth = 115; // Increased logo width
-            const logoHeight = 42; // Increased logo height
+            const logoPath = path.join(__dirname, "../../assets/fiberise_logo.jpeg"); 
+            const logoWidth = 115; 
+            const logoHeight = 42; 
 
             if (fs.existsSync(logoPath)) {
                 doc.image(logoPath, margin + 5, y + 5, {
@@ -88,7 +103,7 @@ const generateLabel = async (req, res) => {
                 doc.font(fontNormal).fontSize(6.5).fillColor("#64748B").text("LOGISTICS & FULFILLMENT", margin + 6, y + 28);
             }
 
-            // ORDER DATE ZONE (Right Header Box - Formerly COD location)
+            // ORDER DATE ZONE (Right Header Box)
             const rightHeaderX = margin + printWidth - 95;
             doc.moveTo(rightHeaderX, y).lineTo(rightHeaderX, y + headerHeight).stroke();
 
@@ -115,7 +130,7 @@ const generateLabel = async (req, res) => {
                 // Barcode generated directly from AWB Number
                 const barcodeBuffer = await bwipjs.toBuffer({
                     bcid: "code128",
-                    text: awbNo,
+                    text: String(awbNo || ""),
                     scale: 3,
                     height: 12,
                     includetext: false
@@ -127,14 +142,14 @@ const generateLabel = async (req, res) => {
                 doc.image(barcodeBuffer, bcX, y + 8, { width: bcRenderWidth, height: 38 });
 
                 // Text AWB Readout
-                doc.font(fontMono).fontSize(12).text(awbNo, margin, y + 50, {
+                doc.font(fontMono).fontSize(12).fillColor("#000000").text(awbNo || "", margin, y + 50, {
                     align: "center",
                     width: printWidth
                 });
 
             } catch (bcErr) {
                 console.error("Barcode Generation Error:", bcErr);
-                doc.font(fontBold).fontSize(10).text(`AWB: ${awbNo}`, margin, y + 25, {
+                doc.font(fontBold).fontSize(10).fillColor("#000000").text(`AWB: ${awbNo}`, margin, y + 25, {
                     align: "center",
                     width: printWidth
                 });
@@ -220,7 +235,7 @@ const generateLabel = async (req, res) => {
                 ellipsis: true
             });
 
-            // Col 3: Invoice Value (Shifted here from top header)
+            // Col 3: Invoice Value
             doc.font(fontBold).fontSize(6.5).fillColor("#475569").text("INVOICE VALUE", margin + (colWidth * 2) + 4, y + 5);
             doc.font(fontBold).fontSize(9.5).fillColor("#000000").text(`Rs ${order.invoiceValue || 0}`, margin + (colWidth * 2) + 4, y + 20);
 
@@ -251,7 +266,7 @@ const generateLabel = async (req, res) => {
             doc.font(fontBold).fontSize(8).fillColor("#000000").text(
                 `COURIER: ${courierNameStr} | DEST: ${destCityStr} (${destStateStr})`,
                 margin + 6,
-                y + 25,
+                y + 22,
                 { width: printWidth - 80, ellipsis: true }
             );
 
@@ -260,7 +275,7 @@ const generateLabel = async (req, res) => {
             doc.font(fontBold).fontSize(10).fillColor("#000000").text(
                 `[ ${paymentType} ]`,
                 margin + printWidth - 75,
-                y + 24,
+                y + 21,
                 { width: 70, align: "right" }
             );
         }
