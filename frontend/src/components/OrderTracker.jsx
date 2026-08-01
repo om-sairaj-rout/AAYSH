@@ -19,7 +19,10 @@ const OrderTracker = ({ awbNumber, currentStatus = 'Booked', trackingHistory = [
   }
 
   // Reverse history so latest checkpoints appear at the top
-  const sortedHistory = trackingHistory;
+  // Sort by latest date & time first
+const sortedHistory = [...trackingHistory].sort((a, b) => {
+  return new Date(b.eventTime).getTime() - new Date(a.eventTime).getTime();
+});
 
   // Extract latest checkpoint location if available
   const latestLocation = sortedHistory.length > 0 && sortedHistory[0]?.location 

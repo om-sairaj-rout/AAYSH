@@ -58,16 +58,26 @@ orders = orders.map(order => ({
 
 const totalOrders = orders.length;
 
-const deliveredOrders = orders.filter(
-  o => o.shipping?.shippingStatus === "Delivered"
+const pendingOrders = orders.filter(
+  o => !o.shipping || o.shipping.shippingStatus === "Pending"
 ).length;
 
-const inTransitOrders = orders.filter(o =>
-  [
-    "Shipped",
-    "In Transit",
-    "Out For Delivery"
-  ].includes(o.shipping?.shippingStatus)
+const bookedOrders = orders.filter(
+  o => o.shipping?.shippingStatus === "Booked"
+).length;
+
+const shippedOrders = orders.filter(
+  o => o.shipping?.shippingStatus === "Shipped"
+).length;
+
+const inTransitOrders = orders.filter(
+  o =>
+    o.shipping?.shippingStatus === "In Transit" ||
+    o.shipping?.shippingStatus === "Out For Delivery"
+).length;
+
+const deliveredOrders = orders.filter(
+  o => o.shipping?.shippingStatus === "Delivered"
 ).length;
 
 const delayedOrders = orders.filter(
@@ -163,8 +173,11 @@ const totalCost = orders.reduce(
 
       stats: {
   totalOrders,
-  deliveredOrders,
+  pendingOrders,
+  bookedOrders,
+  shippedOrders,
   inTransitOrders,
+  deliveredOrders,
   delayedOrders,
   cancelledOrders,
   rtoOrders,
