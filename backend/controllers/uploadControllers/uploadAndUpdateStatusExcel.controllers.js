@@ -16,8 +16,17 @@ const parseExcelDate = (value) => {
   }
 
   if (typeof value === "number") {
-    return new Date((value - 25569) * 86400 * 1000);
-  }
+  const d = XLSX.SSF.parse_date_code(value);
+
+  return new Date(
+    d.y,
+    d.m - 1,
+    d.d,
+    d.H,
+    d.M,
+    d.S
+  );
+}
 
   return new Date();
 };
