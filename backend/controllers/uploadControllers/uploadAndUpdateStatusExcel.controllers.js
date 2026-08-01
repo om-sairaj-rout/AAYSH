@@ -18,14 +18,18 @@ const parseExcelDate = (value) => {
   if (typeof value === "number") {
   const d = XLSX.SSF.parse_date_code(value);
 
-  return new Date(
+  const istOffset = 5.5 * 60 * 60 * 1000;
+
+return new Date(
+  Date.UTC(
     d.y,
     d.m - 1,
     d.d,
     d.H,
     d.M,
     d.S
-  );
+  ) - istOffset
+);
 }
 
   return new Date();
