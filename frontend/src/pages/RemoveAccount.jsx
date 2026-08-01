@@ -1,19 +1,19 @@
 import { useEffect, useState } from "react";
 import {
   Building2,
-  User,
   Phone,
   Mail,
-  Users,
   MapPin,
   MapPinned,
   Map,
   Globe,
   ArrowLeft,
   ShieldCheck,
+  ShieldAlert,
   UserCircle,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  FileText
 } from "lucide-react";
 import {
   getAllUsers,
@@ -37,7 +37,8 @@ const RemoveAccount = () => {
       }
     } catch (err) {
       console.error("Failed to load users:", err);
-    } finally {
+    }
+    finally {
       setLoading(false);
     }
   };
@@ -107,18 +108,18 @@ const RemoveAccount = () => {
                           {user.username}
                         </h3>
                         <p className="text-xs text-slate-400 font-medium">
-                          {user.email} • {user.company_name || "No Company"}
+                          {user.email}
                         </p>
                       </div>
                     </div>
                     
                     <div className="flex items-center gap-3">
                       <span className={`text-[10px] uppercase tracking-widest font-black px-3 py-1 rounded-full border ${
-                        user.isAdmin 
+                        user.role === "admin" 
                           ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
                           : 'bg-slate-50 border-slate-200 text-slate-500'
                       }`}>
-                        {user.isAdmin ? "Admin" : "User"}
+                        {user.role === "admin" ? "Admin" : "User"}
                       </span>
                       <Trash2 className="w-4 h-4 text-slate-300 group-hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100" />
                     </div>
@@ -143,7 +144,7 @@ const RemoveAccount = () => {
         {/* Back Navigation Bar Header */}
         <button 
           onClick={() => setSelectedUser(null)}
-          className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors"
+          className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Accounts List
         </button>
@@ -163,7 +164,7 @@ const RemoveAccount = () => {
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 font-bold text-xs">{error}</div>
         )}
 
-        {/* Read-Only Information Layout Grid */}
+        {/* Read-Only Information Layout Grid - Exactly Matched to EditAccount */}
         <div className="grid grid-cols-4 gap-x-4 gap-y-6 opacity-75 select-none pointer-events-none">
           
           {/* Row 1 */}
@@ -171,15 +172,15 @@ const RemoveAccount = () => {
             <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Company Name</label>
             <div className="relative">
               <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input type="text" value={selectedUser.company_name || "-"} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-sm" disabled />
+              <input type="text" value={selectedUser.username || "-"} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-sm" disabled />
             </div>
           </div>
 
           <div className="col-span-2">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Full Name</label>
+            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Website</label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input type="text" value={selectedUser.username || "-"} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-sm" disabled />
+              <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input type="text" value={selectedUser.website || "-"} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-sm" disabled />
             </div>
           </div>
 
@@ -202,10 +203,18 @@ const RemoveAccount = () => {
 
           {/* Row 3 */}
           <div className="col-span-2">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Gender</label>
+            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">GSTIN</label>
             <div className="relative">
-              <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input type="text" value={selectedUser.gender || "others"} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-sm" disabled />
+              <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input type="text" value={selectedUser.gstin || "-"} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-sm" disabled />
+            </div>
+          </div>
+
+          <div className="col-span-4">
+            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Role</label>
+            <div className="relative">
+              <ShieldAlert className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input type="text" value={selectedUser.role || "user"} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-sm" disabled />
             </div>
           </div>
 
@@ -214,11 +223,11 @@ const RemoveAccount = () => {
             <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Address</label>
             <div className="relative">
               <MapPin className="absolute left-3 top-4 text-gray-400 w-5 h-5" />
-              <textarea value={selectedUser.address || "-"} rows="2" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-sm resize-none" disabled></textarea>
+              <textarea value={selectedUser.address || "-"} rows="3" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-sm resize-none" disabled></textarea>
             </div>
           </div>
 
-          {/* Row 5: Geographic Fields */}
+          {/* Row 5: Geographic Context Fields */}
           <div className="col-span-1">
             <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Zip Code</label>
             <div className="relative">
@@ -281,7 +290,7 @@ const RemoveAccount = () => {
               disabled={confirmName !== selectedUser.username}
               className="w-2/3 py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all shadow-md uppercase tracking-wide text-sm disabled:opacity-40 disabled:cursor-not-allowed bg-rose-600 hover:bg-rose-700 shadow-rose-600/10"
             >
-              <Trash2 className="w-4 h-4" /> Delete Account Account
+              <Trash2 className="w-4 h-4" /> Delete Account
             </button>
           </div>
         </form>

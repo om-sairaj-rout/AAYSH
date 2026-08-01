@@ -9,15 +9,15 @@ const updateUserController = async (req, res) => {
       username: req.body.username,
       email: req.body.email,
       mobile_number: req.body.mobile_number,
-      company_name: req.body.company_name,
-      gender: req.body.gender,
+      website: req.body.website,
+      gstin: req.body.gstin,
       role: req.body.role,
       address: req.body.address,
       zip_code: req.body.zip_code,
       city: req.body.city,
       state: req.body.state,
       country: req.body.country,
-      showWeight: req.body.showWeight, // Added backend property mapper processing step
+      showWeight: req.body.showWeight,
     };
 
     if (req.body.password) {

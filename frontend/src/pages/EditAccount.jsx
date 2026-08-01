@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import {
   Building2,
-  User,
   Phone,
   Mail,
   Lock,
   Eye,
   EyeOff,
-  Users,
+  FileText,
   MapPin,
   MapPinned,
   Map,
@@ -33,20 +32,20 @@ const EditAccount = () => {
 
   // Form Controlled States for pre-filling data
   const [formData, setFormData] = useState({
-    username: "",
-    email: "",
-    password: "",
-    mobile: "",
-    company: "",
-    gender: "others",
-    role: "user",
-    address: "",
-    zipCode: "",
-    city: "",
-    state: "",
-    country: "",
-    showWeight: true, 
-  });
+  username: "",
+  email: "",
+  password: "",
+  mobile: "",
+  website: "",
+  gstin: "",
+  role: "user",
+  address: "",
+  zipCode: "",
+  city: "",
+  state: "",
+  country: "",
+  showWeight: true,
+});
 
   // ================= FETCH USERS ON INIT =================
   useEffect(() => {
@@ -74,8 +73,8 @@ const EditAccount = () => {
       email: user.email || "",
       password: "", 
       mobile: user.mobile_number || "",
-      company: user.company_name || "",
-      gender: user.gender || "others",
+      website: user.website || "",
+      gstin: user.gstin || "",
       role: user.role || "user",
       address: user.address || "",
       zipCode: user.zip_code || "",
@@ -102,7 +101,7 @@ const EditAccount = () => {
     const newErrors = {};
 
     if (formData.username.trim().length < 3) {
-      newErrors.username = "Username must contain at least 3 letters";
+      newErrors.username = "Company name must contain at least 3 letters";
     }
     if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Invalid email address";
@@ -123,8 +122,8 @@ const EditAccount = () => {
         username: formData.username.trim(),
         email: formData.email.trim(),
         mobile_number: formData.mobile.trim(),
-        company_name: formData.company.trim(),
-        gender: formData.gender,
+        website: formData.website.trim(),
+        gstin: formData.gstin.trim(),
         role: formData.role,
         address: formData.address.trim(),
         zip_code: formData.zipCode.trim(),
@@ -177,7 +176,7 @@ const EditAccount = () => {
                       </div>
                       <div>
                         <h3 className="font-bold text-slate-800 text-sm">{user.username}</h3>
-                        <p className="text-xs text-slate-400 font-medium">{user.email} • {user.company_name || "No Company"}</p>
+                        <p className="text-xs text-slate-400 font-medium">{user.email}</p>
                       </div>
                     </div>
                     
@@ -228,37 +227,49 @@ const EditAccount = () => {
           
           {/* Row 1 */}
           <div className="col-span-2">
-            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Company Name <span className="text-red-500">*</span></label>
-            <div className="relative">
-              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input 
-                type="text" 
-                name="company"
-                value={formData.company}
-                onChange={handleInputChange}
-                placeholder="Company Name" 
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
-                required
-              />
-            </div>
-          </div>
+  <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">
+    Company Name <span className="text-red-500">*</span>
+  </label>
 
-          <div className="col-span-2">
-            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Full Name <span className="text-red-500">*</span></label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input 
-                type="text" 
-                name="username"
-                value={formData.username}
-                onChange={handleInputChange}
-                placeholder="Neeraj Sharma" 
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm" 
-                required 
-              />
-            </div>
-            {errors.username && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.username}</p>}
-          </div>
+  <div className="relative">
+    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+
+    <input
+      type="text"
+      name="username"
+      value={formData.username}
+      onChange={handleInputChange}
+      placeholder="Company Name"
+      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+      required
+    />
+  </div>
+
+  {errors.username && (
+    <p className="text-red-500 text-xs mt-1">
+      {errors.username}
+    </p>
+  )}
+</div>
+
+<div className="col-span-2">
+  <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">
+    Website
+  </label>
+
+  <div className="relative">
+    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+
+    <input
+      type="text"
+      name="website"
+      value={formData.website}
+      onChange={handleInputChange}
+      placeholder="https://example.com"
+      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+    />
+  </div>
+</div>
 
           {/* Row 2 */}
           <div className="col-span-2">
@@ -294,6 +305,25 @@ const EditAccount = () => {
             {errors.email && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.email}</p>}
           </div>
 
+          <div className="col-span-2">
+  <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">
+    GSTIN
+  </label>
+
+  <div className="relative">
+    <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+
+    <input
+      type="text"
+      name="gstin"
+      value={formData.gstin}
+      onChange={handleInputChange}
+      placeholder="22AAAAA0000A1Z5"
+      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+    />
+  </div>
+</div>
+
           {/* Row 3 */}
           <div className="col-span-2">
             <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Password <span className="text-slate-400 font-medium">(Leave blank to keep unchanged)</span></label>
@@ -317,24 +347,6 @@ const EditAccount = () => {
               </button>
             </div>
             {errors.password && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.password}</p>}
-          </div>
-
-          <div className="col-span-2">
-            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Gender <span className="text-red-500">*</span></label>
-            <div className="relative">
-              <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <select 
-                name="gender"
-                value={formData.gender}
-                onChange={handleInputChange}
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm text-gray-700" 
-                required 
-              >
-                <option value="others">others</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-            </div>
           </div>
 
           <div className="col-span-4">
