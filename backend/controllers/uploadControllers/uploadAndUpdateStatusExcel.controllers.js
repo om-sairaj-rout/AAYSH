@@ -108,6 +108,9 @@ const status =
   row["Tracking Date"] ||
   "";
 
+  console.log(row["Tracking Date & Time"]);
+console.log(typeof row["Tracking Date & Time"]);
+
   let eventTime = parseExcelDate(trackingDateTime);
 
   console.log("Parsed:", eventTime);
