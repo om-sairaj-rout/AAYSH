@@ -265,30 +265,29 @@ console.log(typeof row["Tracking Date & Time"]);
       // Prevent duplicate tracking
       // ==========================
 
-      const lastTracking =
-        await Tracking.findOne({
-          shippingId: shipping._id,
-        }).sort({
-          eventTime: -1,
-        });
-
-     if (
-  !lastTracking ||
-  lastTracking.status !== status ||
-  lastTracking.location !== location ||
-  lastTracking.remarks !== remarks ||
-lastTracking.failureReason !== failureReason
-){
-        await Tracking.create({
+      const lastTracking = await Tracking.findOne({
   shippingId: shipping._id,
-  status,
-  location,
-  remarks,
-  failureReason,
-  eventTime,
-  updatedBy: req.user?.id || null,
-});
-      }
+}).sort({ eventTime: -1 });
+
+const isDuplicate =
+  lastTracking &&
+  lastTracking.status === status &&
+  lastTracking.location === location &&
+  lastTracking.remarks === remarks &&
+  lastTracking.failureReason === failureReason &&
+  lastTracking.eventTime?.getTime() === eventTime.getTime();
+
+if (!isDuplicate) {
+  await Tracking.create({
+    shippingId: shipping._id,
+    status,
+    location,
+    remarks,
+    failureReason,
+    eventTime,
+    updatedBy: req.user?.id || null,
+  });
+}
 
       updated++;
     }
