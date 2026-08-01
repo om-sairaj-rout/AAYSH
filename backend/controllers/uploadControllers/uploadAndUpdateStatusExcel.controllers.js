@@ -110,6 +110,8 @@ const status =
 
   let eventTime = parseExcelDate(trackingDateTime);
 
+  console.log("Parsed:", eventTime);
+
       if (!awb) {
         invalidRows.push({
           awb: "MISSING",
