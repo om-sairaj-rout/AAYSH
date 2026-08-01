@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { LayoutDashboard, FileChartColumn, ChevronDown, X } from "lucide-react";
+import { LayoutDashboard, FileChartColumn, ChevronDown, X, ShoppingBag, Truck, Barcode, Users } from "lucide-react";
 import aayshlogo from "../assets/aaysh_logo.png";
 
 const SideBar = ({ isOpen, setIsOpen }) => {
@@ -46,7 +46,7 @@ const SideBar = ({ isOpen, setIsOpen }) => {
       items: [
         {
           name: "Orders",
-          icon: <FileChartColumn size={20} />,
+          icon: <ShoppingBag size={20} />,
           subItems: [
             { name: "Order Report", path: "/reports/orders" },
             { name: "All Orders", path: "/reports/all-orders" },
@@ -54,7 +54,7 @@ const SideBar = ({ isOpen, setIsOpen }) => {
         },
         {
           name: "Shipment",
-          icon: <FileChartColumn size={20} />,
+          icon: <Truck size={20} />,
           subItems: [{ name: "Shipment Report", path: "/reports/shipments" }],
         },
       ],
@@ -65,7 +65,7 @@ const SideBar = ({ isOpen, setIsOpen }) => {
       items: [
         {
           name: "Awb Management",
-          icon: <LayoutDashboard size={20} />,
+          icon: <Barcode size={20} />,
           path: "/update/AWB",
         },
       ],
@@ -76,7 +76,7 @@ const SideBar = ({ isOpen, setIsOpen }) => {
       items: [
         {
           name: "Users",
-          icon: <FileChartColumn size={20} />,
+          icon: <Users size={20} />,
           subItems: [
             { name: "Create User Account", path: "/user/create-account" },
             { name: "Edit User Profile", path: "/user/edit-account" },

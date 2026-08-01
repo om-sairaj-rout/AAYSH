@@ -4,6 +4,24 @@ const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const Tracking = require("../../models/upload/tracking.model");
 
+const parseExcelDate = (value) => {
+  if (!value) return new Date();
+
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+
+    if (!isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  if (typeof value === "number") {
+    return new Date((value - 25569) * 86400 * 1000);
+  }
+
+  return new Date();
+};
+
 const uploadAndUpdateStatusExcel = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -90,15 +108,7 @@ const status =
   row["Tracking Date"] ||
   "";
 
-  let eventTime = new Date();
-
-if (trackingDateTime) {
-  const parsed = new Date(trackingDateTime);
-
-  if (!isNaN(parsed)) {
-    eventTime = parsed;
-  }
-}
+  let eventTime = parseExcelDate(trackingDateTime);
 
       if (!awb) {
         invalidRows.push({

@@ -181,13 +181,6 @@ const expectedHours =
       body.billing_phone || "",
 
 
-
-      shippingIsBilling:
-      body.shipping_is_billing ?? true,
-
-
-
-
       // ===============================
       // Order Details
       // ===============================

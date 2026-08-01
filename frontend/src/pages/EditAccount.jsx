@@ -85,7 +85,7 @@ const EditAccount = () => {
       showWeight: user.showWeight !== undefined ? user.showWeight : true, 
     });
     setErrors({});
-    };
+  };
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -210,7 +210,7 @@ const EditAccount = () => {
         {/* Back Navigation Bar Header */}
         <button 
           onClick={() => setSelectedUser(null)}
-          className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors"
+          className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Accounts List
         </button>
@@ -305,14 +305,16 @@ const EditAccount = () => {
                 value={formData.password}
                 onChange={handleInputChange}
                 placeholder="Enter new password" 
-                className="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm" 
+                className="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm [&::-ms-reveal]:hidden" 
               />
-              <div 
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer"
-                onClick={() => setShowPassword(!showPassword)}
+              <button 
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-              </div>
+              </button>
             </div>
             {errors.password && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.password}</p>}
           </div>
@@ -344,7 +346,6 @@ const EditAccount = () => {
                 value={formData.role}
                 onChange={handleInputChange}
                 name="role"
-                defaultValue="user"
                 required 
               >
                 <option value="user">User</option>

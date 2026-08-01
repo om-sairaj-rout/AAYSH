@@ -23,7 +23,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
           <div>
             <div className="flex items-center gap-3">
               <h3 className="text-lg font-bold text-slate-800">
-                Order #{order.externalOrderId || order.invoiceNo || order._id?.slice(-6)}
+                Order #{order.externalOrderId || "undefined"}
               </h3>
               <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full border ${
                 currentStatus === 'Delivered' ? 'bg-green-100 text-green-800 border-green-200' :
@@ -39,7 +39,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Order Date: {order.orderDate ? new Date(order.orderDate).toLocaleString() : 'N/A'} | Pickup Date: {order.pickupDate ? new Date(order.pickupDate).toLocaleDateString() : 'N/A'}
+              Order Date: {order.orderDate ? new Date(order.orderDate).toLocaleDateString() : 'N/A'} | Pickup Date: {order.pickupDate ? new Date(order.pickupDate).toLocaleDateString() : 'N/A'}
             </p>
           </div>
           <button

@@ -155,11 +155,6 @@ const OrderSchema = new mongoose.Schema(
       default: "",
     },
 
-    shippingIsBilling: {
-      type: Boolean,
-      default: true,
-    },
-
 
     // =====================================
     // Order Details

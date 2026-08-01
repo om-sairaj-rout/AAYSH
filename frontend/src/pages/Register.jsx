@@ -4,9 +4,14 @@ import {
   Phone,
   Mail,
   Lock,
+  Eye,
   EyeOff,
   Users,
-  MapPin, MapPinned, Map, Globe, Scale,
+  MapPin,
+  MapPinned,
+  Map,
+  Globe,
+  Scale,
   ShieldAlert // Added an icon for the Role field
 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -31,7 +36,8 @@ const Register = () => {
   const countryRef = useRef();
 
   const [errors, setErrors] = useState({});
-  const [showWeight, setShowWeight] = useState(true); 
+  const [showWeight, setShowWeight] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -151,8 +157,25 @@ const Register = () => {
             <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Password <span className="text-red-500">*</span></label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input type="password" placeholder="............" className="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500" ref={passwordRef} required />
-              <EyeOff className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 cursor-pointer" />
+              <input 
+                type={showPassword ? "text" : "password"} 
+                placeholder="............" 
+                className="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 [&::-ms-reveal]:hidden" 
+                ref={passwordRef} 
+                required 
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <Eye className="w-5 h-5" />
+                ) : (
+                  <EyeOff className="w-5 h-5" />
+                )}
+              </button>
             </div>
             {errors.password && (
               <p className="text-red-500 text-sm mt-1">{errors.password}</p>

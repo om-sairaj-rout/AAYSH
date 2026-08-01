@@ -212,10 +212,6 @@ billingPhone:
 billingAlternatePhone:
   String(row["Alternate Phone"] || "").trim(),
 
-shippingIsBilling:
-  row["Shipping Is Billing"] === true ||
-  row["Shipping Is Billing"] === "TRUE" ||
-  row["Shipping Is Billing"] === "true",
 
         // ==========================
         // Order

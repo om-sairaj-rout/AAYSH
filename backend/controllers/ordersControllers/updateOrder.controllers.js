@@ -180,11 +180,6 @@ if (shipping.shippingStatus !== allowedStatus) {
     if (billing_alternate_phone !== undefined) {
       order.billingAlternatePhone = billing_alternate_phone;
     }
-
-    if (shipping_is_billing !== undefined) {
-      order.shippingIsBilling = shipping_is_billing;
-    }
-
     // ============================
     // Payment
     // ============================
