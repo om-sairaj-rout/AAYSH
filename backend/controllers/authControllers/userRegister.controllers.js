@@ -38,12 +38,12 @@ const RegisterController = async (req, res) => {
     }
 
     const existingUser = await User.findOne({
-      $or: [{ email }, { mobile_number }],
+      $or: [{username}, { email }, { mobile_number }],
     });
 
     if (existingUser) {
       return res.status(400).json({
-        message: "User already exists with this email",
+        message: "User already exists with this username or email",
       });
     }
 
