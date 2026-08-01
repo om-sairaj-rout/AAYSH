@@ -25,15 +25,6 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  company_name: {
-    type: String,
-    reuired: true,
-  },
-  gender: {
-    type: String,
-    enum: ["Male", "Female", "others"],
-    required: true,
-  },
   address: {
     type: String,
     required: true,
@@ -54,6 +45,15 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  website: {
+  type: String,
+  default: "",
+},
+
+gstin: {
+  type: String,
+  default: "",
+},
   role: {
     type: String,
     enum: ["user", "admin"],

@@ -1,18 +1,17 @@
 import {
   Building2,
-  User,
   Phone,
   Mail,
   Lock,
   Eye,
   EyeOff,
-  Users,
   MapPin,
   MapPinned,
   Map,
   Globe,
   Scale,
-  ShieldAlert // Added an icon for the Role field
+  ShieldAlert,
+  FileText
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -22,13 +21,13 @@ import { toast } from "react-hot-toast";
 const Register = () => {
   const navigate = useNavigate();
 
-  const usernameRef = useRef();
   const emailRef = useRef();
   const passwordRef = useRef();
   const mobileRef = useRef();
   const companyRef = useRef();
-  const genderRef = useRef();
-  const roleRef = useRef(); // Added role ref
+  const websiteRef = useRef();
+  const gstinRef = useRef();
+  const roleRef = useRef(); 
   const addressRef = useRef();
   const zipCodeRef = useRef();
   const cityRef = useRef();
@@ -42,12 +41,12 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const username = usernameRef.current.value.trim();
     const email = emailRef.current.value.trim();
     const password = passwordRef.current.value.trim();
     const mobile = mobileRef.current.value.trim();
     const company = companyRef.current.value.trim();
-    const gender = genderRef.current.value.trim();
+    const website = websiteRef.current.value.trim();
+    const gstin = gstinRef.current.value.trim();
     const role = roleRef.current.value; // Captured role value
     const address = addressRef.current.value.trim();
     const zipCode = zipCodeRef.current.value.trim();
@@ -57,8 +56,8 @@ const Register = () => {
 
     const newErrors = {};
 
-    if (username.length < 3) {
-      newErrors.username = "Username must contain at least 3 letters";
+    if (company.length < 3) {
+      newErrors.company = "company must contain at least 3 letters";
     }
     if (!/\S+@\S+\.\S+/.test(email)) {
       newErrors.email = "Invalid email address"; 
@@ -76,18 +75,18 @@ const Register = () => {
 
     try {
       await registerUser({ 
-        username, 
+        username: company, 
         email, 
         password, 
-        mobile_number: mobile, 
-        company_name: company, 
-        gender, 
+        mobile_number: mobile,
         role, 
         address, 
         zip_code: zipCode, 
         city, 
         state, 
         country,
+        website,
+        gstin,
         showWeight 
       });
       toast.success("Registration successful!");
@@ -114,17 +113,31 @@ const Register = () => {
                 required
               />
             </div>
+            {errors.company && (
+              <p className="text-red-500 text-sm mt-1">{errors.company}</p>
+            )}
           </div>
 
+          {/* Website Field */}
           <div className="col-span-2">
-            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Full Name <span className="text-red-500">*</span></label>
+            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Website</label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input type="text" placeholder="Neeraj Sharma" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500" ref={usernameRef} required />
+              <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input type="text" placeholder="https://example.com" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                ref={websiteRef}
+              />
             </div>
-            {errors.username && (
-              <p className="text-red-500 text-sm mt-1">{errors.username}</p>
-            )}
+          </div>
+
+          {/* GSTIN Field */}
+          <div className="col-span-2">
+            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">GSTIN</label>
+            <div className="relative">
+              <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input type="text" placeholder="22AAAAA0000A1Z5" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                ref={gstinRef}
+              />
+            </div>
           </div>
 
           {/* Row 2 */}
@@ -180,18 +193,6 @@ const Register = () => {
             {errors.password && (
               <p className="text-red-500 text-sm mt-1">{errors.password}</p>
             )}
-          </div>
-
-          <div className="col-span-2">
-            <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Gender <span className="text-red-500">*</span></label>
-            <div className="relative">
-              <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <select className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-500" ref={genderRef} required >
-                <option value="others">others</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-            </div>
           </div>
 
           {/* ================= NEW ROLE SELECTION FIELD ================= */}
