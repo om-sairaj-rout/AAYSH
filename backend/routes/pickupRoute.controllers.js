@@ -14,10 +14,16 @@ pickupRouter.get(
   getUserPickups
 );
 
-pickupRouter.post(
+pickupRouter.put(
   "/user/pickups/reschedule",
   checkAuth,
   UserPickupsReschedule
+);
+
+pickupRouter.put(
+  "/user/pickups/cancel",
+  checkAuth,
+  UserPickupCancel
 );
 
 

@@ -51,3 +51,22 @@ export const reschedulePickupAPI = async (payload) => {
 
   return data;
 };
+
+export const cancelPickupAPI = async (pickupId) => {
+  const res = await fetch(`${BASE}/api/user/pickups/cancel`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ pickupId }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.message);
+  }
+
+  return data;
+};

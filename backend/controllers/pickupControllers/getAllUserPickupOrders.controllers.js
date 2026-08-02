@@ -8,7 +8,7 @@ const getUserPickups = async (req, res) => {
       .populate({
         path: "orderId",
         select:
-          "externalOrderId consignorName pickupLocation orderItems",
+          "externalOrderId pickupLocation orderItems",
       })
       .sort({
         pickupDate: 1,
@@ -43,15 +43,13 @@ const getUserPickups = async (req, res) => {
 
       contactPhone: "8882719505",
 
-      consignorName: item.orderId?.consignorName || "",
-
       pickupStatus: item.pickupStatus,
 
       failureReason:
   item.pickupStatus === "Failed"
     ? item.failureReason
     : "",
-    
+
     }));
 
     return res.status(200).json({

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { pickupOrdersAPI, reschedulePickupAPI} from "../api/shipingAPI";
-
+import { pickupOrdersAPI, reschedulePickupAPI, cancelPickupAPI} from "../api/shipingAPI";
 
 /* ================= RESCHEDULE PICKUP MODAL ================= */
 const ReschedulePickupModal = ({ isOpen, onClose, pickup, onConfirmReschedule }) => {
@@ -134,106 +133,117 @@ const UserPickupPage = () => {
   const [selectedPickup, setSelectedPickup] = useState(null);
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
 
-const fetchPickups = async () => {
-  try {
-    setLoading(true);
+  const fetchPickups = async () => {
+    try {
+      setLoading(true);
 
-    const res = await pickupOrdersAPI();
+      const res = await pickupOrdersAPI();
 
-    setPickups(res.data || []);
-  } catch (err) {
-    toast.error(err.message);
-  } finally {
-    setLoading(false);
-  }
-};
+      setPickups(res.data || []);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-useEffect(() => {
-  fetchPickups();
-}, []);
+  useEffect(() => {
+    fetchPickups();
+  }, []);
 
- const today = new Date();
-today.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
- const counts = {
-  today: pickups.filter((p) => {
-    if (!p.pickupDate) return false;
+  const counts = {
+    today: pickups.filter((p) => {
+      if (!p.pickupDate) return false;
 
-    const date = new Date(p.pickupDate);
-    date.setHours(0, 0, 0, 0);
+      const date = new Date(p.pickupDate);
+      date.setHours(0, 0, 0, 0);
 
-    return (
-      date.getTime() === today.getTime() &&
-      p.pickupStatus !== "Failed"
-    );
-  }).length,
+      return (
+        date.getTime() === today.getTime() &&
+        p.pickupStatus !== "Failed" &&
+        p.pickupStatus !== "Cancelled"
+      );
+    }).length,
 
-  future: pickups.filter((p) => {
-    if (!p.pickupDate) return false;
+    future: pickups.filter((p) => {
+      if (!p.pickupDate) return false;
 
-    const date = new Date(p.pickupDate);
-    date.setHours(0, 0, 0, 0);
+      const date = new Date(p.pickupDate);
+      date.setHours(0, 0, 0, 0);
 
-    return (
-      date > today &&
-      p.pickupStatus !== "Failed"
-    );
-  }).length,
+      return (
+        date > today &&
+        p.pickupStatus !== "Failed" &&
+        p.pickupStatus !== "Cancelled"
+      );
+    }).length,
 
-  failed: pickups.filter(
-    p => p.pickupStatus === "Failed"
-  ).length,
+    failed: pickups.filter(
+      p => p.pickupStatus === "Failed"
+    ).length,
 
-  completed: pickups.filter(
-    p => p.pickupStatus === "Completed"
-  ).length,
-};
+    cancelled: pickups.filter(
+      p => p.pickupStatus === "Cancelled"
+    ).length,
+
+    completed: pickups.filter(
+      p => p.pickupStatus === "Completed"
+    ).length,
+  };
 
   const filteredPickups = pickups.filter((item) => {
+    const pickupDay = item.pickupDate
+      ? new Date(item.pickupDate)
+      : null;
 
-  const pickupDay = item.pickupDate
-    ? new Date(item.pickupDate)
-    : null;
+    if (pickupDay) pickupDay.setHours(0,0,0,0);
 
-  if (pickupDay) pickupDay.setHours(0,0,0,0);
+    let matchesTab = false;
 
-  let matchesTab = false;
+    switch (activeTab) {
+      case "Today's Pickups":
+        matchesTab =
+          pickupDay &&
+          pickupDay.getTime() === today.getTime() &&
+          item.pickupStatus !== "Failed" &&
+          item.pickupStatus !== "Cancelled";
+        break;
 
-  switch (activeTab) {
+      case "Future Pickups":
+        matchesTab =
+          pickupDay &&
+          pickupDay > today &&
+          item.pickupStatus !== "Failed" &&
+          item.pickupStatus !== "Cancelled";
+        break;
 
-    case "Today's Pickups":
-      matchesTab =
-        pickupDay &&
-        pickupDay.getTime() === today.getTime() &&
-        item.pickupStatus !== "Failed";
-      break;
+      case "Failed Pickups":
+        matchesTab =
+          item.pickupStatus === "Failed";
+        break;
 
-    case "Future Pickups":
-      matchesTab =
-        pickupDay &&
-        pickupDay > today &&
-        item.pickupStatus !== "Failed";
-      break;
+      case "Cancelled Pickups":
+        matchesTab =
+          item.pickupStatus === "Cancelled";
+        break;
 
-    case "Failed Pickups":
-      matchesTab =
-        item.pickupStatus === "Failed";
-      break;
+      default:
+        matchesTab = true;
+    }
 
-    default:
-      matchesTab = true;
-  }
+    const q = searchQuery.toLowerCase();
 
-  const q = searchQuery.toLowerCase();
+    const matchesSearch =
+      !q ||
+      item.orderId?.externalOrderId?.toLowerCase().includes(q) ||
+      item.awbNumber?.toLowerCase().includes(q) ||
+      item.courierName?.toLowerCase().includes(q);
 
-  const matchesSearch =
-    !q ||
-    item.orderId?.externalOrderId?.toLowerCase().includes(q) ||
-    item.awbNumber?.toLowerCase().includes(q) ||
-    item.courierName?.toLowerCase().includes(q);
-
-  return matchesTab && matchesSearch;
-});
+    return matchesTab && matchesSearch;
+  });
 
   const handleOpenReschedule = (pickup) => {
     setSelectedPickup(pickup);
@@ -241,26 +251,36 @@ today.setHours(0, 0, 0, 0);
   };
 
   const handleConfirmReschedule = async (reschedulePayload) => {
+    try {
+      await reschedulePickupAPI(reschedulePayload);
+
+      toast.success("Pickup rescheduled successfully!");
+
+      fetchPickups();
+
+      setIsRescheduleModalOpen(false);
+      setSelectedPickup(null);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message);
+    }
+  };
+
+  const handleCancelPickup = async (pickupId) => {
+  if (!window.confirm("Are you sure you want to cancel this pickup request?")) {
+    return;
+  }
+
   try {
-    await reschedulePickupAPI(reschedulePayload);
+    await cancelPickupAPI(pickupId);
 
-    toast.success("Pickup rescheduled successfully!");
+    toast.success("Pickup cancelled successfully");
 
-    fetchPickups();
-
-    setIsRescheduleModalOpen(false);
-    setSelectedPickup(null);
+    fetchPickups(); // Refresh list
   } catch (err) {
-    console.error(err);
     toast.error(err.message);
   }
 };
-  const handleCancelPickup = (pickupId) => {
-    if (window.confirm("Are you sure you want to cancel this pickup request?")) {
-      setPickups(prev => prev.filter(p => p._id !== pickupId));
-      toast.success("Pickup request cancelled");
-    }
-  };
 
   return (
     <div className="w-full min-h-screen bg-[#F8FAFC] p-4 font-sans text-[#1E293B]">
@@ -285,7 +305,7 @@ today.setHours(0, 0, 0, 0);
         </div>
 
         {/* Analytics Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase">Today's Pickups</p>
@@ -318,6 +338,16 @@ today.setHours(0, 0, 0, 0);
 
           <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
             <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase">Cancelled Pickups</p>
+              <h3 className="text-2xl font-bold text-red-600 mt-1">{counts.cancelled}</h3>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-lg">
+              🚫
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
               <p className="text-xs font-semibold text-slate-400 uppercase">Completed</p>
               <h3 className="text-2xl font-bold text-emerald-600 mt-1">{counts.completed}</h3>
             </div>
@@ -330,12 +360,13 @@ today.setHours(0, 0, 0, 0);
         {/* Tab Selection & Search Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-3 rounded-xl shadow-sm border border-slate-100">
           <div className="flex flex-wrap items-center gap-1.5">
-            {["Today's Pickups", "Future Pickups", "Failed Pickups", "All Pickups"].map((tab) => {
+            {["Today's Pickups", "Future Pickups", "Failed Pickups", "Cancelled Pickups", "All Pickups"].map((tab) => {
               const isActive = activeTab === tab;
               const count =
                 tab === "Today's Pickups" ? counts.today :
                 tab === "Future Pickups" ? counts.future :
-                tab === "Failed Pickups" ? counts.failed : pickups.length;
+                tab === "Failed Pickups" ? counts.failed :
+                tab === "Cancelled Pickups" ? counts.cancelled : pickups.length;
 
               return (
                 <button
@@ -416,12 +447,16 @@ today.setHours(0, 0, 0, 0);
                     {/* Location */}
                     <td className="p-3.5">
                       <div className="text-slate-800">{pickup.pickupLocation}</div>
-                      <div className="text-xs text-slate-400">{pickup.consignorName}</div>
                     </td>
 
                     {/* Date */}
-                    <td className="p-3.5 font-mono text-slate-700">
-                      {pickup.pickupDate ? new Date(pickup.pickupDate).toLocaleDateString() : 'N/A'}
+                    <td className="p-3.5 font-mono text-slate-700 flex flex-col">      
+                      <span>
+                        {pickup.pickupDate ? new Date(pickup.pickupDate).toLocaleDateString() : 'N/A'}
+                      </span>
+                      <span>
+  {pickup.pickupTime || "N/A"}
+</span>
                     </td>
 
                     {/* Packages */}
@@ -431,29 +466,31 @@ today.setHours(0, 0, 0, 0);
 
                     {/* Status Badge */}
                     <td className="p-3.5">
-<span
-  className={`px-2.5 py-1 text-xs font-bold rounded-full border ${
-    pickup.pickupStatus === "Completed"
-      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-      : pickup.pickupStatus === "Failed"
-      ? "bg-rose-100 text-rose-800 border-rose-200"
-      : pickup.pickupStatus === "Scheduled"
-      ? "bg-indigo-100 text-indigo-800 border-indigo-200"
-      : "bg-amber-100 text-amber-800 border-amber-200"
-  }`}
->
-  {pickup.pickupStatus}
-</span>
+                      <span
+                        className={`px-2.5 py-1 text-xs font-bold rounded-full border ${
+                          pickup.pickupStatus === "Completed"
+                            ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                            : pickup.pickupStatus === "Failed"
+                            ? "bg-rose-100 text-rose-800 border-rose-200"
+                            : pickup.pickupStatus === "Cancelled"
+                            ? "bg-rose-100 text-rose-800 border-rose-200"
+                            : pickup.pickupStatus === "Scheduled"
+                            ? "bg-indigo-100 text-indigo-800 border-indigo-200"
+                            : "bg-amber-100 text-amber-800 border-amber-200"
+                        }`}
+                      >
+                        {pickup.pickupStatus}
+                      </span>
 
-  {pickup.failureReason && (
-    <p
-      className="text-[11px] text-rose-500 mt-1 max-w-xs truncate"
-      title={pickup.failureReason}
-    >
-      {pickup.failureReason}
-    </p>
-  )}
-</td>
+                      {pickup.failureReason && (
+                        <p
+                          className="text-[11px] text-rose-500 mt-1 max-w-xs truncate"
+                          title={pickup.failureReason}
+                        >
+                          {pickup.failureReason}
+                        </p>
+                      )}
+                    </td>
 
                     {/* Actions */}
                     <td className="p-3.5 text-right whitespace-nowrap">
