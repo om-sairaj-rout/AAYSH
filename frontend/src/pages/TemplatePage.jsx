@@ -27,7 +27,6 @@ const TemplatePage = () => {
     "Phone": "9876543210",
     "Alternate Phone": "9876543211",
 
-    "Shipping Is Billing": true,
 
     "Payment Method": "COD",
 
