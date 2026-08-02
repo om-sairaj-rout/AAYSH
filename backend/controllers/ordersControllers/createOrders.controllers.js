@@ -160,13 +160,6 @@ const expectedHours =
 
 
 
-      pickupDate:
-      body.order_date
-      ? new Date(body.order_date)
-      : new Date(),
-
-
-
       pickupLocation:
       body.pickup_location,
 

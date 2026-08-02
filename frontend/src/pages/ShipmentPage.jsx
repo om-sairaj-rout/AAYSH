@@ -2,10 +2,50 @@ import { useEffect, useState, useRef } from 'react';
 import { useSelector } from "react-redux";
 import { ChevronLeft, ChevronRight, MoreHorizontal, FileText, ClipboardList, Tag } from 'lucide-react';
 import { getOrders } from '../api/ordersAPI';
-import { generateLabelAPI } from "../api/labelAPI";
-import { generateInvoiceAPI } from "../api/labelAPI";
-import { generateManifestAPI } from "../api/labelAPI";
+import { generateLabelAPI, generateInvoiceAPI, generateManifestAPI } from "../api/labelAPI";
 import { toast } from 'react-hot-toast';
+
+/* ================= COPY BUTTON UI COMPONENT ================= */
+const CopyButton = ({ text, label, e }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (evt) => {
+    if (evt) evt.stopPropagation();
+    if (!text || text === '-') {
+      toast.error(`No ${label} available to copy`);
+      return;
+    }
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied!`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      type="button"
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded border border-slate-200 hover:border-indigo-200 transition-all duration-150 active:scale-95 shrink-0"
+      title={`Copy ${label}`}
+    >
+      {copied ? (
+        <>
+          <svg className="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          <span className="text-emerald-600">Copied</span>
+        </>
+      ) : (
+        <>
+          <svg className="w-3 h-3 text-slate-400 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          <span>Copy</span>
+        </>
+      )}
+    </button>
+  );
+};
 
 /* ================= ROW DOWNLOAD DROPDOWN COMPONENT ================= */
 const ActionDropdown = ({ order, onPrintLabel, onPrintInvoice, onPrintManifest }) => {
@@ -73,8 +113,6 @@ const ShipmentPage = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage, setOrdersPerPage] = useState(25);
-
-  const canSeeWeight = isAdmin || user?.showWeight;
 
   const fetchOrders = async () => {
     try {
@@ -178,7 +216,7 @@ const ShipmentPage = () => {
     }
   };
 
-  // PDF Blob Downloader
+  // PDF Blob Downloader Helper
   const downloadPdf = (blob, filename) => {
     const url = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
     const link = document.createElement("a");
@@ -253,15 +291,13 @@ const ShipmentPage = () => {
   };
 
   const headers = [
-    'Pickup Date', 'Consignor Name', 'Consignee Name', 'Address', 'Contact No',
-    'Destination City', 'Destination State', 'Destination Pincode', 'AWB No.'
+    'Order ID & Info', 
+    'Order Items',
+    'Customer Details', 
+    'AWB No.',
+    'Status',
+    'Download'
   ];
-
-  if (canSeeWeight) {
-    headers.push('Weight (kg)');
-  }
-
-  headers.push('Qty', 'Invoice No/Challan No', 'Invoice Value', 'Status', 'Download');
 
   return (
     <div className="w-full min-h-screen bg-[#F8FAFC] p-4 font-sans text-[#1E293B]">
@@ -337,7 +373,7 @@ const ShipmentPage = () => {
           <table className="w-full text-left border-collapse table-auto">
             <thead>
               <tr className="border-b border-gray-100 bg-[#FAFAFA]">
-                <th className="p-4 w-12 text-center">
+                <th className="p-4 sm:p-5 w-12 text-center">
                   <input
                     type="checkbox"
                     onChange={handleSelectAll}
@@ -348,12 +384,12 @@ const ShipmentPage = () => {
                 {headers.map((header) => (
                   <th
                     key={header}
-                    className="p-3 text-[11px] font-bold tracking-wider text-slate-500 uppercase whitespace-nowrap"
+                    className="p-4 sm:p-5 text-xs font-bold tracking-wider text-slate-600 uppercase whitespace-nowrap"
                   >
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       {header}
                       {header !== 'Download' && (
-                        <span className="text-[9px] text-gray-300 select-none">⇅</span>
+                        <span className="text-xs text-gray-300 select-none">⇅</span>
                       )}
                     </div>
                   </th>
@@ -361,135 +397,222 @@ const ShipmentPage = () => {
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-gray-100/70 text-[13px] font-medium text-slate-700">
+            <tbody className="divide-y divide-gray-100/80 text-sm font-medium text-slate-700">
               {currentOrders.map((order) => {
                 const isChecked = selectedOrders.includes(order._id);
+                
+                const externalId = order.externalOrderId || order._id;
+                const orderDateFormatted = order.orderDate ? new Date(order.orderDate).toLocaleDateString() : '-';
+                
+                // Pickup Date Resolution
+                const rawPickupDate = order.shipping?.pickupDate || order.pickupDate;
+                const pickupDateFormatted = rawPickupDate ? new Date(rawPickupDate).toLocaleDateString() : '-';
+
+                const fullName = `${order.consigneeName || ''} ${order.consigneeLastName || ''}`.trim() || '-';
+                const email = order.consigneeEmail || '';
+                const phone = order.billingPhone || order.contactNo || '';
+                const fullAddress = `${order.address || ''} ${order.address2 ? `, ${order.address2}` : ''}`.trim();
+                const destination = `${order.destinationCity || ''}${order.destinationState ? `, ${order.destinationState}` : ''} ${order.destinationPincode ? `- ${order.destinationPincode}` : ''}`.trim();
+                const awbNo = order.shipping?.awbNumber || '';
+                const pkgWeight = order.shipping?.totalWeight || order.weight || '-';
+
                 return (
                   <tr 
                     key={order._id} 
-                    className={`hover:bg-slate-50/60 transition-colors ${isChecked ? 'bg-indigo-50/20' : ''}`}
+                    className={`hover:bg-slate-50/90 transition-colors ${isChecked ? 'bg-indigo-50/30' : ''}`}
                   >
-                    <td className="p-4 text-center">
+                    <td className="p-4 sm:p-5 text-center align-top">
                       <input
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => handleSelectRow(order._id)}
-                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer mt-1"
                       />
                     </td>
 
-                    <td className="p-3 whitespace-nowrap text-slate-600">
-                      {order.pickupDate ? new Date(order.pickupDate).toLocaleDateString() : "-"}
+                    {/* SECTION 1: ORDER ID & INFO (Includes Pickup Date) */}
+                    <td className="p-4 sm:p-5 align-top min-w-[220px]">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-base text-slate-900 tracking-tight">#{externalId}</span>
+                          <CopyButton text={externalId} label="Order ID" />
+                        </div>
+                        <div className="text-xs text-slate-600 space-y-1">
+                          <p className="flex items-center gap-1">
+                            <span className="text-slate-400">📅 Date:</span> 
+                            <span className="font-semibold text-slate-700">{orderDateFormatted}</span>
+                          </p>
+                          <p className="flex items-center gap-1">
+                            <span className="text-slate-400">📦 Pickup Date:</span> 
+                            <span className="font-semibold text-indigo-600">{pickupDateFormatted}</span>
+                          </p>
+                          <p className="flex items-center gap-1.5 pt-0.5">
+                            <span className="text-slate-400">💳 Payment:</span> 
+                            <span className={`font-bold px-2 py-0.5 rounded text-[11px] border ${
+                              (order.paymentMethod || 'COD').toUpperCase() === 'COD' 
+                                ? 'bg-amber-50 text-amber-800 border-amber-200' 
+                                : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            }`}>{order.paymentMethod || 'COD'}</span>
+                          </p>
+                        </div>
+                      </div>
                     </td>
 
-                    <td className="p-3">{order.consignorName || "-"}</td>
-                    <td className="p-3">{order.consigneeName || "-"}</td>
-                    <td className="p-3 max-w-xs truncate" title={order.address}>
-                      {order.address || "-"}
-                    </td>
-                    <td className="p-3">{order.contactNo || "-"}</td>
-                    <td className="p-3">{order.destinationCity || "-"}</td>
-                    <td className="p-3">{order.destinationState || "-"}</td>
-                    <td className="p-3">{order.destinationPincode || "-"}</td>
-                    <td className="p-3 font-mono font-bold text-blue-800">
-                      {order.shipping?.awbNumber || "-"}
-                    </td>
-
-                    {canSeeWeight && (
-                      <td className="p-3 font-mono text-slate-600">
-                        {order.weight ? `${order.weight} kg` : "-"}
-                      </td>
-                    )}
-
-                    <td className="p-3 text-center">{order.qty || "-"}</td>
-                    <td className="p-3 font-mono">{order.invoiceNo || "-"}</td>
-                    <td className="p-3 font-mono text-slate-900">
-                      ₹{order.invoiceValue || "-"}
-                    </td>
-
-                    {/* Status Column */}
-                    <td className="p-3 whitespace-nowrap">
-                      {order.shipping?.shippingStatus === 'Pending' && (
-                        <span className="bg-amber-100 text-amber-800 font-bold text-xs px-2.5 py-1 rounded-full border border-amber-200">
-                          Pending
-                        </span>
-                      )}
-
-                      {order.shipping?.shippingStatus === "Booked" && (
-                        <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-200">
-                          Booked
-                        </span>
-                      )}
-
-                      {order.shipping?.shippingStatus === "Shipped" && (
-                        <span className="bg-indigo-100 text-indigo-800 font-bold text-xs px-2.5 py-1 rounded-full border border-indigo-200">
-                          Shipped
-                        </span>
-                      )}
-
-                      {order.shipping?.shippingStatus === "In Transit" && (
-                        <span className="bg-blue-100 text-blue-800 font-bold text-xs px-2.5 py-1 rounded-full border border-blue-200">
-                          In Transit
-                        </span>
-                      )}
-
-                      {order.shipping?.shippingStatus === "Out For Delivery" && (
-                        <span className="bg-cyan-100 text-cyan-800 font-bold text-xs px-2.5 py-1 rounded-full border border-cyan-200">
-                          Out For Delivery
-                        </span>
-                      )}
-
-                      {order.shipping?.shippingStatus === "Delivered" && (
-                        <span className="bg-green-100 text-green-800 font-bold text-xs px-2.5 py-1 rounded-full border border-green-200">
-                          Delivered
-                        </span>
-                      )}
-
-                      {order.shipping?.shippingStatus === "Cancelled" && (
-                        <span className="bg-rose-100 text-rose-800 font-bold text-xs px-2.5 py-1 rounded-full border border-rose-200">
-                          Cancelled
-                        </span>
-                      )}
-
-                      {order.shipping?.shippingStatus === "RTO" && (
-                        <span className="bg-red-100 text-red-800 font-bold text-xs px-2.5 py-1 rounded-full border border-red-200">
-                          RTO
-                        </span>
-                      )}
-
-                      {order.shipping?.shippingStatus === "Returned" && (
-                        <span className="bg-orange-100 text-orange-800 font-bold text-xs px-2.5 py-1 rounded-full border border-orange-200">
-                          Returned
-                        </span>
-                      )}
-
-                      {order.shipping?.shippingStatus === "Exchange" && (
-                        <span className="bg-purple-100 text-purple-800 font-bold text-xs px-2.5 py-1 rounded-full border border-purple-200">
-                          Exchange
-                        </span>
-                      )}
-
-                      {order.shipping?.shippingStatus === "Delayed" && (
-                        <span className="bg-yellow-100 text-yellow-800 font-bold text-xs px-2.5 py-1 rounded-full border border-yellow-200">
-                          Delayed
-                        </span>
-                      )}
-
-                      {order.shipping?.shippingStatus === "Delivery Attempt Failed" && (
-                        <span className="bg-pink-100 text-pink-800 font-bold text-xs px-2.5 py-1 rounded-full border border-pink-200">
-                          Delivery Attempt Failed
-                        </span>
-                      )}
-
-                      {!['Pending','Shipped','Booked', 'Cancelled','In Transit', 'Delivered', 'RTO', 'Delayed', 'Delivery Attempt Failed'].includes(order.shipping?.shippingStatus) && (
-                        <span className="bg-slate-100 text-slate-600 font-bold text-xs px-2.5 py-1 rounded-full border border-slate-200">
-                          {order.shipping?.shippingStatus || "Unknown"}
-                        </span>
-                      )}
+                    {/* SECTION 2: ORDER ITEMS & WEIGHT */}
+                    <td className="p-4 sm:p-5 align-top min-w-[240px]">
+                      <div className="space-y-2">
+                        {order.orderItems && order.orderItems.length > 0 ? (
+                          <div className="space-y-1.5">
+                            {order.orderItems.map((item, idx) => (
+                              <div key={idx} className="bg-slate-50/90 p-2 rounded-lg border border-slate-200/60">
+                                <p className="font-semibold text-slate-800 text-xs line-clamp-1">{item.name || `Item #${idx + 1}`}</p>
+                                <p className="text-[11px] text-slate-500 mt-0.5 flex items-center justify-between">
+                                  <span>Units: <strong className="text-slate-700">{item.units || 1}</strong></span>
+                                  {item.sku && <span className="font-mono">SKU: {item.sku}</span>}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-slate-400 italic text-xs">No item breakdown</p>
+                        )}
+                        <div className="text-xs font-semibold text-slate-700 pt-1 flex items-center justify-between border-t border-slate-100">
+                          <span className="text-slate-500">Weight:</span>
+                          <span className="font-mono font-bold text-indigo-600 text-xs">{pkgWeight !== '-' ? `${pkgWeight} kg` : '-'}</span>
+                        </div>
+                      </div>
                     </td>
 
-                    {/* Download Column (3-Dots Menu Dropdown) */}
-                    <td className="p-3 whitespace-nowrap text-center">
+                    {/* SECTION 3: CUSTOMER DETAILS */}
+                    <td className="p-4 sm:p-5 align-top min-w-[280px]">
+                      <div className="space-y-1.5">
+                        <p className="font-bold text-slate-900 text-sm">{fullName}</p>
+
+                        {email && (
+                          <div className="flex items-center gap-2 text-xs text-slate-600">
+                            <span className="truncate max-w-[180px]" title={email}>✉️ {email}</span>
+                            <CopyButton text={email} label="Email" />
+                          </div>
+                        )}
+                        
+                        {phone && (
+                          <div className="flex items-center gap-2 text-xs text-slate-700 font-medium">
+                            <span>📞 {phone}</span>
+                            <CopyButton text={phone} label="Phone Number" />
+                          </div>
+                        )}
+
+                        <div className="text-xs text-slate-600 max-w-xs pt-1">
+                          <div className="flex items-start gap-1.5 bg-slate-50/70 p-2 rounded-lg border border-slate-100">
+                            <span className="line-clamp-2 text-xs leading-relaxed" title={`${fullAddress} ${destination}`}>
+                              📍 {fullAddress || "-"} {destination}
+                            </span>
+                            <CopyButton text={`${fullAddress} ${destination}`} label="Address" />
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* SECTION 4: AWB NUMBER */}
+                    <td className="p-4 sm:p-5 align-top font-mono text-sm whitespace-nowrap">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 font-bold text-indigo-900">
+                          <span className="text-sm tracking-wide">{awbNo || "-"}</span>
+                          {awbNo && <CopyButton text={awbNo} label="AWB Number" />}
+                        </div>
+                        {order.shipping?.courierName && (
+                          <p className="text-xs font-sans font-bold text-slate-500 uppercase tracking-wide">
+                            {order.shipping.courierName}
+                          </p>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* SECTION 5: STATUS */}
+                    <td className="p-4 sm:p-5 align-top whitespace-nowrap">
+                      <div className="pt-0.5">
+                        {order.shipping?.shippingStatus === 'Pending' && (
+                          <span className="bg-amber-100 text-amber-800 font-bold text-xs px-3 py-1 rounded-full border border-amber-200">
+                            Pending
+                          </span>
+                        )}
+
+                        {order.shipping?.shippingStatus === "Booked" && (
+                          <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-3 py-1 rounded-full border border-emerald-200">
+                            Booked
+                          </span>
+                        )}
+
+                        {order.shipping?.shippingStatus === "Shipped" && (
+                          <span className="bg-indigo-100 text-indigo-800 font-bold text-xs px-3 py-1 rounded-full border border-indigo-200">
+                            Shipped
+                          </span>
+                        )}
+
+                        {order.shipping?.shippingStatus === "In Transit" && (
+                          <span className="bg-blue-100 text-blue-800 font-bold text-xs px-3 py-1 rounded-full border border-blue-200">
+                            In Transit
+                          </span>
+                        )}
+
+                        {order.shipping?.shippingStatus === "Out For Delivery" && (
+                          <span className="bg-cyan-100 text-cyan-800 font-bold text-xs px-3 py-1 rounded-full border border-cyan-200">
+                            Out For Delivery
+                          </span>
+                        )}
+
+                        {order.shipping?.shippingStatus === "Delivered" && (
+                          <span className="bg-green-100 text-green-800 font-bold text-xs px-3 py-1 rounded-full border border-green-200">
+                            Delivered
+                          </span>
+                        )}
+
+                        {order.shipping?.shippingStatus === "Cancelled" && (
+                          <span className="bg-rose-100 text-rose-800 font-bold text-xs px-3 py-1 rounded-full border border-rose-200">
+                            Cancelled
+                          </span>
+                        )}
+
+                        {order.shipping?.shippingStatus === "RTO" && (
+                          <span className="bg-red-100 text-red-800 font-bold text-xs px-3 py-1 rounded-full border border-red-200">
+                            RTO
+                          </span>
+                        )}
+
+                        {order.shipping?.shippingStatus === "Returned" && (
+                          <span className="bg-orange-100 text-orange-800 font-bold text-xs px-3 py-1 rounded-full border border-orange-200">
+                            Returned
+                          </span>
+                        )}
+
+                        {order.shipping?.shippingStatus === "Exchange" && (
+                          <span className="bg-purple-100 text-purple-800 font-bold text-xs px-3 py-1 rounded-full border border-purple-200">
+                            Exchange
+                          </span>
+                        )}
+
+                        {order.shipping?.shippingStatus === "Delayed" && (
+                          <span className="bg-yellow-100 text-yellow-800 font-bold text-xs px-3 py-1 rounded-full border border-yellow-200">
+                            Delayed
+                          </span>
+                        )}
+
+                        {order.shipping?.shippingStatus === "Delivery Attempt Failed" && (
+                          <span className="bg-pink-100 text-pink-800 font-bold text-xs px-3 py-1 rounded-full border border-pink-200">
+                            Delivery Attempt Failed
+                          </span>
+                        )}
+
+                        {!['Pending','Shipped','Booked', 'Cancelled','In Transit', 'Delivered', 'RTO', 'Delayed', 'Delivery Attempt Failed'].includes(order.shipping?.shippingStatus) && (
+                          <span className="bg-slate-100 text-slate-600 font-bold text-xs px-3 py-1 rounded-full border border-slate-200">
+                            {order.shipping?.shippingStatus || "Unknown"}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* SECTION 6: DOWNLOAD DROPDOWN MENU */}
+                    <td className="p-4 sm:p-5 align-top whitespace-nowrap text-center">
                       <ActionDropdown 
                         order={order}
                         onPrintLabel={handlePrintLabel}

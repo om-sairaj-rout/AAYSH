@@ -4,31 +4,72 @@ import { getOrders } from '../api/ordersAPI';
 import SelectCourier from './SelectCourier'; 
 import { shipOrdersAPI } from '../api/shipingAPI';
 import { toast } from 'react-hot-toast';
-import OrderTracker from '../components/OrderTracker'; // <--- Implemented Component Import
+import OrderTracker from '../components/OrderTracker';
+
+/* ================= COPY BUTTON UI COMPONENT ================= */
+const CopyButton = ({ text, label, e }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (evt) => {
+    if (evt) evt.stopPropagation();
+    if (!text || text === '-') {
+      toast.error(`No ${label} available to copy`);
+      return;
+    }
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied!`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      type="button"
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded border border-slate-200 hover:border-indigo-200 transition-all duration-150 active:scale-95 shrink-0"
+      title={`Copy ${label}`}
+    >
+      {copied ? (
+        <>
+          <svg className="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          <span className="text-emerald-600">Copied</span>
+        </>
+      ) : (
+        <>
+          <svg className="w-3 h-3 text-slate-400 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          <span>Copy</span>
+        </>
+      )}
+    </button>
+  );
+};
 
 /* ================= SCHEDULE PICKUP MODAL ================= */
 const SchedulePickupModal = ({ isOpen, onClose, selectedCourier, ordersCount, onFinalSubmit, defaultPickupLocation }) => {
   const [pickupDate, setPickupDate] = useState(new Date().toISOString().split('T')[0]);
   const [pickupLocation, setPickupLocation] = useState('');
-  const [pickupTime, setPickupTime] = useState('11:00'); // Default to 11:00 AM
+  const [pickupTime, setPickupTime] = useState('11:00');
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
-  if (isOpen) {
-    setPickupLocation(defaultPickupLocation || '');
-  }
-}, [isOpen, defaultPickupLocation]);
+    if (isOpen) {
+      setPickupLocation(defaultPickupLocation || '');
+    }
+  }, [isOpen, defaultPickupLocation]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validate that pickup time is between 11:00 (11 AM) and 17:00 (5 PM)
     const [hours, minutes] = pickupTime.split(':').map(Number);
     const totalMinutes = hours * 60 + minutes;
-    const startLimit = 11 * 60; // 11:00 AM = 660 mins
-    const endLimit = 17 * 60;   // 05:00 PM = 1020 mins
+    const startLimit = 11 * 60;
+    const endLimit = 17 * 60;
 
     if (totalMinutes < startLimit || totalMinutes > endLimit) {
       toast.error('Pickup time must be between 11:00 AM and 5:00 PM');
@@ -46,7 +87,6 @@ const SchedulePickupModal = ({ isOpen, onClose, selectedCourier, ordersCount, on
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 my-8">
-        {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
           <div>
             <h3 className="text-base font-bold text-slate-800">Schedule Pickup</h3>
@@ -62,10 +102,7 @@ const SchedulePickupModal = ({ isOpen, onClose, selectedCourier, ordersCount, on
           </button>
         </div>
 
-        {/* Modal Body / Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          
-          {/* Pickup Date Input */}
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
               Pickup Date <span className="text-rose-500">*</span>
@@ -80,22 +117,20 @@ const SchedulePickupModal = ({ isOpen, onClose, selectedCourier, ordersCount, on
             />
           </div>
 
-          {/* Pickup Location Input */}
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
               Pickup Location <span className="text-rose-500">*</span>
             </label>
             <input
-  type="text"
-  required
-  value={pickupLocation}
-  onChange={(e) => setPickupLocation(e.target.value)}
-  placeholder="Enter pickup location"
-  className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-/>
+              type="text"
+              required
+              value={pickupLocation}
+              onChange={(e) => setPickupLocation(e.target.value)}
+              placeholder="Enter pickup location"
+              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+            />
           </div>
 
-          {/* Pickup Time Input (Restricted 11:00 AM to 6:00 PM) */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-bold text-slate-600 uppercase">
@@ -119,7 +154,6 @@ const SchedulePickupModal = ({ isOpen, onClose, selectedCourier, ordersCount, on
             </p>
           </div>
 
-          {/* Notes / Special Instructions */}
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
               Notes / Special Instructions
@@ -133,7 +167,6 @@ const SchedulePickupModal = ({ isOpen, onClose, selectedCourier, ordersCount, on
             />
           </div>
 
-          {/* Modal Footer Actions */}
           <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
             <button
               type="button"
@@ -167,7 +200,6 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in duration-200 my-8">
         
-        {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
           <div>
             <div className="flex items-center gap-3">
@@ -200,8 +232,6 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
         </div>
 
         <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
-
-          {/* ================= REUSABLE ORDER TRACKER COMPONENT ================= */}
           <OrderTracker 
             awbNumber={awbNumber}
             currentStatus={currentStatus}
@@ -209,17 +239,13 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
             courierName={order.shipping?.courierName}
           />
 
-          {/* ================= DETAILS GRID ================= */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            
-            {/* Consignor Details */}
             <div className="border border-slate-100 bg-slate-50/50 p-4 rounded-xl space-y-2">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Consignor (Sender)</h4>
               <p className="text-sm font-semibold text-slate-800">{order.consignorName || 'N/A'}</p>
               <p className="text-xs text-slate-500">Pickup Location: {order.pickupLocation || 'Default Warehouse'}</p>
             </div>
 
-            {/* Consignee Details */}
             <div className="border border-slate-100 bg-slate-50/50 p-4 rounded-xl space-y-2">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Consignee (Receiver)</h4>
               <p className="text-sm font-semibold text-slate-800">
@@ -237,10 +263,8 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
                 {order.consigneeEmail && <p>✉️ {order.consigneeEmail}</p>}
               </div>
             </div>
-
           </div>
 
-          {/* Product Items Breakdown */}
           <div className="border border-slate-100 rounded-xl overflow-hidden">
             <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-100 flex justify-between items-center">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Order Items</h4>
@@ -272,7 +296,6 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
               <div className="p-4 text-xs text-slate-400 italic">No itemized details recorded.</div>
             )}
 
-            {/* Financial Overview & Package Details */}
             <div className="border-t border-slate-100 bg-slate-50/50 p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
               <div>
                 <span className="text-slate-400 block font-medium">Invoice Value</span>
@@ -305,7 +328,6 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
 
         </div>
 
-        {/* Modal Footer */}
         <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex justify-end">
           <button
             onClick={onClose}
@@ -340,8 +362,6 @@ const OrdersPage = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage, setOrdersPerPage] = useState(25);
-
-  const canSeeWeight = isAdmin || user?.showWeight;
 
   const fetchOrders = async () => {
     try {
@@ -466,14 +486,12 @@ const OrdersPage = () => {
   };
 
   const headers = [
-    'Pickup Date', 'Consignor Name', 'Consignee Name', 'Address', 'Contact No',
-    'Destination City', 'Destination State', 'Destination Pincode', 'AWB No.'
+    'Order ID & Info', 
+    'Order Items',
+    'Customer Details', 
+    'AWB No.',
+    'Status & Actions'
   ];
-
-  if (canSeeWeight) {
-    headers.push('Weight (kg)');
-  }
-  headers.push('Qty', 'Invoice No/Challan No', 'Invoice Value', 'Status Actions');
 
   return (
     <div className="w-full min-h-screen bg-[#F8FAFC] p-4 font-sans text-[#1E293B]">
@@ -522,7 +540,7 @@ const OrdersPage = () => {
           <table className="w-full text-left border-collapse table-auto">
             <thead>
               <tr className="border-b border-gray-100 bg-[#FAFAFA]">
-                <th className="p-4 w-12 text-center">
+                <th className="p-4 sm:p-5 w-12 text-center">
                   <input
                     type="checkbox"
                     onChange={handleSelectAll}
@@ -531,91 +549,182 @@ const OrdersPage = () => {
                   />
                 </th>
                 {headers.map((header) => (
-                  <th key={header} className="p-3 text-[11px] font-bold tracking-wider text-slate-500 uppercase whitespace-nowrap">
-                    <div className="flex items-center gap-1">
+                  <th key={header} className="p-4 sm:p-5 text-xs font-bold tracking-wider text-slate-600 uppercase whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
                       {header}
-                      {!header.includes('Actions') && <span className="text-[9px] text-gray-300 select-none">⇅</span>}
+                      {!header.includes('Status') && <span className="text-xs text-gray-300 select-none">⇅</span>}
                     </div>
                   </th>
                 ))}
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-gray-100/70 text-[13px] font-medium text-slate-700">
+            <tbody className="divide-y divide-gray-100/80 text-sm font-medium text-slate-700">
               {currentOrders.map((order) => {
                 const isChecked = selectedOrders.includes(order._id);
+                
+                const externalId = order.externalOrderId || order._id;
+                const orderDateFormatted = order.orderDate ? new Date(order.orderDate).toLocaleDateString() : '-';
+                const fullName = `${order.consigneeName || ''} ${order.consigneeLastName || ''}`.trim() || '-';
+                const email = order.consigneeEmail || '';
+                const phone = order.billingPhone || order.contactNo || '';
+                const fullAddress = `${order.address || ''} ${order.address2 ? `, ${order.address2}` : ''}`.trim();
+                const destination = `${order.destinationCity || ''}${order.destinationState ? `, ${order.destinationState}` : ''} ${order.destinationPincode ? `- ${order.destinationPincode}` : ''}`.trim();
+                const awbNo = order.shipping?.awbNumber || '';
+                const pkgWeight = order.shipping?.totalWeight || order.weight || '-';
+
                 return (
                   <tr 
                     key={order._id} 
                     onClick={() => handleRowClick(order)}
-                    className={`hover:bg-slate-50/80 transition-colors cursor-pointer ${isChecked ? 'bg-indigo-50/20' : ''}`}
+                    className={`hover:bg-slate-50/90 transition-colors cursor-pointer ${isChecked ? 'bg-indigo-50/30' : ''}`}
                   >
-                    <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                    <td className="p-4 sm:p-5 text-center align-top" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => handleSelectRow(order._id)}
-                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer mt-1"
                       />
                     </td>
-                    <td className="p-3 whitespace-nowrap text-slate-600">
-                      {order.pickupDate ? new Date(order.pickupDate).toLocaleDateString() : "-"}
+
+                    {/* SECTION 1: ORDER ID & INFO */}
+                    <td className="p-4 sm:p-5 align-top min-w-[220px]">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-base text-slate-900 tracking-tight">#{externalId}</span>
+                          <CopyButton text={externalId} label="Order ID" />
+                        </div>
+                        <div className="text-xs text-slate-600 space-y-1">
+                          <p className="flex items-center gap-1">
+                            <span className="text-slate-400">📅 Date:</span> 
+                            <span className="font-semibold text-slate-700">{orderDateFormatted}</span>
+                          </p>
+                          <p className="flex items-center gap-1.5 pt-0.5">
+                            <span className="text-slate-400">💳 Payment:</span> 
+                            <span className={`font-bold px-2 py-0.5 rounded text-[11px] border ${
+                              (order.paymentMethod || 'COD').toUpperCase() === 'COD' 
+                                ? 'bg-amber-50 text-amber-800 border-amber-200' 
+                                : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            }`}>{order.paymentMethod || 'COD'}</span>
+                          </p>
+                          <p className="flex items-center gap-1 pt-0.5">
+                            <span className="text-slate-400">💰 Value:</span> 
+                            <span className="font-mono font-bold text-slate-900 text-sm">₹{order.invoiceValue || 0}</span>
+                          </p>
+                        </div>
+                      </div>
                     </td>
-                    <td className="p-3">{order.consignorName || "-"}</td>
-                    <td className="p-3">{order.consigneeName || "-"}</td>
-                    <td className="p-3 max-w-xs truncate" title={order.address}>{order.address || "-"}</td>
-                    <td className="p-3">{order.billingPhone || order.contactNo || "-"}</td>
-                    <td className="p-3">{order.destinationCity || "-"}</td>
-                    <td className="p-3">{order.destinationState || "-"}</td>
-                    <td className="p-3">{order.destinationPincode || "-"}</td>
-                    <td className="p-3 font-mono font-bold text-blue-800">{order.shipping?.awbNumber || "-"}</td>
 
-                    {canSeeWeight && (
-                      <td className="p-3 font-mono text-slate-600">{order.weight ? `${order.weight} kg` : "-"}</td>
-                    )}
-
-                    <td className="p-3 text-center">{order.qty || "-"}</td>
-                    <td className="p-3 font-mono">{order.invoiceNo || "-"}</td>
-                    <td className="p-3 font-mono text-slate-900">₹{order.invoiceValue || "-"}</td>
-
-                    <td className="p-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      {order.shipping?.shippingStatus === 'Pending' && (
-                        <button
-                          onClick={() => handleSingleShipClick(order)}
-                          className="bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs px-3 py-1.5 rounded shadow-sm transition-colors"
-                        >
-                          Ship Order
-                        </button>
-                      )}
-                      {order.shipping?.shippingStatus === "Booked" && (
-                        <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-200">
-                          Booked
-                        </span>
-                      )}
-                      {order.shipping?.shippingStatus === "Cancelled" && (
-                        <span className="bg-rose-100 text-rose-800 font-bold text-xs px-2.5 py-1 rounded-full border border-rose-200">
-                          Cancelled
-                        </span>
-                      )}
-                      {order.shipping?.shippingStatus === "RTO" && (
-                        <span className="bg-red-100 text-red-800 font-bold text-xs px-2.5 py-1 rounded-full border border-red-200">
-                          RTO
-                        </span>
-                      )}
-                      {order.shipping?.shippingStatus === "Delivered" && (
-                        <span className="bg-green-100 text-green-800 font-bold text-xs px-2.5 py-1 rounded-full border border-green-200">
-                          Delivered
-                        </span>
-                      )}
-                      {order.shipping?.shippingStatus === "In Transit" && (
-                        <span className="bg-blue-100 text-blue-800 font-bold text-xs px-2.5 py-1 rounded-full border border-blue-200">
-                          In Transit
-                        </span>
-                      )}
-                      {!['Pending', 'Booked', 'Cancelled','RTO','Delivered','In Transit'].includes(order.shipping?.shippingStatus) && (
-                        <span className="text-slate-400 italic text-xs">{order.shipping?.shippingStatus || "No Actions"}</span>
-                      )}
+                    {/* SECTION 2: ORDER ITEMS & WEIGHT */}
+                    <td className="p-4 sm:p-5 align-top min-w-[240px]">
+                      <div className="space-y-2">
+                        {order.orderItems && order.orderItems.length > 0 ? (
+                          <div className="space-y-1.5">
+                            {order.orderItems.map((item, idx) => (
+                              <div key={idx} className="bg-slate-50/90 p-2 rounded-lg border border-slate-200/60">
+                                <p className="font-semibold text-slate-800 text-xs line-clamp-1">{item.name || `Item #${idx + 1}`}</p>
+                                {item.sku && <p className="text-[11px] text-slate-500 mt-0.5 font-mono">SKU: {item.sku}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-slate-400 italic text-xs">No item breakdown</p>
+                        )}
+                        <div className="text-xs font-semibold text-slate-700 pt-1 flex items-center justify-between border-t border-slate-100">
+                          <span className="text-slate-500">Weight:</span>
+                          <span className="font-mono font-bold text-indigo-600 text-xs">{pkgWeight !== '-' ? `${pkgWeight} kg` : '-'}</span>
+                        </div>
+                      </div>
                     </td>
+
+                    {/* SECTION 3: CUSTOMER DETAILS (Includes Copy Button for Email) */}
+                    <td className="p-4 sm:p-5 align-top min-w-[280px]">
+                      <div className="space-y-1.5">
+                        <p className="font-bold text-slate-900 text-sm">{fullName}</p>
+
+                        {email && (
+                          <div className="flex items-center gap-2 text-xs text-slate-600">
+                            <span className="truncate max-w-[180px]" title={email}>✉️ {email}</span>
+                            <CopyButton text={email} label="Email" />
+                          </div>
+                        )}
+                        
+                        {phone && (
+                          <div className="flex items-center gap-2 text-xs text-slate-700 font-medium">
+                            <span>📞 {phone}</span>
+                            <CopyButton text={phone} label="Phone Number" />
+                          </div>
+                        )}
+
+                        <div className="text-xs text-slate-600 max-w-xs pt-1">
+                          <div className="flex items-start gap-1.5 bg-slate-50/70 p-2 rounded-lg border border-slate-100">
+                            <span className="line-clamp-2 text-xs leading-relaxed" title={`${fullAddress} ${destination}`}>
+                              📍 {fullAddress || "-"} {destination}
+                            </span>
+                            <CopyButton text={`${fullAddress} ${destination}`} label="Address" />
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* SECTION 4: AWB NUMBER */}
+                    <td className="p-4 sm:p-5 align-top font-mono text-sm whitespace-nowrap">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 font-bold text-indigo-900">
+                          <span className="text-sm tracking-wide">{awbNo || "-"}</span>
+                          {awbNo && <CopyButton text={awbNo} label="AWB Number" />}
+                        </div>
+                        {order.shipping?.courierName && (
+                          <p className="text-xs font-sans font-bold text-slate-500 uppercase tracking-wide">
+                            {order.shipping.courierName}
+                          </p>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* SECTION 5: STATUS & ACTIONS */}
+                    <td className="p-4 sm:p-5 align-top whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <div className="pt-0.5">
+                        {order.shipping?.shippingStatus === 'Pending' && (
+                          <button
+                            onClick={() => handleSingleShipClick(order)}
+                            className="bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow-sm transition-colors"
+                          >
+                            Ship Order
+                          </button>
+                        )}
+                        {order.shipping?.shippingStatus === "Booked" && (
+                          <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-3 py-1 rounded-full border border-emerald-200">
+                            Booked
+                          </span>
+                        )}
+                        {order.shipping?.shippingStatus === "Cancelled" && (
+                          <span className="bg-rose-100 text-rose-800 font-bold text-xs px-3 py-1 rounded-full border border-rose-200">
+                            Cancelled
+                          </span>
+                        )}
+                        {order.shipping?.shippingStatus === "RTO" && (
+                          <span className="bg-red-100 text-red-800 font-bold text-xs px-3 py-1 rounded-full border border-red-200">
+                            RTO
+                          </span>
+                        )}
+                        {order.shipping?.shippingStatus === "Delivered" && (
+                          <span className="bg-green-100 text-green-800 font-bold text-xs px-3 py-1 rounded-full border border-green-200">
+                            Delivered
+                          </span>
+                        )}
+                        {order.shipping?.shippingStatus === "In Transit" && (
+                          <span className="bg-blue-100 text-blue-800 font-bold text-xs px-3 py-1 rounded-full border border-blue-200">
+                            In Transit
+                          </span>
+                        )}
+                        {!['Pending', 'Booked', 'Cancelled','RTO','Delivered','In Transit'].includes(order.shipping?.shippingStatus) && (
+                          <span className="text-slate-400 italic text-xs">{order.shipping?.shippingStatus || "No Actions"}</span>
+                        )}
+                      </div>
+                    </td>
+
                   </tr>
                 );
               })}

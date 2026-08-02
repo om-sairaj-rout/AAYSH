@@ -181,9 +181,9 @@ const uploadFileController = async (req, res) => {
     // =========================================
 
     for (const [index, row] of rawData.entries()) {
-      const pickupDate = parseExcelDate(
-        row["Order Date"]
-      );
+      const orderDate = parseExcelDate(
+  row["Order Date"]
+);
 
       const category = getCategory(
   row["City"] || ""
@@ -227,8 +227,7 @@ if (alreadyExists) {
         // Dates
         // ==========================
 
-        orderDate: pickupDate,
-        pickupDate,
+        orderDate,
 
         pickupLocation:
   row["Pickup Location"]?.toString().trim() || "Primary",
