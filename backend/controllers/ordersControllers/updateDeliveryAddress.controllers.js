@@ -55,16 +55,17 @@ const updateCustomerDeliveryAddress = async (req, res) => {
       orderId: order._id,
     });
 
-    if (
-      shipping &&
-      shipping.shippingStatus !== "Not Shipped"
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          `Customer address cannot be updated when shipping status is '${shipping.shippingStatus}'.`,
-      });
-    }
+    // Allow address update only before shipment starts
+if (shipping) {
+  const allowedStatuses = ["Pending", "Booked"];
+
+  if (!allowedStatuses.includes(shipping.shippingStatus)) {
+    return res.status(400).json({
+      success: false,
+      message: `Customer delivery address cannot be updated when shipping status is '${shipping.shippingStatus}'. Only Pending or Booked orders can be updated.`,
+    });
+  }
+}
 
     // ===========================
     // Update Fields

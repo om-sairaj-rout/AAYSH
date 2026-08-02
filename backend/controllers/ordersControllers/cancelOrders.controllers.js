@@ -57,18 +57,18 @@ const cancelOrder = async (req, res) => {
         continue;
       }
 
-      if (
-        shipping.shippingStatus === "Delivered" ||
-        shipping.shippingStatus === "RTO"
-      ) {
-        failedOrders.push({
-          order_id: id,
-          reason: `Cannot cancel because status is '${shipping.shippingStatus}'`,
-        });
-        continue;
-      }
+      const cancellableStatuses = ["Pending", "Booked"];
+
+if (!cancellableStatuses.includes(shipping.shippingStatus)) {
+  failedOrders.push({
+    order_id: id,
+    reason: `Order cannot be cancelled because shipping status is '${shipping.shippingStatus}'.`,
+  });
+  continue;
+}
 
 shipping.shippingStatus = "Cancelled";
+shipping.cancelledAt = new Date();
 
       await order.save();
       await shipping.save();

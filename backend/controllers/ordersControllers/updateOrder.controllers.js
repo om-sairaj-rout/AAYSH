@@ -99,16 +99,16 @@ const updateOrder = async (req, res) => {
       });
     }
 
-    // ============================
+   // ============================
 // Prevent Update
 // ============================
 
-const allowedStatus = "Not Shipped";
+const allowedStatuses = ["Pending", "Booked"];
 
-if (shipping.shippingStatus !== allowedStatus) {
+if (!allowedStatuses.includes(shipping.shippingStatus)) {
   return res.status(400).json({
     success: false,
-    message: `Order cannot be updated because shipping status is '${shipping.shippingStatus}'. Only 'Not Shipped' orders can be updated.`,
+    message: `Order cannot be updated because shipping status is '${shipping.shippingStatus}'. Only Pending or Booked orders can be updated.`,
   });
 }
 
