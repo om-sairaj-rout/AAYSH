@@ -97,8 +97,42 @@ const getOrdersController = async (req, res) => {
     // FETCH ORDERS
     // =========================
     const orders = await Order.find(orderFilter)
-      .sort({ pickupDate: -1 })
-      .lean();
+  .sort({ orderDate: -1 })   // <-- use orderDate
+  .lean();
+
+  const orderIds = orders.map((o) => o._id);
+
+const shippings = await Shipping.find({
+  orderId: { $in: orderIds },
+}).lean();
+
+const shippingMap = new Map();
+
+shippings.forEach((shipping) => {
+  shippingMap.set(String(shipping.orderId), shipping);
+});
+
+const shippingIds = shippings.map((s) => s._id);
+
+const trackingList = await Tracking.find({
+  shippingId: { $in: shippingIds },
+})
+  .sort({ eventTime: -1 })
+  .lean();
+
+const trackingMap = new Map();
+
+trackingList.forEach((track) => {
+  const key = String(track.shippingId);
+
+  if (!trackingMap.has(key)) {
+    trackingMap.set(key, []);
+  }
+
+  trackingMap.get(key).push(track);
+});
+
+    
 
     const finalOrders = [];
 
@@ -107,19 +141,12 @@ const getOrdersController = async (req, res) => {
     };
 
     for (const order of orders) {
-      const shipping = await Shipping.findOne({
-        orderId: order._id,
-      }).lean();
+     const shipping =
+  shippingMap.get(String(order._id)) || null;
 
-      let trackingHistory = [];
-
-if (shipping) {
-  trackingHistory = await Tracking.find({
-    shippingId: shipping._id,
-  })
-    .sort({ eventTime: -1 })
-    .lean();
-}
+const trackingHistory = shipping
+  ? trackingMap.get(String(shipping._id)) || []
+  : [];
 
       const shippingData =
         shipping || {

@@ -55,7 +55,7 @@ const OrderByDateInfo = () => {
       const result = await getOrdersByDate(fromDate, toDate);
 
       if (result.success) {
-        // ✅ SORT ADDED HERE (ASCENDING BY PICKUP DATE)
+        // ✅ SORT ASCENDING BY PICKUP DATE
         const sortedData = (result.orders || []).sort((a, b) => {
           return new Date(a.pickupDate) - new Date(b.pickupDate);
         });
@@ -118,18 +118,49 @@ const OrderByDateInfo = () => {
     });
 
     const worksheet = XLSX.utils.json_to_sheet(cleanedData);
-    const workbook = XLSX.utils.book_new();
 
+    // ================= EXCEL STYLING (BOLD HEADERS & THIN BORDERS) =================
+    if (worksheet["!ref"]) {
+      const range = XLSX.utils.decode_range(worksheet["!ref"]);
+
+      const thinBorder = {
+        top: { style: "thin", color: { rgb: "A6A6A6" } },
+        bottom: { style: "thin", color: { rgb: "A6A6A6" } },
+        left: { style: "thin", color: { rgb: "A6A6A6" } },
+        right: { style: "thin", color: { rgb: "A6A6A6" } },
+      };
+
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!worksheet[cellAddress]) continue;
+
+          worksheet[cellAddress].s = worksheet[cellAddress].s || {};
+          
+          // Apply thin border to all exported data cells
+          worksheet[cellAddress].s.border = thinBorder;
+
+          // Header Row (Row 0): Bold Text + Light Background Fill + Left Alignment
+          if (R === 0) {
+            worksheet[cellAddress].s.font = { bold: true, color: { rgb: "000000" }, name: "Calibri", sz: 11 };
+            worksheet[cellAddress].s.fill = { fgColor: { rgb: "E5E7EB" } };
+            worksheet[cellAddress].s.alignment = { vertical: "center", horizontal: "left" };
+          }
+        }
+      }
+    }
+
+    const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
 
     const excelBuffer = XLSX.write(workbook, {
       bookType: "xlsx",
       type: "array",
+      cellStyles: true,
     });
 
     const fileData = new Blob([excelBuffer], {
-      type:
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
 
     saveAs(fileData, `orders_${fromDate}_to_${toDate}.xlsx`);
@@ -228,28 +259,28 @@ const OrderByDateInfo = () => {
             onClick={handleExport}
             className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors"
           >
-            XLXS
+            XLSX
           </button>
 
         </div>
       </div>
 
       {/* TABLE */}
-      <div className="overflow-x-auto border border-gray-100 rounded-lg">
+      <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
 
         <table className="w-full text-left text-sm border-collapse">
 
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
+            <tr className="border-t border-b border-gray-300 bg-gray-100/80">
 
               {visibleKeys.map((header) => (
                 <th
                   key={header}
-                  className="p-4 font-semibold text-gray-600 whitespace-nowrap"
+                  className="p-4 font-bold text-gray-800 whitespace-nowrap border-r border-gray-200 last:border-r-0"
                 >
                   <div className="flex items-center gap-2">
                     {header}
-                    <ChevronsUpDown size={14} className="text-gray-300" />
+                    <ChevronsUpDown size={14} className="text-gray-400" />
                   </div>
                 </th>
               ))}

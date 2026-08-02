@@ -608,10 +608,6 @@ const OrdersPage = () => {
                                 : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                             }`}>{order.paymentMethod || 'COD'}</span>
                           </p>
-                          <p className="flex items-center gap-1 pt-0.5">
-                            <span className="text-slate-400">💰 Value:</span> 
-                            <span className="font-mono font-bold text-slate-900 text-sm">₹{order.invoiceValue || 0}</span>
-                          </p>
                         </div>
                       </div>
                     </td>
