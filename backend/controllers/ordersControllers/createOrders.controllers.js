@@ -395,9 +395,6 @@ shipping.shipmentId,
       status:
       "NEW",
 
-      status_code:
-      1,
-
       awb_code:
       null,
 
