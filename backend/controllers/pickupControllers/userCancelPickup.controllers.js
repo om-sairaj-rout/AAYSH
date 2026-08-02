@@ -1,10 +1,10 @@
-const Pickup = require("../../models/pickup.model");
+const Shipping = require("../../models/upload/shipping.model"); // adjust path
 
 const UserPickupCancel = async (req, res) => {
   try {
     const { pickupId } = req.body;
 
-    const pickup = await Pickup.findById(pickupId);
+    const pickup = await Shipping.findById(pickupId);
 
     if (!pickup) {
       return res.status(404).json({
@@ -14,6 +14,8 @@ const UserPickupCancel = async (req, res) => {
     }
 
     pickup.pickupStatus = "Cancelled";
+    pickup.pickupCancelledAt = new Date();
+
     await pickup.save();
 
     return res.json({
