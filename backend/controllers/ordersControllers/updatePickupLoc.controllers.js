@@ -53,14 +53,16 @@ const updatePickupLocation = async (req, res) => {
         continue;
       }
 
-      // Don't allow update after shipment has started
-      if (shipping.shippingStatus !== "Not Shipped") {
-        failedOrders.push({
-          order_id: id,
-          reason: `Pickup location cannot be updated when shipping status is '${shipping.shippingStatus}'.`,
-        });
-        continue;
-      }
+      // Allow only before shipment starts
+const allowedStatuses = ["Pending", "Booked"];
+
+if (!allowedStatuses.includes(shipping.shippingStatus)) {
+  failedOrders.push({
+    order_id: id,
+    reason: `Pickup location cannot be updated when shipping status is '${shipping.shippingStatus}'.`,
+  });
+  continue;
+}
 
       // Update Order
       order.pickupLocation = pickup_location;
