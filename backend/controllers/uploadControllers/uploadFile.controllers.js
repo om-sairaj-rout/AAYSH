@@ -64,10 +64,19 @@ const generateUniqueShipmentId = async () => {
 // =========================================
 // Generate Invoice Number
 // =========================================
-const generateInvoiceNo = () => {
-  return `INV-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-};
+const generateUniqueInvoiceNo = async () => {
+  while (true) {
+    const invoiceNo = `INV-${Date.now()}-${Math.floor(
+      1000 + Math.random() * 9000
+    )}`;
 
+    const exists = await Order.exists({ invoiceNo });
+
+    if (!exists) {
+      return invoiceNo;
+    }
+  }
+};
 // =========================================
 // Calculate Invoice Value
 // =========================================
@@ -302,7 +311,7 @@ giftwrapCharges:
 transactionCharges:
   Number(row["Transaction Charges"]) || 0,
 
-invoiceNo: generateInvoiceNo(),
+invoiceNo: await generateUniqueInvoiceNo(),
 
 invoiceValue: calculateInvoiceValue({
   orderItems: [
