@@ -61,10 +61,16 @@ const ShippingSchema = new mongoose.Schema(
     "Pending",
     "Scheduled",
     "Failed",
-    "Completed"
+    "Completed",
+    "Cancelled",
   ],
   default: "Pending",
   index: true,
+},
+
+failureReason: {
+  type: String,
+  default: "",
 },
 
 pickedUpAt: {

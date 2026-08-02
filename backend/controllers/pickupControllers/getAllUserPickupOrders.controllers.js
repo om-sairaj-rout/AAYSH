@@ -8,7 +8,7 @@ const getUserPickups = async (req, res) => {
       .populate({
         path: "orderId",
         select:
-          "externalOrderId customerName mobile_number pickupLocation totalItems",
+          "externalOrderId consignorName pickupLocation orderItems",
       })
       .sort({
         pickupDate: 1,
@@ -33,18 +33,25 @@ const getUserPickups = async (req, res) => {
 
       pickupDate: item.pickupDate,
 
-      packagesCount: item.orderId?.totalItems || 1,
+      pickupTime: item.pickupTime,
 
-      contactPhone: item.orderId?.mobile_number || "",
+      packagesCount:
+  item.orderId?.orderItems?.reduce(
+    (total, product) => total + product.units,
+    0
+  ) || 0,
 
-      consignorName: item.orderId?.customerName || "",
+      contactPhone: "8882719505",
+
+      consignorName: item.orderId?.consignorName || "",
 
       pickupStatus: item.pickupStatus,
 
       failureReason:
-        item.pickupStatus === "Failed"
-          ? item.pickupInstructions
-          : "",
+  item.pickupStatus === "Failed"
+    ? item.failureReason
+    : "",
+    
     }));
 
     return res.status(200).json({

@@ -431,19 +431,19 @@ today.setHours(0, 0, 0, 0);
 
                     {/* Status Badge */}
                     <td className="p-3.5">
-  <span
-    className={`px-2.5 py-1 text-xs font-bold rounded-full border ${
-      pickup.status === "Completed"
-        ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-        : pickup.status === "Failed"
-        ? "bg-rose-100 text-rose-800 border-rose-200"
-        : pickup.status === "Future"
-        ? "bg-indigo-100 text-indigo-800 border-indigo-200"
-        : "bg-amber-100 text-amber-800 border-amber-200"
-    }`}
-  >
-    {pickup.status}
-  </span>
+<span
+  className={`px-2.5 py-1 text-xs font-bold rounded-full border ${
+    pickup.pickupStatus === "Completed"
+      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+      : pickup.pickupStatus === "Failed"
+      ? "bg-rose-100 text-rose-800 border-rose-200"
+      : pickup.pickupStatus === "Scheduled"
+      ? "bg-indigo-100 text-indigo-800 border-indigo-200"
+      : "bg-amber-100 text-amber-800 border-amber-200"
+  }`}
+>
+  {pickup.pickupStatus}
+</span>
 
   {pickup.failureReason && (
     <p
