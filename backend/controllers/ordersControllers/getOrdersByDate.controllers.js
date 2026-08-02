@@ -16,11 +16,11 @@ const getOrdersByDate = async (req, res) => {
     endDate.setHours(23, 59, 59, 999);
 
     let filter = {
-      pickupDate: {
-        $gte: startDate,
-        $lte: endDate,
-      },
-    };
+  orderDate: {
+    $gte: startDate,
+    $lte: endDate,
+  },
+};
 
     if (req.user.role !== "admin") {
       filter.uploadedBy = req.user.id;
@@ -31,8 +31,8 @@ const getOrdersByDate = async (req, res) => {
     // =========================
     const orders = await Order.find(filter)
       .sort({
-        pickupDate: -1,
-      })
+  orderDate: -1,
+})
       .lean();
 
     // =========================
@@ -45,7 +45,7 @@ const getOrdersByDate = async (req, res) => {
         }).lean();
 
         const calculations =
-          orderCalculations(order);
+  orderCalculations(order, shipping);
 
         return {
   order_id: order.externalOrderId,
