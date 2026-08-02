@@ -3,24 +3,21 @@ const Shipping = require("../../models/upload/shipping.model");
 const getAdminPickups = async (req, res) => {
   try {
     const pickups = await Shipping.find({
-      awbNumber: { $ne: "" }
-    })
-      .populate({
-        path: "orderId",
-        select: "externalOrderId",
-      })
-      .populate({
-        path: "courierId",
-        select: "courierName contactPhone",
-      })
-      .populate({
-        path: "orderId",
-        populate: {
-          path: "userId",
-          select: "username email",
-        },
-      })
-      .sort({ pickupDate: 1 });
+  awbNumber: { $ne: "" }
+})
+.populate({
+  path: "orderId",
+  select: "externalOrderId uploadedBy",
+  populate: {
+    path: "uploadedBy",
+    select: "username email",
+  },
+})
+.populate({
+  path: "courierId",
+  select: "courierName contactPhone",
+})
+.sort({ pickupDate: 1 });
 
     const formatted = pickups.map((pickup) => ({
       _id: pickup._id,
@@ -40,13 +37,13 @@ const getAdminPickups = async (req, res) => {
       failureReason: pickup.failureReason,
       packagesCount: 1,
 
-      userId: pickup.orderId?.userId
-        ? {
-            _id: pickup.orderId.userId._id,
-            username: pickup.orderId.userId.username,
-            email: pickup.orderId.userId.email,
-          }
-        : null,
+      userId: pickup.orderId?.uploadedBy
+  ? {
+      _id: pickup.orderId.uploadedBy._id,
+      username: pickup.orderId.uploadedBy.username,
+      email: pickup.orderId.uploadedBy.email,
+    }
+  : null,
     }));
 
     return res.json({
