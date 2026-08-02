@@ -1,4 +1,4 @@
-const Shipping = require("../../models/shipping.model");
+const Shipping = require("../../models/upload/shipping.model");
 
 const failPickup = async (req, res) => {
   try {

@@ -9,6 +9,8 @@ const getUserPickups = require("../controllers/pickupControllers/getAllUserPicku
 const UserPickupsReschedule = require("../controllers/pickupControllers/userPickupReschedule.controllers");
 const UserPickupCancel = require("../controllers/pickupControllers/userCancelPickup.controllers");
 const getAdminPickups = require("../controllers/pickupControllers/getAllAdminPickupOrders.controllers");
+const UserPickupsComplete = require("../controllers/pickupControllers/adminCompletePickup.controllers");
+const UserPickupFailed = require("../controllers/pickupControllers/adminFailPickup.controllers");
 
 pickupRouter.get(
   "/user/pickups",
