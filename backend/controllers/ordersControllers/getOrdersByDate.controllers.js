@@ -38,98 +38,135 @@ const getOrdersByDate = async (req, res) => {
     // =========================
     // ATTACH SHIPPING + CALCULATIONS
     // =========================
-    const updatedOrders = await Promise.all(
-      orders.map(async (order) => {
-        const shipping = await Shipping.findOne({
-          orderId: order._id,
-        }).lean();
+const updatedOrders = (
+  await Promise.all(
+    orders.map(async (order) => {
+      const shipping = await Shipping.findOne({
+        orderId: order._id,
+      }).lean();
 
-        const calculations =
-  orderCalculations(order, shipping);
+      const calculations = orderCalculations(
+        order,
+        shipping
+      );
 
-        return {
-  order_id: order.externalOrderId,
+      // One row per order item
+      return order.orderItems.map((item) => ({
+        order_id: order.externalOrderId,
 
-  order_date: order.orderDate,
+        order_date: order.orderDate,
 
-  pickup_date: shipping?.pickupDate || null,
+        pickup_date: shipping?.pickupDate || null,
 
-  pickup_location: order.pickupLocation,
+        pickup_location: order.pickupLocation,
 
-  consignor_name: order.consignorName,
+        consignor_name: order.consignorName,
 
-  consignee_name: order.consigneeName,
+        consignee_name: order.consigneeName,
 
-  consignee_last_name: order.consigneeLastName,
+        consignee_last_name: order.consigneeLastName,
 
-  address: order.address,
+        address: order.address,
 
-  address_2: order.address2,
+        address_2: order.address2,
 
-  destination_city: order.destinationCity,
+        destination_city: order.destinationCity,
 
-  destination_state: order.destinationState,
+        destination_state: order.destinationState,
 
-  destination_pincode: order.destinationPincode,
+        destination_pincode: order.destinationPincode,
 
-  destination_country: order.destinationCountry,
+        destination_country: order.destinationCountry,
 
-  consignee_email: order.consigneeEmail,
+        consignee_email: order.consigneeEmail,
 
-  billing_phone: order.billingPhone,
+        billing_phone: order.billingPhone,
 
-  billing_alternate_phone: order.billingAlternatePhone,
+        billing_alternate_phone: order.billingAlternatePhone,
 
-  payment_method: order.paymentMethod,
+        payment_method: order.paymentMethod,
 
-  comment: order.comment,
+        comment: order.comment,
 
-  order_items: order.orderItems.map((item) => ({
-    order_name: item.name,
-    sku: item.sku,
-    quantity: item.units,
-    selling_price: item.sellingPrice,
-    discount: item.discount,
-    tax: item.tax,
-    hsn: item.hsn,
-  })),
+        // =====================
+        // Item Details
+        // =====================
 
-  invoice_no: order.invoiceNo,
+        order_name: item.name,
 
-  invoice_value: order.invoiceValue,
+        sku: item.sku,
 
-  sub_total: order.subTotal,
+        quantity: item.units,
 
-  shipping_charges: shipping?.shippingCharges ?? order.shippingCharges,
+        selling_price: item.sellingPrice,
 
-  giftwrap_charges: order.giftwrapCharges,
+        discount: item.discount,
 
-  transaction_charges: order.transactionCharges,
+        tax: item.tax,
 
-  total_discount: order.totalDiscount,
+        hsn: item.hsn,
 
-  weight: order.weight,
+        // =====================
+        // Invoice
+        // =====================
 
-  length: order.length,
+        invoice_no: order.invoiceNo,
 
-  breadth: order.breadth,
+        invoice_value: order.invoiceValue,
 
-  height: order.height,
+        sub_total: order.subTotal,
 
-  status: shipping?.shippingStatus || "Pending",
+        shipping_charges:
+          shipping?.shippingCharges ??
+          order.shippingCharges,
 
-  delivery_attempts: shipping?.deliveryAttempts || 0,
+        giftwrap_charges:
+          order.giftwrapCharges,
 
-  attempt_failure_reason:
-    shipping?.attemptFailureReason || "",
+        transaction_charges:
+          order.transactionCharges,
 
-  expected_hours: calculations.expectedHours,
+        total_discount:
+          order.totalDiscount,
 
-  sla_status: calculations.slaStatus,
-};
-      })
-    );
+        // =====================
+        // Package
+        // =====================
 
+        weight: order.weight,
+
+        length: order.length,
+
+        breadth: order.breadth,
+
+        height: order.height,
+
+        // =====================
+        // Shipping
+        // =====================
+
+        status:
+          shipping?.shippingStatus || "Pending",
+
+        delivery_attempts:
+          shipping?.deliveryAttempts || 0,
+
+        attempt_failure_reason:
+          shipping?.attemptFailureReason || "",
+
+        // =====================
+        // SLA
+        // =====================
+
+        expected_hours:
+          calculations.expectedHours,
+
+        sla_status:
+          calculations.slaStatus,
+      }));
+    })
+  )
+).flat();
     return res.status(200).json({
       success: true,
       orders: updatedOrders,
