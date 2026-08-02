@@ -194,115 +194,6 @@ const BulkFailPickupModal = ({ isOpen, onClose, selectedCount, onConfirmBulkFail
   );
 };
 
-/* ================= RESCHEDULE PICKUP MODAL ================= */
-const AdminRescheduleModal = ({ isOpen, onClose, pickup, onConfirmReschedule }) => {
-  const [pickupDate, setPickupDate] = useState('');
-  const [pickupLocation, setPickupLocation] = useState('Default Warehouse');
-  const [notes, setNotes] = useState('');
-
-  useEffect(() => {
-    if (pickup) {
-      setPickupDate(pickup.pickupDate ? pickup.pickupDate.split('T')[0] : '');
-      setPickupLocation(pickup.pickupLocation || 'Default Warehouse');
-      setNotes(pickup.notes || '');
-    }
-  }, [pickup]);
-
-  if (!isOpen || !pickup) return null;
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onConfirmReschedule({
-      pickupId: pickup._id,
-      pickupDate,
-      pickupLocation,
-      notes,
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 my-8">
-        
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-          <div>
-            <h3 className="text-base font-bold text-slate-800">Admin Reschedule Pickup</h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Order #{pickup.externalOrderId || pickup.orderId}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            ✕
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-              New Pickup Date <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="date"
-              required
-              value={pickupDate}
-              min={new Date().toISOString().split('T')[0]}
-              onChange={(e) => setPickupDate(e.target.value)}
-              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-              Pickup Location <span className="text-rose-500">*</span>
-            </label>
-            <select
-              value={pickupLocation}
-              onChange={(e) => setPickupLocation(e.target.value)}
-              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
-            >
-              <option value="Default Warehouse">Default Warehouse</option>
-              <option value="Secondary Warehouse">Secondary Warehouse</option>
-              <option value="Store Location">Store Location</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-              Admin Override Notes / Reason
-            </label>
-            <textarea
-              rows={3}
-              value={notes}
-              placeholder="e.g. Admin rescheduled due to seller request..."
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
-            />
-          </div>
-
-          <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold text-xs rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg transition-colors shadow-sm"
-            >
-              Update Pickup
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
 /* ================= MAIN ADMIN PICKUP PAGE COMPONENT ================= */
 const AdminPickupPage = () => {
   const [activeTab, setActiveTab] = useState("Today's Pickups");
@@ -317,8 +208,6 @@ const AdminPickupPage = () => {
   const [selectedPickup, setSelectedPickup] = useState(null);
   const [isFailModalOpen, setIsFailModalOpen] = useState(false);
   const [isBulkFailModalOpen, setIsBulkFailModalOpen] = useState(false);
-  const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
-
 
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -359,11 +248,11 @@ const AdminPickupPage = () => {
     } finally {
         setLoading(false);
     }
-};
+  };
 
-useEffect(() => {
+  useEffect(() => {
     fetchPickups();
-}, []);
+  }, []);
 
   // Metrics computation (derived from user-filtered pickups)
   const counts = {
@@ -417,7 +306,6 @@ useEffect(() => {
   // Admin Action: Complete Pickup
   const handleCompletePickup = async (pickupId) => {
     try {
-
         await completePickupAPI(pickupId);
 
         toast.success("Pickup completed");
@@ -427,7 +315,7 @@ useEffect(() => {
     } catch (err) {
         toast.error(err.message);
     }
-};
+  };
 
   // Admin Action: Single Fail Modal
   const handleOpenFailModal = (pickup) => {
@@ -435,10 +323,8 @@ useEffect(() => {
     setIsFailModalOpen(true);
   };
 
- const handleConfirmFail = async (pickupId, reason) => {
-
+  const handleConfirmFail = async (pickupId, reason) => {
     try {
-
         await failPickupAPI(
             pickupId,
             reason
@@ -454,28 +340,7 @@ useEffect(() => {
     } catch (err) {
         toast.error(err.message);
     }
-
-};
-
-  // Admin Action: Reschedule
-const handleConfirmReschedule = async (payload) => {
-
-    try {
-
-        await reschedulePickupAPI(payload);
-
-        toast.success("Pickup rescheduled");
-
-        fetchPickups();
-
-        setIsRescheduleModalOpen(false);
-        setSelectedPickup(null);
-
-    } catch (err) {
-        toast.error(err.message);
-    }
-
-};
+  };
 
   // Bulk Action: Complete
   const handleBulkComplete = () => {
@@ -748,13 +613,6 @@ const handleConfirmReschedule = async (payload) => {
                               ✕ Fail
                             </button>
                           )}
-
-                          <button
-                            onClick={() => { setSelectedPickup(pickup); setIsRescheduleModalOpen(true); }}
-                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition-colors"
-                          >
-                            Reschedule
-                          </button>
                         </div>
                       </td>
 
@@ -782,14 +640,6 @@ const handleConfirmReschedule = async (payload) => {
         onClose={() => setIsBulkFailModalOpen(false)}
         selectedCount={selectedPickupIds.length}
         onConfirmBulkFail={handleConfirmBulkFail}
-      />
-
-      {/* Admin Reschedule Modal */}
-      <AdminRescheduleModal
-        isOpen={isRescheduleModalOpen}
-        onClose={() => { setIsRescheduleModalOpen(false); setSelectedPickup(null); }}
-        pickup={selectedPickup}
-        onConfirmReschedule={handleConfirmReschedule}
       />
     </div>
   );
