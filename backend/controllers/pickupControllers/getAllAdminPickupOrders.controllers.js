@@ -3,7 +3,10 @@ const Shipping = require("../../models/upload/shipping.model");
 const getAdminPickups = async (req, res) => {
   try {
     const pickups = await Shipping.find({
-  awbNumber: { $ne: "" }
+  awbNumber: { $ne: "" },
+  pickupStatus: {
+    $in: ["Scheduled", "Failed", "Completed"]
+  }
 })
 .populate({
   path: "orderId",
