@@ -48,10 +48,85 @@ const getOrdersByDate = async (req, res) => {
           orderCalculations(order);
 
         return {
-          ...order,
-          shipping,
-          ...calculations,
-        };
+  order_id: order.externalOrderId,
+
+  order_date: order.orderDate,
+
+  pickup_date: shipping?.pickupDate || null,
+
+  pickup_location: order.pickupLocation,
+
+  consignor_name: order.consignorName,
+
+  consignee_name: order.consigneeName,
+
+  consignee_last_name: order.consigneeLastName,
+
+  address: order.address,
+
+  address_2: order.address2,
+
+  destination_city: order.destinationCity,
+
+  destination_state: order.destinationState,
+
+  destination_pincode: order.destinationPincode,
+
+  destination_country: order.destinationCountry,
+
+  consignee_email: order.consigneeEmail,
+
+  billing_phone: order.billingPhone,
+
+  billing_alternate_phone: order.billingAlternatePhone,
+
+  payment_method: order.paymentMethod,
+
+  comment: order.comment,
+
+  order_items: order.orderItems.map((item) => ({
+    order_name: item.name,
+    sku: item.sku,
+    quantity: item.units,
+    selling_price: item.sellingPrice,
+    discount: item.discount,
+    tax: item.tax,
+    hsn: item.hsn,
+  })),
+
+  invoice_no: order.invoiceNo,
+
+  invoice_value: order.invoiceValue,
+
+  sub_total: order.subTotal,
+
+  shipping_charges: shipping?.shippingCharges ?? order.shippingCharges,
+
+  giftwrap_charges: order.giftwrapCharges,
+
+  transaction_charges: order.transactionCharges,
+
+  total_discount: order.totalDiscount,
+
+  weight: order.weight,
+
+  length: order.length,
+
+  breadth: order.breadth,
+
+  height: order.height,
+
+  status: shipping?.shippingStatus || "Pending",
+
+  delivery_attempts: shipping?.deliveryAttempts || 0,
+
+  attempt_failure_reason:
+    shipping?.attemptFailureReason || "",
+
+  expected_hours: calculations.expectedHours,
+
+  sla_status: calculations.slaStatus,
+};
       })
     );
 
