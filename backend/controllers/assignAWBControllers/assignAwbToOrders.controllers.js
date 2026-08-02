@@ -20,7 +20,15 @@ const getAwbCategory = (weight, isPrime) => {
 
 const assignAwbToOrders = async (req, res) => {
   try {
-    const { courierId, orders, isPrime } = req.body;
+    const {
+  courierId,
+  orders,
+  isPrime,
+  pickupDate,
+  pickupLocation,
+  pickupTime,
+  notes,
+} = req.body;
 
     if (!courierId || !orders?.length) {
       return res.status(400).json({
@@ -84,33 +92,44 @@ if (existingShipping?.awbNumber) {
 
 
       await Shipping.findOneAndUpdate(
-        {
-          orderId: order._id,
-        },
-        {
-          orderId: order._id,
+  {
+    orderId: order._id,
+  },
+  {
+    orderId: order._id,
 
-          awbNumber: awb.awbNumber,
+    awbNumber: awb.awbNumber,
 
-          courierId: courier._id,
+    courierId: courier._id,
 
-          courierName: courier.name,
+    courierName: courier.name,
 
-          shippingStatus: "Booked",
+    // Pickup Details
+    pickupDate,
+    pickupTime,
+    pickupInstructions: notes,
+    pickupLocation,
 
-          bookedAt: new Date(),
+    pickupStatus: "Scheduled",
 
-          pickupLocation: "Primary",
+    // Shipping Details
+    shippingStatus: "Booked",
 
-          totalWeight: order.weight || 0,
-        },
-        {
-          upsert: true,
-          new: true,
-        }
-      );
+    bookedAt: new Date(),
 
-order.pickupLocation = "Primary";
+    totalWeight: order.weight || 0,
+  },
+  {
+    upsert: true,
+    new: true,
+  }
+);
+
+order.pickupDate = pickupDate;
+order.pickupTime = pickupTime;
+order.pickupInstructions = notes;
+order.pickupLocation = pickupLocation;
+
 await order.save();
 
       updatedOrders.push({

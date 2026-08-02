@@ -77,12 +77,22 @@ const OrderSchema = new mongoose.Schema(
 
     orderDate: {
       type: Date,
-      default: Date.now,
+      default: null,
     },
 
     pickupDate: {
       type: Date,
-      default: Date.now,
+      default: null,
+    },
+
+    pickupTime: {
+      type: String,
+      default: "",
+    },
+
+    pickupInstructions: {
+      type: String,
+      default: "",
     },
 
     pickupLocation: {

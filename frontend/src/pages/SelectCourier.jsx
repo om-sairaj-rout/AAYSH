@@ -9,7 +9,9 @@ import { toast } from 'react-hot-toast';
 
 const SelectCourier = ({ isOpen, onClose, onConfirm, selectedOrdersCount = 2 }) => {
   const [selectedCourier, setSelectedCourier] = useState(null);
-  const [isPrime, setIsPrime] = useState(false);
+const [selectedCourierName, setSelectedCourierName] = useState("");
+
+const [isPrime, setIsPrime] = useState(false);
 
   const [couriers, setCouriers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -38,9 +40,13 @@ const SelectCourier = ({ isOpen, onClose, onConfirm, selectedOrdersCount = 2 }) 
     };
 
     if (isOpen) {
-      loadCouriers();
-      setIsPrime(false); // Reset prime toggle on modal open
-    }
+  loadCouriers();
+
+  setIsPrime(false);
+
+  setSelectedCourier(null);
+  setSelectedCourierName("");
+}
   }, [isOpen]);
 
 
@@ -51,9 +57,10 @@ const SelectCourier = ({ isOpen, onClose, onConfirm, selectedOrdersCount = 2 }) 
     }
 
     onConfirm({
-      courierId: selectedCourier,
-      isPrime: isPrime,
-    });
+    courierId: selectedCourier,
+    courierName: selectedCourierName,
+    isPrime
+});
   };
 
   if (!isOpen) return null;
@@ -90,7 +97,6 @@ const SelectCourier = ({ isOpen, onClose, onConfirm, selectedOrdersCount = 2 }) 
           {loading && (
             <p className="text-xs text-slate-500">Loading couriers...</p>
           )}
-
           {/* TWO-COLUMN GRID SELECTION COMPONENT */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {couriers.map((courier) => {
@@ -99,7 +105,10 @@ const SelectCourier = ({ isOpen, onClose, onConfirm, selectedOrdersCount = 2 }) 
               return (
                 <div
                   key={courier._id}
-                  onClick={() => setSelectedCourier(courier._id)}
+                  onClick={() => {
+    setSelectedCourier(courier._id);
+    setSelectedCourierName(courier.name);
+}}
                   className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between group select-none ${
                     isSelected
                       ? 'bg-cyan-500 border-cyan-500 text-white shadow-md shadow-cyan-500/10'
@@ -112,7 +121,10 @@ const SelectCourier = ({ isOpen, onClose, onConfirm, selectedOrdersCount = 2 }) 
                         type="radio"
                         name="courierSelection"
                         checked={isSelected}
-                        onChange={() => setSelectedCourier(courier._id)}
+                        onChange={() => {
+    setSelectedCourier(courier._id);
+    setSelectedCourierName(courier.name);
+}}
                         className={`w-4 h-4 cursor-pointer focus:ring-0 ${
                           isSelected ? 'text-white border-white' : 'text-cyan-500 border-slate-300'
                         }`}
@@ -139,7 +151,6 @@ const SelectCourier = ({ isOpen, onClose, onConfirm, selectedOrdersCount = 2 }) 
               );
             })}
           </div>
-
           {/* PRIME SERVICE SELECTION TOGGLE */}
           <div 
             onClick={() => setIsPrime(!isPrime)}

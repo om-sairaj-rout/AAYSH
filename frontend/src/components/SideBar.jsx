@@ -71,6 +71,16 @@ const SideBar = ({ isOpen, setIsOpen }) => {
       ],
     },
     {
+      section: "Pickup details",
+      items: [
+        {
+          name: "Pickup Management",
+          icon: <Barcode size={20} />,
+          path: "/pickup",
+        },
+      ],
+    },
+    {
       section: "Settings",
       adminOnly: true, 
       items: [

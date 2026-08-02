@@ -6,6 +6,155 @@ import { shipOrdersAPI } from '../api/shipingAPI';
 import { toast } from 'react-hot-toast';
 import OrderTracker from '../components/OrderTracker'; // <--- Implemented Component Import
 
+/* ================= SCHEDULE PICKUP MODAL ================= */
+const SchedulePickupModal = ({ isOpen, onClose, selectedCourier, ordersCount, onFinalSubmit, defaultPickupLocation }) => {
+  const [pickupDate, setPickupDate] = useState(new Date().toISOString().split('T')[0]);
+  const [pickupLocation, setPickupLocation] = useState('');
+  const [pickupTime, setPickupTime] = useState('11:00'); // Default to 11:00 AM
+  const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+  if (isOpen) {
+    setPickupLocation(defaultPickupLocation || '');
+  }
+}, [isOpen, defaultPickupLocation]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    // Validate that pickup time is between 11:00 (11 AM) and 17:00 (5 PM)
+    const [hours, minutes] = pickupTime.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
+    const startLimit = 11 * 60; // 11:00 AM = 660 mins
+    const endLimit = 17 * 60;   // 05:00 PM = 1020 mins
+
+    if (totalMinutes < startLimit || totalMinutes > endLimit) {
+      toast.error('Pickup time must be between 11:00 AM and 5:00 PM');
+      return;
+    }
+
+    onFinalSubmit({
+      pickupDate,
+      pickupLocation,
+      pickupTime,
+      notes,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 my-8">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+          <div>
+            <h3 className="text-base font-bold text-slate-800">Schedule Pickup</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Courier: <span className="font-semibold text-indigo-600">{selectedCourier?.courierName || 'Selected Courier'}</span> ({ordersCount} order{ordersCount > 1 ? 's' : ''})
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Modal Body / Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          
+          {/* Pickup Date Input */}
+          <div>
+            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+              Pickup Date <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="date"
+              required
+              value={pickupDate}
+              min={new Date().toISOString().split('T')[0]}
+              onChange={(e) => setPickupDate(e.target.value)}
+              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
+            />
+          </div>
+
+          {/* Pickup Location Input */}
+          <div>
+            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+              Pickup Location <span className="text-rose-500">*</span>
+            </label>
+            <input
+  type="text"
+  required
+  value={pickupLocation}
+  onChange={(e) => setPickupLocation(e.target.value)}
+  placeholder="Enter pickup location"
+  className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+/>
+          </div>
+
+          {/* Pickup Time Input (Restricted 11:00 AM to 6:00 PM) */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-600 uppercase">
+                Pickup Time <span className="text-rose-500">*</span>
+              </label>
+              <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                11:00 AM - 5:00 PM
+              </span>
+            </div>
+            <input
+              type="time"
+              required
+              min="11:00"
+              max="17:00"
+              value={pickupTime}
+              onChange={(e) => setPickupTime(e.target.value)}
+              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
+            />
+            <p className="text-[11px] text-slate-400 mt-1">
+              Select a time window between 11:00 AM and 5:00 PM for courier slot assignment.
+            </p>
+          </div>
+
+          {/* Notes / Special Instructions */}
+          <div>
+            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+              Notes / Special Instructions
+            </label>
+            <textarea
+              rows={3}
+              value={notes}
+              placeholder="e.g. Handle with care, pick up near gate #2..."
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
+            />
+          </div>
+
+          {/* Modal Footer Actions */}
+          <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold text-xs rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg transition-colors shadow-sm"
+            >
+              Confirm & Schedule
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 /* ================= ORDER DETAILS & TRACKING MODAL ================= */
 const OrderDetailsModal = ({ isOpen, onClose, order }) => {
   if (!isOpen || !order) return null;
@@ -181,6 +330,10 @@ const OrdersPage = () => {
   const [isCourierModalOpen, setIsCourierModalOpen] = useState(false);
   const [ordersToShip, setOrdersToShip] = useState([]);
 
+  // States for Schedule Pickup Modal Step
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [selectedCourierData, setSelectedCourierData] = useState(null);
+
   // Modal State for Order Details & Tracking
   const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -267,7 +420,15 @@ const OrdersPage = () => {
     setIsDetailsModalOpen(true);
   };
 
-  const handleCourierSelectionConfirm = async (modalData) => {
+  // STEP 1: Courier Selected -> Open Schedule Modal
+  const handleCourierSelectionConfirm = (modalData) => {
+    setSelectedCourierData(modalData);
+    setIsCourierModalOpen(false);
+    setIsScheduleModalOpen(true);
+  };
+
+  // STEP 2: Final Submit -> Send Complete Payload to Backend
+  const handleFinalBookingSubmit = async (scheduleData) => {
     try {
       const orderPayloads = ordersToShip.map(order => ({
         orderId: order._id,
@@ -275,23 +436,28 @@ const OrdersPage = () => {
       }));
 
       const payload = {
-        courierId: modalData.courierId,
-        isPrime: Boolean(modalData.isPrime),
+        courierId: selectedCourierData.courierId,
+        isPrime: Boolean(selectedCourierData.isPrime),
+        pickupDate: scheduleData.pickupDate,
+        pickupLocation: scheduleData.pickupLocation,
+        pickupTime: scheduleData.pickupTime,
+        notes: scheduleData.notes,
         orders: orderPayloads
       };
 
       const res = await shipOrdersAPI(payload);
 
       if (res.success) {
-        toast.success("AWB Assigned Successfully");
+        toast.success("Shipment & Pickup Scheduled Successfully");
 
-        setIsCourierModalOpen(false);
+        setIsScheduleModalOpen(false);
+        setSelectedCourierData(null);
         setSelectedOrders([]);
         setOrdersToShip([]);
 
         fetchOrders();
       } else {
-        toast.error(res.message);
+        toast.error(res.message || "Failed to schedule pickup");
       }
     } catch (err) {
       console.error(err);
@@ -486,12 +652,22 @@ const OrdersPage = () => {
 
       </div>
 
-      {/* ================= ATTACHED COURIER OVERLAY MODAL ================= */}
+      {/* ================= STEP 1: ATTACHED COURIER OVERLAY MODAL ================= */}
       <SelectCourier 
         isOpen={isCourierModalOpen}
         selectedOrdersCount={ordersToShip.length}
         onClose={() => { setIsCourierModalOpen(false); setOrdersToShip([]); }}
         onConfirm={handleCourierSelectionConfirm}
+      />
+
+      {/* ================= STEP 2: SCHEDULE PICKUP MODAL ================= */}
+      <SchedulePickupModal 
+        isOpen={isScheduleModalOpen}
+        onClose={() => { setIsScheduleModalOpen(false); setSelectedCourierData(null); }}
+        selectedCourier={selectedCourierData}
+        ordersCount={ordersToShip.length}
+        defaultPickupLocation={ordersToShip[0]?.pickupLocation || ""}
+        onFinalSubmit={handleFinalBookingSubmit}
       />
 
       {/* ================= ORDER DETAILS & TRACKING MODAL ================= */}

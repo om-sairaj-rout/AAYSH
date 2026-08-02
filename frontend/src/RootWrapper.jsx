@@ -20,6 +20,7 @@ import RemoveAccount from "./pages/RemoveAccount.jsx";
 import AwbManagement from "./pages/AwbManagement.jsx";
 import SelectCourier from "./pages/SelectCourier.jsx";
 import AwbPage from "./pages/AwbPage.jsx";
+import PickupRoute from "./PickupRoute.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import ExcelReportsPage from "./pages/ExcelReportsPage.jsx";
 import ProtectedRoute from "./ProtectedRoute.jsx";
@@ -50,6 +51,7 @@ const router = createBrowserRouter([
       { path: "/update/AWB", element: <AwbManagement /> },
       { path: "/select-courier", element: <SelectCourier /> },
       { path: "/awb/:awbNumber", element: <AwbPage /> },
+      { path: "/pickup", element: <PickupRoute /> },
     ],
   },
 ]);

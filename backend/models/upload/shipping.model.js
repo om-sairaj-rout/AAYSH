@@ -35,10 +35,47 @@ const ShippingSchema = new mongoose.Schema(
       default: "",
     },
 
+    pickupDate: {
+      type: Date,
+      default: null,
+    },
+
+    pickupTime: {
+      type: String,
+      default: "",
+    },
+
+    pickupInstructions: {
+      type: String,
+      default: "",
+    },
+
     pickupLocation: {
       type: String,
       default: "",
     },
+
+    pickupStatus: {
+  type: String,
+  enum: [
+    "Pending",
+    "Scheduled",
+    "Failed",
+    "Completed"
+  ],
+  default: "Pending",
+  index: true,
+},
+
+pickedUpAt: {
+  type: Date,
+  default: null,
+},
+
+pickupCancelledAt: {
+  type: Date,
+  default: null,
+},
 
     shippingStatus: {
       type: String,
