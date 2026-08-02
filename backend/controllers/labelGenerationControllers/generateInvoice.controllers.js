@@ -322,19 +322,20 @@ const generateInvoice = async (req, res) => {
             const sigBoxWidth = 140;
             const sigBoxHeight = 45;
 
-            // Left Side: Authorized Signature Box & Header
-            doc.font(fontNormal).fontSize(8).fillColor("#000000").text("Authorized Signature for", margin, y);
-            doc.font(fontBold).fontSize(8).text(sellerName, margin, y + 11);
+            // Left Side: 1. Signature Box Drawn Above
+            doc.rect(margin, y, sigBoxWidth, sigBoxHeight).strokeColor("#000000").lineWidth(0.5).stroke();
 
-            // Draw Signature Box
-            doc.rect(margin, y + 23, sigBoxWidth, sigBoxHeight).strokeColor("#000000").lineWidth(0.5).stroke();
+            // Left Side: 2. Authorized Signature Text Placed Below the Box
+            const textY = y + sigBoxHeight + 6;
+            doc.font(fontNormal).fontSize(8).fillColor("#000000").text("Authorized Signature for", margin, textY);
+            doc.font(fontBold).fontSize(8).text(sellerName, margin, textY + 11);
 
             // Right Side: Reverse Charge Statement
             const rightTextX = margin + printWidth - 250;
             doc.font(fontNormal).fontSize(8).fillColor("#000000").text(
                 "Whether tax is payable under reverse charge - No",
                 rightTextX,
-                y + 20,
+                textY + 11,
                 { width: 250, align: "right" }
             );
         }
