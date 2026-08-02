@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
+import { pickupOrdersAPI, reschedulePickupAPI} from "../api/shipingAPI";
+
 
 /* ================= RESCHEDULE PICKUP MODAL ================= */
 const ReschedulePickupModal = ({ isOpen, onClose, pickup, onConfirmReschedule }) => {
@@ -37,7 +39,7 @@ const ReschedulePickupModal = ({ isOpen, onClose, pickup, onConfirmReschedule })
           <div>
             <h3 className="text-base font-bold text-slate-800">Reschedule Pickup</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Order #{pickup.externalOrderId || pickup.orderId} | AWB: <span className="font-mono text-indigo-600 font-bold">{pickup.awbNumber || 'N/A'}</span>
+              Order #{pickup.externalOrderId || "-"} | AWB: <span className="font-mono text-indigo-600 font-bold">{pickup.awbNumber || 'N/A'}</span>
             </p>
           </div>
           <button
@@ -50,7 +52,7 @@ const ReschedulePickupModal = ({ isOpen, onClose, pickup, onConfirmReschedule })
 
         {/* Modal Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {pickup.status === 'Failed' && pickup.failureReason && (
+          {pickup.pickupStatus === 'Failed' && pickup.failureReason && (
             <div className="p-3 bg-rose-50 border border-rose-100 rounded-lg text-xs text-rose-700">
               <strong className="block font-bold mb-0.5">Previous Failure Reason:</strong>
               {pickup.failureReason}
@@ -132,107 +134,106 @@ const UserPickupPage = () => {
   const [selectedPickup, setSelectedPickup] = useState(null);
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
 
-  // Sample Mock Data (Replace with your actual API call)
-  useEffect(() => {
+const fetchPickups = async () => {
+  try {
     setLoading(true);
-    // Simulate API fetch
-    setTimeout(() => {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const mockPickups = [
-        {
-          _id: 'p1',
-          orderId: 'ord_101',
-          externalOrderId: 'EXT-8821',
-          awbNumber: 'AWB9920102',
-          courierName: 'Delhivery Surface',
-          consignorName: 'Reboot Threads HQ',
-          pickupLocation: 'Default Warehouse',
-          pickupDate: todayStr,
-          status: 'Scheduled',
-          packagesCount: 3,
-          contactPhone: '+91 9876543210'
-        },
-        {
-          _id: 'p2',
-          orderId: 'ord_102',
-          externalOrderId: 'EXT-8822',
-          awbNumber: 'AWB9920103',
-          courierName: 'Bluedart Express',
-          consignorName: 'Reboot Threads South',
-          pickupLocation: 'Secondary Warehouse',
-          pickupDate: todayStr,
-          status: 'Failed',
-          failureReason: 'Premises closed during pickup attempt',
-          packagesCount: 1,
-          contactPhone: '+91 9876543211'
-        },
-        {
-          _id: 'p3',
-          orderId: 'ord_103',
-          externalOrderId: 'EXT-8823',
-          awbNumber: 'AWB9920104',
-          courierName: 'Shadowfax',
-          consignorName: 'Reboot Threads HQ',
-          pickupLocation: 'Default Warehouse',
-          pickupDate: '2026-08-05',
-          status: 'Future',
-          packagesCount: 5,
-          contactPhone: '+91 9876543212'
-        },
-        {
-          _id: 'p4',
-          orderId: 'ord_104',
-          externalOrderId: 'EXT-8824',
-          awbNumber: 'AWB9920105',
-          courierName: 'Xpressbees',
-          consignorName: 'Reboot Threads HQ',
-          pickupLocation: 'Default Warehouse',
-          pickupDate: todayStr,
-          status: 'Completed',
-          packagesCount: 2,
-          contactPhone: '+91 9876543210'
-        }
-      ];
-      setPickups(mockPickups);
-      setLoading(false);
-    }, 300);
-  }, []);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+    const res = await pickupOrdersAPI();
 
-  // Helper metrics computation
-  const counts = {
-    today: pickups.filter(p => p.pickupDate === todayStr && p.status !== 'Failed').length,
-    future: pickups.filter(p => p.pickupDate > todayStr && p.status !== 'Failed').length,
-    failed: pickups.filter(p => p.status === 'Failed').length,
-    completed: pickups.filter(p => p.status === 'Completed').length,
-  };
+    setPickups(res.data || []);
+  } catch (err) {
+    toast.error(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
-  // Filter logic
+useEffect(() => {
+  fetchPickups();
+}, []);
+
+ const today = new Date();
+today.setHours(0, 0, 0, 0);
+
+ const counts = {
+  today: pickups.filter((p) => {
+    if (!p.pickupDate) return false;
+
+    const date = new Date(p.pickupDate);
+    date.setHours(0, 0, 0, 0);
+
+    return (
+      date.getTime() === today.getTime() &&
+      p.pickupStatus !== "Failed"
+    );
+  }).length,
+
+  future: pickups.filter((p) => {
+    if (!p.pickupDate) return false;
+
+    const date = new Date(p.pickupDate);
+    date.setHours(0, 0, 0, 0);
+
+    return (
+      date > today &&
+      p.pickupStatus !== "Failed"
+    );
+  }).length,
+
+  failed: pickups.filter(
+    p => p.pickupStatus === "Failed"
+  ).length,
+
+  completed: pickups.filter(
+    p => p.pickupStatus === "Completed"
+  ).length,
+};
+
   const filteredPickups = pickups.filter((item) => {
-    // Tab filter
-    let matchesTab = false;
-    if (activeTab === "Today's Pickups") {
-      matchesTab = item.pickupDate === todayStr && item.status !== 'Failed';
-    } else if (activeTab === "Future Pickups") {
-      matchesTab = item.pickupDate > todayStr && item.status !== 'Failed';
-    } else if (activeTab === "Failed Pickups") {
-      matchesTab = item.status === 'Failed';
-    } else if (activeTab === "All Pickups") {
+
+  const pickupDay = item.pickupDate
+    ? new Date(item.pickupDate)
+    : null;
+
+  if (pickupDay) pickupDay.setHours(0,0,0,0);
+
+  let matchesTab = false;
+
+  switch (activeTab) {
+
+    case "Today's Pickups":
+      matchesTab =
+        pickupDay &&
+        pickupDay.getTime() === today.getTime() &&
+        item.pickupStatus !== "Failed";
+      break;
+
+    case "Future Pickups":
+      matchesTab =
+        pickupDay &&
+        pickupDay > today &&
+        item.pickupStatus !== "Failed";
+      break;
+
+    case "Failed Pickups":
+      matchesTab =
+        item.pickupStatus === "Failed";
+      break;
+
+    default:
       matchesTab = true;
-    }
+  }
 
-    // Search query filter
-    const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      !q ||
-      item.externalOrderId?.toLowerCase().includes(q) ||
-      item.awbNumber?.toLowerCase().includes(q) ||
-      item.consignorName?.toLowerCase().includes(q) ||
-      item.courierName?.toLowerCase().includes(q);
+  const q = searchQuery.toLowerCase();
 
-    return matchesTab && matchesSearch;
-  });
+  const matchesSearch =
+    !q ||
+    item.orderId?.externalOrderId?.toLowerCase().includes(q) ||
+    item.awbNumber?.toLowerCase().includes(q) ||
+    item.courierName?.toLowerCase().includes(q);
+
+  return matchesTab && matchesSearch;
+});
 
   const handleOpenReschedule = (pickup) => {
     setSelectedPickup(pickup);
@@ -240,33 +241,20 @@ const UserPickupPage = () => {
   };
 
   const handleConfirmReschedule = async (reschedulePayload) => {
-    try {
-      // API integration placeholder (e.g. await reschedulePickupAPI(reschedulePayload))
-      setPickups(prev =>
-        prev.map(p => {
-          if (p._id === reschedulePayload.pickupId) {
-            return {
-              ...p,
-              pickupDate: reschedulePayload.pickupDate,
-              pickupLocation: reschedulePayload.pickupLocation,
-              notes: reschedulePayload.notes,
-              status: reschedulePayload.pickupDate === todayStr ? 'Scheduled' : 'Future',
-              failureReason: null
-            };
-          }
-          return p;
-        })
-      );
+  try {
+    await reschedulePickupAPI(reschedulePayload);
 
-      toast.success("Pickup rescheduled successfully!");
-      setIsRescheduleModalOpen(false);
-      setSelectedPickup(null);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to reschedule pickup");
-    }
-  };
+    toast.success("Pickup rescheduled successfully!");
 
+    fetchPickups();
+
+    setIsRescheduleModalOpen(false);
+    setSelectedPickup(null);
+  } catch (err) {
+    console.error(err);
+    toast.error(err.message);
+  }
+};
   const handleCancelPickup = (pickupId) => {
     if (window.confirm("Are you sure you want to cancel this pickup request?")) {
       setPickups(prev => prev.filter(p => p._id !== pickupId));
@@ -288,7 +276,7 @@ const UserPickupPage = () => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => toast.success("Refreshed pickup status")}
+              onClick={fetchPickups}
               className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5"
             >
               🔄 Refresh List
@@ -415,7 +403,7 @@ const UserPickupPage = () => {
                     
                     {/* Order / AWB */}
                     <td className="p-3.5">
-                      <div className="font-bold text-slate-800">#{pickup.externalOrderId || pickup.orderId}</div>
+                      <div className="font-bold text-slate-800">#{pickup.externalOrderId || "-"}</div>
                       <div className="font-mono text-xs text-indigo-600">{pickup.awbNumber || 'No AWB'}</div>
                     </td>
 
@@ -443,20 +431,29 @@ const UserPickupPage = () => {
 
                     {/* Status Badge */}
                     <td className="p-3.5">
-                      <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${
-                        pickup.status === 'Completed' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
-                        pickup.status === 'Failed' ? 'bg-rose-100 text-rose-800 border-rose-200' :
-                        pickup.status === 'Future' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' :
-                        'bg-amber-100 text-amber-800 border-amber-200'
-                      }`}>
-                        {pickup.status}
-                      </span>
-                      {pickup.failureReason && (
-                        <p className="text-[11px] text-rose-500 mt-1 max-w-xs truncate" title={pickup.failureReason}>
-                          {pickup.failureReason}
-                        </p>
-                      )}
-                    </td>
+  <span
+    className={`px-2.5 py-1 text-xs font-bold rounded-full border ${
+      pickup.status === "Completed"
+        ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+        : pickup.status === "Failed"
+        ? "bg-rose-100 text-rose-800 border-rose-200"
+        : pickup.status === "Future"
+        ? "bg-indigo-100 text-indigo-800 border-indigo-200"
+        : "bg-amber-100 text-amber-800 border-amber-200"
+    }`}
+  >
+    {pickup.status}
+  </span>
+
+  {pickup.failureReason && (
+    <p
+      className="text-[11px] text-rose-500 mt-1 max-w-xs truncate"
+      title={pickup.failureReason}
+    >
+      {pickup.failureReason}
+    </p>
+  )}
+</td>
 
                     {/* Actions */}
                     <td className="p-3.5 text-right whitespace-nowrap">
