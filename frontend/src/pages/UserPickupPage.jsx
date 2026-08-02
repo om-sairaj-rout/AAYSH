@@ -441,7 +441,6 @@ const UserPickupPage = () => {
                     {/* Courier */}
                     <td className="p-3.5">
                       <div className="font-semibold text-slate-800">{pickup.courierName}</div>
-                      <div className="text-xs text-slate-400">{pickup.contactPhone}</div>
                     </td>
 
                     {/* Location */}

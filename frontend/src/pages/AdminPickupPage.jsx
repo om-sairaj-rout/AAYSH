@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
+import {
+    getAdminPickupsAPI,
+    completePickupAPI,
+    failPickupAPI,
+} from "../api/shipingAPI";
 
 /* ================= SINGLE FAIL PICKUP REASON MODAL ================= */
 const FailPickupModal = ({ isOpen, onClose, pickup, onConfirmFail }) => {
@@ -314,93 +319,51 @@ const AdminPickupPage = () => {
   const [isBulkFailModalOpen, setIsBulkFailModalOpen] = useState(false);
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
 
-  // Mock Data Fetching (Replace with backend Admin API calls)
-  useEffect(() => {
-    setLoading(true);
-    setTimeout(() => {
-      const todayStr = new Date().toISOString().split('T')[0];
-
-      // Users List for filter
-      const mockUsers = [
-        { id: 'usr_1', name: 'Reboot Threads HQ', email: 'hq@rebootthreads.com' },
-        { id: 'usr_2', name: 'Reboot Threads South', email: 'south@rebootthreads.com' },
-        { id: 'usr_3', name: 'Apex Logistics Seller', email: 'seller@apex.com' },
-      ];
-
-      // Pickups List
-      const mockPickups = [
-        {
-          _id: 'p1',
-          userId: 'usr_1',
-          orderId: 'ord_101',
-          externalOrderId: 'EXT-8821',
-          awbNumber: 'AWB9920102',
-          courierName: 'Delhivery Surface',
-          consignorName: 'Reboot Threads HQ',
-          pickupLocation: 'Default Warehouse',
-          pickupDate: todayStr,
-          status: 'Scheduled',
-          packagesCount: 3,
-          contactPhone: '+91 9876543210'
-        },
-        {
-          _id: 'p2',
-          userId: 'usr_2',
-          orderId: 'ord_102',
-          externalOrderId: 'EXT-8822',
-          awbNumber: 'AWB9920103',
-          courierName: 'Bluedart Express',
-          consignorName: 'Reboot Threads South',
-          pickupLocation: 'Secondary Warehouse',
-          pickupDate: todayStr,
-          status: 'Failed',
-          failureReason: 'Premises closed during pickup attempt',
-          packagesCount: 1,
-          contactPhone: '+91 9876543211'
-        },
-        {
-          _id: 'p3',
-          userId: 'usr_1',
-          orderId: 'ord_103',
-          externalOrderId: 'EXT-8823',
-          awbNumber: 'AWB9920104',
-          courierName: 'Shadowfax',
-          consignorName: 'Reboot Threads HQ',
-          pickupLocation: 'Default Warehouse',
-          pickupDate: '2026-08-05',
-          status: 'Future',
-          packagesCount: 5,
-          contactPhone: '+91 9876543212'
-        },
-        {
-          _id: 'p4',
-          userId: 'usr_1',
-          orderId: 'ord_104',
-          externalOrderId: 'EXT-8824',
-          awbNumber: 'AWB9920105',
-          courierName: 'Xpressbees',
-          consignorName: 'Reboot Threads HQ',
-          pickupLocation: 'Default Warehouse',
-          pickupDate: todayStr,
-          status: 'Completed',
-          packagesCount: 2,
-          contactPhone: '+91 9876543210'
-        }
-      ];
-
-      setUsersList(mockUsers);
-      setPickups(mockPickups);
-      setLoading(false);
-    }, 300);
-  }, []);
 
   const todayStr = new Date().toISOString().split('T')[0];
 
   // 1. First filter pickups by selected User
   const userFilteredPickups = pickups.filter(p => {
     if (selectedUser === 'ALL') return true;
-    return p.userId === selectedUser;
+    return p.userId?._id === selectedUser;
   });
+
+  const fetchPickups = async () => {
+    try {
+        setLoading(true);
+
+        const res = await getAdminPickupsAPI();
+
+        setPickups(res.data);
+
+        // create dropdown users
+        const users = [];
+
+        res.data.forEach(p => {
+            if (
+                p.userId &&
+                !users.find(u => u.id === p.userId._id)
+            ) {
+                users.push({
+                    id: p.userId._id,
+                    name: p.userId.username,
+                    email: p.userId.email
+                });
+            }
+        });
+
+        setUsersList(users);
+
+    } catch (err) {
+        toast.error(err.message);
+    } finally {
+        setLoading(false);
+    }
+};
+
+useEffect(() => {
+    fetchPickups();
+}, []);
 
   // Metrics computation (derived from user-filtered pickups)
   const counts = {
@@ -452,12 +415,19 @@ const AdminPickupPage = () => {
   };
 
   // Admin Action: Complete Pickup
-  const handleCompletePickup = (pickupId) => {
-    setPickups(prev =>
-      prev.map(p => (p._id === pickupId ? { ...p, status: 'Completed', failureReason: null } : p))
-    );
-    toast.success("Pickup marked as Completed");
-  };
+  const handleCompletePickup = async (pickupId) => {
+    try {
+
+        await completePickupAPI(pickupId);
+
+        toast.success("Pickup completed");
+
+        fetchPickups();
+
+    } catch (err) {
+        toast.error(err.message);
+    }
+};
 
   // Admin Action: Single Fail Modal
   const handleOpenFailModal = (pickup) => {
@@ -465,36 +435,47 @@ const AdminPickupPage = () => {
     setIsFailModalOpen(true);
   };
 
-  const handleConfirmFail = (pickupId, reason) => {
-    setPickups(prev =>
-      prev.map(p => (p._id === pickupId ? { ...p, status: 'Failed', failureReason: reason } : p))
-    );
-    toast.error("Pickup marked as Failed");
-    setIsFailModalOpen(false);
-    setSelectedPickup(null);
-  };
+ const handleConfirmFail = async (pickupId, reason) => {
+
+    try {
+
+        await failPickupAPI(
+            pickupId,
+            reason
+        );
+
+        toast.success("Pickup marked failed");
+
+        fetchPickups();
+
+        setIsFailModalOpen(false);
+        setSelectedPickup(null);
+
+    } catch (err) {
+        toast.error(err.message);
+    }
+
+};
 
   // Admin Action: Reschedule
-  const handleConfirmReschedule = (payload) => {
-    setPickups(prev =>
-      prev.map(p => {
-        if (p._id === payload.pickupId) {
-          return {
-            ...p,
-            pickupDate: payload.pickupDate,
-            pickupLocation: payload.pickupLocation,
-            notes: payload.notes,
-            status: payload.pickupDate === todayStr ? 'Scheduled' : 'Future',
-            failureReason: null
-          };
-        }
-        return p;
-      })
-    );
-    toast.success("Pickup rescheduled by Admin");
-    setIsRescheduleModalOpen(false);
-    setSelectedPickup(null);
-  };
+const handleConfirmReschedule = async (payload) => {
+
+    try {
+
+        await reschedulePickupAPI(payload);
+
+        toast.success("Pickup rescheduled");
+
+        fetchPickups();
+
+        setIsRescheduleModalOpen(false);
+        setSelectedPickup(null);
+
+    } catch (err) {
+        toast.error(err.message);
+    }
+
+};
 
   // Bulk Action: Complete
   const handleBulkComplete = () => {
@@ -721,7 +702,7 @@ const AdminPickupPage = () => {
 
                       {/* Seller & Location */}
                       <td className="p-3.5">
-                        <div className="font-bold text-slate-800">{pickup.consignorName}</div>
+                        <div className="font-bold text-slate-800">{pickup.userId?.username}</div>
                         <div className="text-xs text-slate-500">{pickup.pickupLocation}</div>
                       </td>
 
@@ -733,12 +714,12 @@ const AdminPickupPage = () => {
                       {/* Status Badge */}
                       <td className="p-3.5">
                         <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${
-                          pickup.status === 'Completed' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
-                          pickup.status === 'Failed' ? 'bg-rose-100 text-rose-800 border-rose-200' :
-                          pickup.status === 'Future' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' :
+                          pickup.pickupStatus === 'Completed' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                          pickup.pickupStatus === 'Failed' ? 'bg-rose-100 text-rose-800 border-rose-200' :
+                          pickup.pickupStatus === 'Future' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' :
                           'bg-amber-100 text-amber-800 border-amber-200'
                         }`}>
-                          {pickup.status}
+                          {pickup.pickupStatus}
                         </span>
                         {pickup.failureReason && (
                           <p className="text-[11px] text-rose-500 mt-1 max-w-xs truncate" title={pickup.failureReason}>
@@ -750,7 +731,7 @@ const AdminPickupPage = () => {
                       {/* Admin Controls */}
                       <td className="p-3.5 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
-                          {pickup.status !== 'Completed' && (
+                          {pickup.pickupStatus !== 'Completed' && (
                             <button
                               onClick={() => handleCompletePickup(pickup._id)}
                               className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs rounded-lg transition-colors"
@@ -759,7 +740,7 @@ const AdminPickupPage = () => {
                             </button>
                           )}
 
-                          {pickup.status !== 'Failed' && (
+                          {pickup.pickupStatus !== 'Failed' && (
                             <button
                               onClick={() => handleOpenFailModal(pickup)}
                               className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-lg transition-colors"

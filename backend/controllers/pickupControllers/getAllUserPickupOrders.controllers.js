@@ -41,8 +41,6 @@ const getUserPickups = async (req, res) => {
     0
   ) || 0,
 
-      contactPhone: "8882719505",
-
       pickupStatus: item.pickupStatus,
 
       failureReason:

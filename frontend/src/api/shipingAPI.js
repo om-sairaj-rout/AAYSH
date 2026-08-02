@@ -70,3 +70,54 @@ export const cancelPickupAPI = async (pickupId) => {
 
   return data;
 };
+
+export const getAdminPickupsAPI = async () => {
+  const res = await fetch(`${BASE}/api/admin/pickups`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) throw new Error(data.message);
+
+  return data;
+};
+
+export const completePickupAPI = async (pickupId) => {
+  const res = await fetch(`${BASE}/api/admin/pickups/complete`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ pickupId }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) throw new Error(data.message);
+
+  return data;
+};
+
+export const failPickupAPI = async (pickupId, failureReason) => {
+  const res = await fetch(`${BASE}/api/admin/pickups/fail`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({
+      pickupId,
+      failureReason,
+    }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) throw new Error(data.message);
+
+  return data;
+};
