@@ -136,7 +136,7 @@ const generateInvoice = async (req, res) => {
             const nowFormatted = new Date().toLocaleDateString('en-GB'); // DD/MM/YYYY
             const invoiceNo = order.invoiceNo || "N/A";
             const orderNo = order.externalOrderId || "N/A";
-            const orderDate = order.orderDate || "N/A";
+            const orderDate = order.orderDate ? order.orderDate.toLocaleDateString('en-GB') : "N/A";
             const courier = order.shipping?.courierName || "N/A";
             const awbNo = order.shipping?.awbNumber || "N/A";
             const paymentMethod = (order.paymentMethod || "N/A").toLowerCase();
