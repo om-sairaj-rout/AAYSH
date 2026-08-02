@@ -63,7 +63,7 @@ const generateInvoice = async (req, res) => {
 
             // ================= 1. BRAND LOGO & HEADER =================
             const logoPath = path.join(__dirname, "../../assets/fiberise_logo.jpg");
-            const logoWidth = 180; // Big logo
+            const logoWidth = 240; // Big logo
             const logoX = margin + (printWidth - logoWidth) / 2; // Centered
 
             if (fs.existsSync(logoPath)) {
@@ -78,7 +78,7 @@ const generateInvoice = async (req, res) => {
             }
 
             // "TAX INVOICE" Title Center Strip (Bigger, but smaller than logo)
-            doc.font(fontBold).fontSize(16).fillColor("#000000").text("TAX INVOICE", margin, y, {
+            doc.font(fontBold).fontSize(20).fillColor("#000000").text("TAX INVOICE", margin, y, {
                 align: "center",
                 width: printWidth
             });
