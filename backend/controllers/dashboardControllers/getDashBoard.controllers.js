@@ -39,18 +39,14 @@ orders = orders.map(order => ({
     // YEAR FILTER
     // =========================
     if (selectedYear) {
-      orders = orders.filter((order) => {
+  orders = orders.filter((order) => {
+    if (!order.orderDate) return false;
 
-        if (!order.pickupDate) return false;
-
-        return (
-          new Date(order.pickupDate)
-            .getFullYear()
-            .toString() === selectedYear
-        );
-
-      });
-    }
+    return (
+      new Date(order.orderDate).getFullYear().toString() === selectedYear
+    );
+  });
+}
 
     // =========================
     // STATS
@@ -119,10 +115,10 @@ const totalCost = orders.reduce(
     const chartData = months.map((month, index) => {
 
       const monthOrders = orders.filter(
-        (o) =>
-          o.pickupDate &&
-          new Date(o.pickupDate).getMonth() === index
-      );
+  (o) =>
+    o.orderDate &&
+    new Date(o.orderDate).getMonth() === index
+);
 
       return {
         name: month,

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { LayoutDashboard, FileChartColumn, ChevronDown, X, ShoppingBag, Truck, Barcode, Users } from "lucide-react";
+import { LayoutDashboard, FileChartColumn, ChevronDown, X, PackageCheck, ShoppingBag, Truck, Barcode, Users } from "lucide-react";
 import aayshlogo from "../assets/aaysh_logo.png";
 
 const SideBar = ({ isOpen, setIsOpen }) => {
@@ -75,7 +75,7 @@ const SideBar = ({ isOpen, setIsOpen }) => {
       items: [
         {
           name: "Pickup Management",
-          icon: <Barcode size={20} />,
+          icon: <PackageCheck size={20} />,
           path: "/pickup",
         },
       ],

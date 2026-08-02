@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useSelector } from "react-redux";
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getOrders } from '../api/ordersAPI';
 import SelectCourier from './SelectCourier'; 
 import { shipOrdersAPI } from '../api/shipingAPI';
@@ -349,6 +350,11 @@ const OrdersPage = () => {
   const [selectedOrders, setSelectedOrders] = useState([]);
   const { isAdmin, user } = useSelector((state) => state.auth);
 
+  // Search & Order Date Filter States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+
   const [isCourierModalOpen, setIsCourierModalOpen] = useState(false);
   const [ordersToShip, setOrdersToShip] = useState([]);
 
@@ -383,25 +389,77 @@ const OrdersPage = () => {
   useEffect(() => {
     setSelectedOrders([]);
     setCurrentPage(1);
-  }, [activeSegment]);
+  }, [activeSegment, searchQuery, fromDate, toDate]);
+
+  // Compute Phone Number Frequencies across ALL loaded orders to identify repeat customers
+  const phoneCounts = useMemo(() => {
+    const map = new Map();
+    allOrders.forEach((o) => {
+      const p = (o.billingPhone || o.contactNo || '').trim();
+      if (p && p !== '-') {
+        map.set(p, (map.get(p) || 0) + 1);
+      }
+    });
+    return map;
+  }, [allOrders]);
 
   const getTabCount = (tabName) => {
     return counts[tabName] || 0;
   };
 
-  const indexOfLastOrder = currentPage * ordersPerPage;
-  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-
+  // Filter Orders by Active Tab, Search Query, and Order Date
   const filteredOrders = allOrders.filter((order) => {
-    if (activeSegment === "All Orders") return true;
+    // 1. Status Segment Filter
+    if (activeSegment !== "All Orders" && order.shipping?.shippingStatus !== activeSegment) {
+      return false;
+    }
 
-    return order.shipping?.shippingStatus === activeSegment;
+    // 2. Search Query Filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const externalId = (order.externalOrderId || order._id || '').toLowerCase();
+      const customerName = `${order.consigneeName || ''} ${order.consigneeLastName || ''}`.toLowerCase();
+      const phone = (order.billingPhone || order.contactNo || '').toLowerCase();
+      const consignor = (order.consignorName || '').toLowerCase();
+      const awb = (order.shipping?.awbNumber || '').toLowerCase();
+      const itemsMatch = order.orderItems?.some(item => 
+        (item.name || '').toLowerCase().includes(q) || (item.sku || '').toLowerCase().includes(q)
+      );
+
+      const matchesSearch = 
+        externalId.includes(q) ||
+        customerName.includes(q) ||
+        phone.includes(q) ||
+        consignor.includes(q) ||
+        awb.includes(q) ||
+        itemsMatch;
+
+      if (!matchesSearch) return false;
+    }
+
+    // 3. Order Date Range Filter
+    if (order.orderDate) {
+      const orderTime = new Date(order.orderDate).setHours(0, 0, 0, 0);
+
+      if (fromDate) {
+        const fromTime = new Date(fromDate).setHours(0, 0, 0, 0);
+        if (orderTime < fromTime) return false;
+      }
+
+      if (toDate) {
+        const toTime = new Date(toDate).setHours(23, 59, 59, 999);
+        if (orderTime > toTime) return false;
+      }
+    }
+
+    return true;
   });
 
-  const currentOrders = filteredOrders.slice(
-    indexOfFirstOrder,
-    indexOfLastOrder
-  );
+  // Pagination Calculations
+  const indexOfLastOrder = currentPage * ordersPerPage;
+  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
+  const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
+  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage) || 1;
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
@@ -485,6 +543,12 @@ const OrdersPage = () => {
     }
   };
 
+  const clearFilters = () => {
+    setSearchQuery('');
+    setFromDate('');
+    setToDate('');
+  };
+
   const headers = [
     'Order ID & Info', 
     'Order Items',
@@ -535,6 +599,65 @@ const OrdersPage = () => {
           )}
         </div>
 
+        {/* ================= SEARCH & ORDER DATE FILTER BAR ================= */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-3.5 rounded-xl shadow-sm border border-gray-100">
+          
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[260px]">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+              🔍
+            </span>
+            <input
+              type="text"
+              placeholder="Search by Order ID, Customer, Phone, SKU, AWB..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 text-xs font-bold"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Order Date Range Controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
+              <span className="text-xs font-bold text-slate-500">From:</span>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="bg-transparent text-xs font-medium text-slate-700 outline-none cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
+              <span className="text-xs font-bold text-slate-500">To:</span>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="bg-transparent text-xs font-medium text-slate-700 outline-none cursor-pointer"
+              />
+            </div>
+
+            {(searchQuery || fromDate || toDate) && (
+              <button
+                onClick={clearFilters}
+                className="text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-2 rounded-lg transition-colors"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
+
+        </div>
+
         {/* ================= DATA TABLE CONTAINER ================= */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
           <table className="w-full text-left border-collapse table-auto">
@@ -565,13 +688,21 @@ const OrdersPage = () => {
                 
                 const externalId = order.externalOrderId || order._id;
                 const orderDateFormatted = order.orderDate ? new Date(order.orderDate).toLocaleDateString() : '-';
+                
+                // Pickup Date Resolution
+                const rawPickupDate = order.shipping?.pickupDate || order.pickupDate;
+                const pickupDateFormatted = rawPickupDate ? new Date(rawPickupDate).toLocaleDateString() : '-';
+
                 const fullName = `${order.consigneeName || ''} ${order.consigneeLastName || ''}`.trim() || '-';
                 const email = order.consigneeEmail || '';
-                const phone = order.billingPhone || order.contactNo || '';
+                const phone = (order.billingPhone || order.contactNo || '').trim();
                 const fullAddress = `${order.address || ''} ${order.address2 ? `, ${order.address2}` : ''}`.trim();
                 const destination = `${order.destinationCity || ''}${order.destinationState ? `, ${order.destinationState}` : ''} ${order.destinationPincode ? `- ${order.destinationPincode}` : ''}`.trim();
                 const awbNo = order.shipping?.awbNumber || '';
                 const pkgWeight = order.shipping?.totalWeight || order.weight || '-';
+
+                // Identify Repeat Customer based on Phone Frequency (> 1 occurrence across all orders)
+                const isRepeatCustomer = phone && phone !== '-' && (phoneCounts.get(phone) || 0) > 1;
 
                 return (
                   <tr 
@@ -597,8 +728,12 @@ const OrdersPage = () => {
                         </div>
                         <div className="text-xs text-slate-600 space-y-1">
                           <p className="flex items-center gap-1">
-                            <span className="text-slate-400">📅 Date:</span> 
+                            <span className="text-slate-400">📅 Order Date:</span> 
                             <span className="font-semibold text-slate-700">{orderDateFormatted}</span>
+                          </p>
+                          <p className="flex items-center gap-1">
+                            <span className="text-slate-400">📦 Pickup Date:</span> 
+                            <span className="font-semibold text-indigo-600">{pickupDateFormatted}</span>
                           </p>
                           <p className="flex items-center gap-1.5 pt-0.5">
                             <span className="text-slate-400">💳 Payment:</span> 
@@ -634,10 +769,19 @@ const OrdersPage = () => {
                       </div>
                     </td>
 
-                    {/* SECTION 3: CUSTOMER DETAILS (Includes Copy Button for Email) */}
+                    {/* SECTION 3: CUSTOMER DETAILS & ENHANCED REPEAT TAG */}
                     <td className="p-4 sm:p-5 align-top min-w-[280px]">
                       <div className="space-y-1.5">
-                        <p className="font-bold text-slate-900 text-sm">{fullName}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-bold text-slate-900 text-sm">{fullName}</p>
+
+                          {/* ATTRACTIVE REPEAT CUSTOMER BADGE */}
+                          {isRepeatCustomer && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white bg-gradient-to-r from-purple-600 via-indigo-600 to-violet-600 rounded-full shadow-xs border border-purple-300/40 animate-pulse">
+                              <span>✨ Repeat Customer</span>
+                            </span>
+                          )}
+                        </div>
 
                         {email && (
                           <div className="flex items-center gap-2 text-xs text-slate-600">
@@ -739,7 +883,10 @@ const OrdersPage = () => {
             <span className="text-xs font-semibold text-slate-500">Rows per page:</span>
             <select
               value={ordersPerPage}
-              onChange={(e) => { setOrdersPerPage(Number(e.target.value)); setCurrentPage(1); }}
+              onChange={(e) => { 
+                setOrdersPerPage(Number(e.target.value)); 
+                setCurrentPage(1); 
+              }}
               className="bg-slate-50 border border-gray-200 text-slate-700 font-bold text-xs rounded-lg py-1.5 px-2.5 focus:outline-none cursor-pointer"
             >
               <option value={25}>25 Rows</option>
@@ -747,11 +894,30 @@ const OrdersPage = () => {
               <option value={100}>100 Rows</option>
             </select>
             <span className="text-xs text-slate-400">
-              Showing {filteredOrders.length > 0 ? indexOfFirstOrder + 1 : 0}
-              -
-              {Math.min(indexOfLastOrder, filteredOrders.length)}
-              of {filteredOrders.length} orders
+              Showing {filteredOrders.length > 0 ? indexOfFirstOrder + 1 : 0} - {Math.min(indexOfLastOrder, filteredOrders.length)} of {filteredOrders.length} orders
             </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg border border-gray-200 text-slate-400 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-white transition-all cursor-pointer"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <span className="text-xs font-bold text-slate-600 px-2">
+              Page {currentPage} <span className="text-slate-400 font-medium">/ {totalPages}</span>
+            </span>
+
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages || filteredOrders.length === 0}
+              className="p-2 rounded-lg border border-gray-200 text-slate-400 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-white transition-all cursor-pointer"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
