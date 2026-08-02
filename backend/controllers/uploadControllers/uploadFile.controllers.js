@@ -62,6 +62,54 @@ const generateUniqueShipmentId = async () => {
 };
 
 // =========================================
+// Generate Invoice Number
+// =========================================
+const generateInvoiceNo = () => {
+  return `INV-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+};
+
+// =========================================
+// Calculate Invoice Value
+// =========================================
+const calculateInvoiceValue = ({
+  orderItems = [],
+  shippingCharges = 0,
+  giftwrapCharges = 0,
+  transactionCharges = 0,
+}) => {
+
+  let itemsTotal = 0;
+
+  for (const item of orderItems) {
+
+    const qty = Number(item.units || 1);
+
+    const price = Number(
+      item.sellingPrice ?? item.selling_price ?? 0
+    );
+
+    const discount = Number(item.discount || 0);
+
+    const tax = Number(item.tax || 0);
+
+    const taxable = (price * qty) - discount;
+
+    const gst = taxable * (tax / 100);
+
+    itemsTotal += taxable + gst;
+  }
+
+  return Number(
+    (
+      itemsTotal +
+      Number(shippingCharges || 0) +
+      Number(giftwrapCharges || 0) +
+      Number(transactionCharges || 0)
+    ).toFixed(2)
+  );
+};
+
+// =========================================
 // Upload Controller
 // =========================================
 
@@ -243,23 +291,32 @@ orderItems: [
 
 qty: Number(row["Units"]) || 1,
 
-// Invoice will be generated later
-invoiceNo: "",
-
-// Client provides subtotal
 subTotal: Number(row["Sub Total"]) || 0,
 
-// Initially same as subtotal
-invoiceValue: Number(row["Sub Total"]) || 0,
+shippingCharges:
+  Number(row["Shipping Charges"]) || 0,
 
-        shippingCharges:
-          Number(row["Shipping Charges"]) || 0,
+giftwrapCharges:
+  Number(row["Giftwrap Charges"]) || 0,
 
-        giftwrapCharges:
-          Number(row["Giftwrap Charges"]) || 0,
+transactionCharges:
+  Number(row["Transaction Charges"]) || 0,
 
-        transactionCharges:
-          Number(row["Transaction Charges"]) || 0,
+invoiceNo: generateInvoiceNo(),
+
+invoiceValue: calculateInvoiceValue({
+  orderItems: [
+    {
+      units: Number(row["Units"]) || 1,
+      sellingPrice: Number(row["Selling Price"]) || 0,
+      discount: Number(row["Discount"]) || 0,
+      tax: Number(row["Tax"]) || 0,
+    },
+  ],
+  shippingCharges: Number(row["Shipping Charges"]) || 0,
+  giftwrapCharges: Number(row["Giftwrap Charges"]) || 0,
+  transactionCharges: Number(row["Transaction Charges"]) || 0,
+}),
 
         totalDiscount:
   Number(row["Total Discount"]) || 0,

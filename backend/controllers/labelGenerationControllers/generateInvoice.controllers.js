@@ -46,15 +46,14 @@ const generateInvoice = async (req, res) => {
         const pageHeight = doc.page.height;
 
         // Dynamic Seller Info fallback matching reference
-        const sellerName = seller?.company_name || orders[0]?.sellerName || "FIBERISE FIT PRIVATE LIMITED";
+        const sellerName = seller?.username || "N/A";
         const sellerAddress = seller?.address 
             ? `${seller.address}, ${seller.city || ''}, ${seller.state || ''} - ${seller.zip_code || ''}`
-            : "A 153, Sector 136, Noida, Meerut Division, Uttar Pradesh - 201304 pride corporate park, Gautam Buddha Nagar 201304, Uttar Pradesh, India";
-        const sellerStateCode = seller?.state_code || "09";
-        const sellerPhone = seller?.mobile_number || "8679036275";
-        const sellerGstin = seller?.gstin || "07AAGCF4942D1ZS";
-        const sellerWebsite = seller?.website || "https://www.fiberisefit.com";
-        const sellerEmail = seller?.email || "developer@fiberisefit.com";
+            : "N/A";
+        const sellerPhone = seller?.mobile_number || "N/A";
+        const sellerGstin = seller?.gstin || "N/A";
+        const sellerWebsite = seller?.website || "N/A";
+        const sellerEmail = seller?.email || "N/A";
 
         for (let i = 0; i < orders.length; i++) {
             const order = orders[i];
@@ -68,7 +67,7 @@ const generateInvoice = async (req, res) => {
             if (fs.existsSync(logoPath)) {
                 doc.image(logoPath, margin, y, { width: 140 });
             } else {
-                doc.font(fontBold).fontSize(22).fillColor("#000000").text("fiberíse", margin, y);
+                doc.font(fontBold).fontSize(22).fillColor("#000000").text(sellerName, margin, y);
             }
 
             y += 45;
@@ -107,8 +106,6 @@ const generateInvoice = async (req, res) => {
             doc.text(shipAddress, margin + 6, col1Y, { width: colW - 12 });
             col1Y += 68;
 
-            const destStateCode = order.destinationStateCode || "27";
-            doc.font(fontNormal).fontSize(8).text(`State Code: ${destStateCode}`, margin + 6, col1Y);
 
             // --- Column 2: SOLD BY ---
             let col2Y = y + 6;
@@ -122,8 +119,6 @@ const generateInvoice = async (req, res) => {
             doc.font(fontNormal).fontSize(7.5).text(sellerAddress, col2X, col2Y, { width: colW - 12, height: 48 });
             col2Y += 46;
 
-            doc.text(`State Code: ${sellerStateCode}`, col2X, col2Y);
-            col2Y += 10;
             doc.text(`Ph: ${sellerPhone}`, col2X, col2Y);
             col2Y += 10;
             doc.text(`GSTIN No. ${sellerGstin}`, col2X, col2Y);
@@ -139,11 +134,11 @@ const generateInvoice = async (req, res) => {
             col3Y += 14;
 
             const nowFormatted = new Date().toLocaleDateString('en-GB'); // DD/MM/YYYY
-            const invoiceNo = order.invoiceNo || "Retail01518";
-            const orderNo = order.externalOrderId || order.orderNumber || "2782";
-            const courier = order.shipping?.courierName || "Xpressbees Surface";
-            const awbNo = order.shipping?.awbNumber || "14112366160873";
-            const paymentMethod = (order.paymentMethod || "prepaid").toLowerCase();
+            const invoiceNo = order.invoiceNo || "N/A";
+            const orderNo = order.externalOrderId || "N/A";
+            const courier = order.shipping?.courierName || "N/A";
+            const awbNo = order.shipping?.awbNumber || "N/A";
+            const paymentMethod = (order.paymentMethod || "N/A").toLowerCase();
 
             const metaList = [
                 { label: "INVOICE NO.", val: `: ${invoiceNo}` },
@@ -152,8 +147,7 @@ const generateInvoice = async (req, res) => {
                 { label: "ORDER DATE", val: `: ${nowFormatted}` },
                 { label: "SHIPPED BY", val: `: ${courier}` },
                 { label: "AWB NO.", val: `: ${awbNo}` },
-                { label: "PAYMENT METHOD", val: `: ${paymentMethod}` },
-                { label: "REMARK", val: `:` }
+                { label: "PAYMENT METHOD", val: `: ${paymentMethod}` }
             ];
 
             metaList.forEach(meta => {
@@ -192,37 +186,41 @@ const generateInvoice = async (req, res) => {
 
             y += tableHeaderHeight;
 
-            let itemsList = order.orderItems && order.orderItems.length > 0 ? order.orderItems : [
-                {
-                    name: "Starter pack",
-                    sku: "test pack",
-                    units: 1,
-                    unitPrice: 570.48,
-                    discount: 0.00,
-                    taxableValue: 570.48,
-                    igst: "28.52 (5.00%)",
-                    total: 599.00
-                }
-            ];
+            const itemsList = order.orderItems || [];
+
+if (!itemsList.length) {
+    continue;
+}
 
             const itemRowHeight = 40;
 
             itemsList.forEach((item, index) => {
                 doc.rect(margin, y, printWidth, itemRowHeight).stroke();
 
-                const qty = item.units || item.qty || 1;
-                const unitPrice = item.unitPrice || item.sellingPrice || 570.48;
-                const discount = item.discount || 0.00;
-                const taxable = item.taxableValue || (unitPrice * qty) - discount;
-                const igstText = item.igst || "28.52 (5.00%)";
-                const total = item.total || 599.00;
+                const qty = Number(item.units || 1);
+
+const unitPrice = Number(item.sellingPrice || 0);
+
+const discount = Number(item.discount || 0);
+
+const tax = Number(item.tax || 0);
+
+const taxable = (unitPrice * qty) - discount;
+
+const gstAmount = taxable * (tax / 100);
+
+const igstText = tax > 0
+    ? `${gstAmount.toFixed(2)} (${tax}%)`
+    : "";
+
+const total = taxable + gstAmount;
 
                 doc.font(fontNormal).fontSize(8).fillColor("#000000");
                 doc.text(`${index + 1}`, margin + 4, y + 8);
 
                 // Product Name + SKU Line
-                doc.font(fontBold).fontSize(8).text(item.name || "Starter pack", margin + c1 + 4, y + 8, { width: c2 - 8, ellipsis: true });
-                doc.font(fontNormal).fontSize(7.5).text(`SKU: ${item.sku || 'test pack'}`, margin + c1 + 4, y + 20, { width: c2 - 8, ellipsis: true });
+                doc.font(fontBold).fontSize(8).text(item.name || "", margin + c1 + 4, y + 8, { width: c2 - 8, ellipsis: true });
+                doc.font(fontNormal).fontSize(7.5).text(`SKU: ${item.sku || ''}`, margin + c1 + 4, y + 20, { width: c2 - 8, ellipsis: true });
 
                 doc.text(item.hsn || "", margin + c1 + c2 + 4, y + 8);
                 doc.text(`${qty}`, margin + c1 + c2 + c3 + 4, y + 8, { width: c4 - 8, align: "center" });
@@ -236,16 +234,104 @@ const generateInvoice = async (req, res) => {
             });
 
             // ================= 4. NET TOTAL SUMMARY ROW =================
-            const totalRowHeight = 22;
-            doc.rect(margin, y, printWidth, totalRowHeight).stroke();
+            // ================= 4. ORDER SUMMARY =================
 
-            const netTotalX = margin + c1 + c2 + c3 + c4 + c5 + c6 + 4;
-            doc.font(fontBold).fontSize(8).text("NET TOTAL (In Value)", netTotalX, y + 7);
-            
-            const grandTotal = itemsList.reduce((acc, item) => acc + (item.total || 599.00), 0);
-            doc.text(`Rs. ${Number(grandTotal).toFixed(2)}`, margin + printWidth - 100, y + 7, { width: 92, align: "right" });
+let itemsTotal = 0;
 
-            y += totalRowHeight + 40;
+itemsList.forEach(item => {
+    const qty = Number(item.units || 1);
+    const unitPrice = Number(item.sellingPrice || 0);
+    const discount = Number(item.discount || 0);
+    const tax = Number(item.tax || 0);
+
+    const taxable = (unitPrice * qty) - discount;
+    const gst = taxable * (tax / 100);
+
+    itemsTotal += taxable + gst;
+});
+
+const shippingCharges = Number(order.shippingCharges || 0);
+const giftwrapCharges = Number(order.giftwrapCharges || 0);
+const transactionCharges = Number(order.transactionCharges || 0);
+
+const grandTotal = Number(order.invoiceValue || itemsTotal);
+
+const summaryRows = [
+    {
+        label: "Items Total",
+        value: itemsTotal
+    }
+];
+
+if (shippingCharges > 0) {
+    summaryRows.push({
+        label: "Shipping Charges",
+        value: shippingCharges
+    });
+}
+
+if (giftwrapCharges > 0) {
+    summaryRows.push({
+        label: "Gift Wrap Charges",
+        value: giftwrapCharges
+    });
+}
+
+if (transactionCharges > 0) {
+    summaryRows.push({
+        label: "Transaction Charges",
+        value: transactionCharges
+    });
+}
+
+summaryRows.push({
+    label: "Grand Total",
+    value: grandTotal
+});
+
+const boxWidth = 220;
+const boxX = margin + printWidth - boxWidth;
+const rowHeight = 18;
+const boxHeight = (summaryRows.length * rowHeight) + 10;
+
+doc.rect(boxX, y, boxWidth, boxHeight).stroke();
+
+let currentY = y + 6;
+
+summaryRows.forEach((row, index) => {
+
+    if (row.label === "Grand Total") {
+        doc.moveTo(boxX, currentY - 3)
+            .lineTo(boxX + boxWidth, currentY - 3)
+            .stroke();
+
+        doc.font(fontBold);
+    } else {
+        doc.font(fontNormal);
+    }
+
+    doc.fontSize(8);
+
+    doc.text(
+        row.label,
+        boxX + 8,
+        currentY
+    );
+
+    doc.text(
+        `Rs. ${row.value.toFixed(2)}`,
+        boxX,
+        currentY,
+        {
+            width: boxWidth - 8,
+            align: "right"
+        }
+    );
+
+    currentY += rowHeight;
+});
+
+y += boxHeight + 25;
 
             // ================= 5. AUTHORIZED SIGNATURE & REVERSE CHARGE FOOTER =================
             const sigX = margin + printWidth - 200;

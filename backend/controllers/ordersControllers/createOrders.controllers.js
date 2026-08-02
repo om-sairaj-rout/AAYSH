@@ -28,6 +28,54 @@ const generateUniqueShipmentId = async () => {
   }
 };
 
+// =========================================
+// Generate Invoice Number
+// =========================================
+const generateInvoiceNo = () => {
+  return `INV-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+};
+
+// =========================================
+// Calculate Invoice Value
+// =========================================
+const calculateInvoiceValue = ({
+  orderItems = [],
+  shippingCharges = 0,
+  giftwrapCharges = 0,
+  transactionCharges = 0,
+}) => {
+
+  let itemsTotal = 0;
+
+  for (const item of orderItems) {
+
+    const qty = Number(item.units || 1);
+
+    const price = Number(
+      item.sellingPrice ?? item.selling_price ?? 0
+    );
+
+    const discount = Number(item.discount || 0);
+
+    const tax = Number(item.tax || 0);
+
+    const taxable = (price * qty) - discount;
+
+    const gst = taxable * (tax / 100);
+
+    itemsTotal += taxable + gst;
+  }
+
+  return Number(
+    (
+      itemsTotal +
+      Number(shippingCharges || 0) +
+      Number(giftwrapCharges || 0) +
+      Number(transactionCharges || 0)
+    ).toFixed(2)
+  );
+};
+
 
 const createCustomOrder = async (req, res) => {
 
@@ -244,28 +292,33 @@ const expectedHours =
 
 
 
-      invoiceValue:
-      body.sub_total || 0,
-
-
-
       subTotal:
-      body.sub_total || 0,
+Number(body.sub_total || 0),
 
+shippingCharges:
+Number(body.shipping_charges || 0),
 
+giftwrapCharges:
+Number(body.giftwrap_charges || 0),
 
-      shippingCharges:
-      body.shipping_charges || 0,
+transactionCharges:
+Number(body.transaction_charges || 0),
 
+invoiceNo:
+generateInvoiceNo(),
 
-
-      giftwrapCharges:
-      body.giftwrap_charges || 0,
-
-
-
-      transactionCharges:
-      body.transaction_charges || 0,
+invoiceValue:
+calculateInvoiceValue({
+  orderItems: body.order_items.map(item => ({
+    units: item.units || 1,
+    sellingPrice: item.selling_price || 0,
+    discount: item.discount || 0,
+    tax: item.tax || 0,
+  })),
+  shippingCharges: body.shipping_charges,
+  giftwrapCharges: body.giftwrap_charges,
+  transactionCharges: body.transaction_charges,
+}),
 
 
 
