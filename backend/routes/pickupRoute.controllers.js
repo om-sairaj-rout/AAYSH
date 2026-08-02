@@ -7,6 +7,7 @@ const {
 
 const getUserPickups = require("../controllers/pickupControllers/getAllUserPickupOrders.controllers");
 const UserPickupsReschedule = require("../controllers/pickupControllers/userPickupReschedule.controllers");
+const UserPickupCancel = require("../controllers/pickupControllers/userCancelPickup.controllers");
 
 pickupRouter.get(
   "/user/pickups",
