@@ -1,76 +1,58 @@
 const PDFDocument = require("pdfkit");
 const path = require("path");
 const fs = require("fs");
-const Order = require("../../models/upload/order.model"); 
+const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
+const User = require("../../models/user.model");
 
 const generateInvoice = async (req, res) => {
     try {
-        const { shipmentIds } = req.body;
+        const { orderIds } = req.body;
 
-if (!shipmentIds || shipmentIds.length === 0) {
-    return res.status(400).json({
-        success: false,
-        message: "No shipment IDs provided"
-    });
-}
+        if (!orderIds || orderIds.length === 0) {
+            return res.status(400).json({ success: false, message: "No order IDs provided" });
+        }
 
-// Fetch shipments
-const shippings = await Shipping.find({
-    shipmentId: { $in: shipmentIds }
-}).lean();
+        // Fetch order details
+        const orders = await Order.find({ _id: { $in: orderIds } }).lean();
 
-if (!shippings.length) {
-    return res.status(404).json({
-        success: false,
-        message: "Shipments not found"
-    });
-}
+        if (!orders || orders.length === 0) {
+            return res.status(404).json({ success: false, message: "Orders not found" });
+        }
 
-// Extract order ids
-const orderIds = shippings.map(shipment => shipment.orderId);
+        // Fetch shipping details
+        const shippings = await Shipping.find({ orderId: { $in: orderIds } }).lean();
+        const shippingMap = new Map(shippings.map(s => [s.orderId.toString(), s]));
 
-// Fetch orders
-const orders = await Order.find({
-    _id: { $in: orderIds }
-}).lean();
+        // Fetch seller details (if seller is linked via uploadedBy)
+        const seller = await User.findById(orders[0].uploadedBy).lean();
 
-if (!orders.length) {
-    return res.status(404).json({
-        success: false,
-        message: "Orders not found"
-    });
-}
-
-// Attach shipping to order
-const shippingMap = new Map(
-    shippings.map(shipment => [
-        shipment.orderId.toString(),
-        shipment
-    ])
-);
-
-orders.forEach(order => {
-    order.shipping =
-        shippingMap.get(order._id.toString()) || null;
-});
-
-        // Standard A4 dimensions in PDF points (595.28 x 841.89 pt)
-        const doc = new PDFDocument({
-            margin: 30,
-            size: "A6" // Change to "A4" for full-page standard invoices if preferred
+        orders.forEach(order => {
+            order.shipping = shippingMap.get(order._id.toString()) || null;
         });
 
+        const doc = new PDFDocument({ margin: 20, size: "A4", autoFirstPage: true });
+
         res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", "attachment; filename=invoices.pdf");
+        res.setHeader("Content-Disposition", "attachment; filename=tax_invoice.pdf");
 
         doc.pipe(res);
 
         const fontBold = "Helvetica-Bold";
         const fontNormal = "Helvetica";
 
-        const margin = 30;
-        const printWidth = doc.page.width - (margin * 2);
+        const margin = 20;
+        const printWidth = doc.page.width - (margin * 2); // ~555 pt
+
+        // Dynamic Seller Info fallback
+        const sellerName = seller?.username || "N/A";
+        const sellerAddress = seller?.address 
+            ? `${seller.address}, ${seller.city || ''}, ${seller.state || ''} - ${seller.zip_code || ''}`
+            : "N/A";
+        const sellerPhone = seller?.mobile_number || "N/A";
+        const sellerGstin = seller?.gstin || "N/A";
+        const sellerWebsite = seller?.website || "N/A";
+        const sellerEmail = seller?.email || "N/A";
 
         for (let i = 0; i < orders.length; i++) {
             const order = orders[i];
@@ -79,182 +61,282 @@ orders.forEach(order => {
 
             let y = margin;
 
-            // Outer Perimeter Border
-            doc.lineWidth(1)
-               .strokeColor("#E2E8F0")
-               .rect(margin, margin, printWidth, doc.page.height - (margin * 2))
-               .stroke();
-
-            // ================= 1. INVOICE HEADER & LOGO =================
-            const headerHeight = 65;
-            doc.lineWidth(0.5).strokeColor("#CBD5E1").rect(margin, y, printWidth, headerHeight).stroke();
-
-            // Logo Placeholder
-            const logoPath = path.join(__dirname, "../../assets/aaysh_logo_2.png");
-            const logoWidth = 120;
-            const logoHeight = 45;
+            // ================= 1. BRAND LOGO & HEADER =================
+            const logoPath = path.join(__dirname, "../../assets/fiberise_logo.jpg");
+            const logoWidth = 240; // Big logo
+            const logoX = margin + (printWidth - logoWidth) / 2; // Centered
 
             if (fs.existsSync(logoPath)) {
-                doc.image(logoPath, margin + 10, y + 10, {
-                    fit: [logoWidth, logoHeight],
-                    align: "left",
-                    valign: "center"
-                });
+                doc.image(logoPath, logoX, y, { width: logoWidth });
+                y += 65; // Adjust vertical space for big logo
             } else {
-                doc.font(fontBold).fontSize(16).fillColor("#0F172A").text("AAYSH", margin + 10, y + 15, { continued: true });
-                doc.fillColor("#0D9488").text("EXPRESS");
-                doc.font(fontNormal).fontSize(8).fillColor("#64748B").text("COMMERCIAL TAX INVOICE", margin + 10, y + 36);
+                doc.font(fontBold).fontSize(22).fillColor("#000000").text(sellerName, margin, y, {
+                    align: "center",
+                    width: printWidth
+                });
+                y += 35;
             }
 
-            // Right Header Block: Invoice & Order Meta
-            const rightHeaderX = margin + printWidth - 180;
-            doc.font(fontBold).fontSize(14).fillColor("#0F172A").text("TAX INVOICE", rightHeaderX, y + 12, { align: "right", width: 170 });
+            // "TAX INVOICE" Title Center Strip (Bigger, but smaller than logo)
+            doc.font(fontBold).fontSize(20).fillColor("#000000").text("TAX INVOICE", margin, y, {
+                align: "center",
+                width: printWidth
+            });
+
+            y += 25;
+
+            // ================= 2. THREE-COLUMN ADDRESS & INVOICE METADATA BOX =================
+            const colW = printWidth / 3;
+
+            // --- Calculate Dynamic Height for Column 2 Address ---
+            doc.font(fontNormal).fontSize(7.5);
+            const addressTextHeight = doc.heightOfString(sellerAddress, { width: colW - 12 });
             
-            doc.font(fontNormal).fontSize(8.5).fillColor("#475569");
-            doc.text(`Invoice No: ${order.invoiceNo || "N/A"}`, rightHeaderX, y + 30, { align: "right", width: 170 });
-            doc.text(`Order ID: ${order.externalOrderId || order._id.toString().slice(-8)}`, rightHeaderX, y + 42, { align: "right", width: 170 });
+            // Total height needed for column 2 details
+            const col2ContentHeight = 6 + 12 + 12 + addressTextHeight + 4 + 10 + 10 + 10 + 10 + 6;
+            const gridHeight = Math.max(160, col2ContentHeight);
 
-            y += headerHeight + 10;
+            // Draw outer grid box
+            doc.rect(margin, y, printWidth, gridHeight).strokeColor("#000000").lineWidth(0.75).stroke();
 
-            // ================= 2. BILLING & SHIPPING DETAILS GRID =================
-            const addressBlockHeight = 85;
-            const halfWidth = printWidth / 2;
+            // Column Grid Vertical Dividers
+            doc.moveTo(margin + colW, y).lineTo(margin + colW, y + gridHeight).stroke();
+            doc.moveTo(margin + (colW * 2), y).lineTo(margin + (colW * 2), y + gridHeight).stroke();
 
-            doc.rect(margin, y, printWidth, addressBlockHeight).stroke();
-            doc.moveTo(margin + halfWidth, y).lineTo(margin + halfWidth, y + addressBlockHeight).stroke();
+            // --- Column 1: SHIPPING ADDRESS ---
+            let col1Y = y + 6;
+            doc.font(fontBold).fontSize(8).fillColor("#000000").text("SHIPPING ADDRESS:", margin + 6, col1Y);
+            col1Y += 12;
 
-            // Left Box: Consignor / Shipped From
-            doc.font(fontBold).fontSize(8).fillColor("#0D9488").text("BILLED / SHIPPED FROM:", margin + 8, y + 8);
-            doc.font(fontBold).fontSize(9.5).fillColor("#0F172A").text((order.consignorName || "ABC MANUFACTURING LTD.").toUpperCase(), margin + 8, y + 20, { width: halfWidth - 16, ellipsis: true });
-            
-            const originLoc = order.pickupLocation ? `Hub: ${order.pickupLocation}` : "DEFAULT WAREHOUSE HUB, NOIDA, UP - 201301";
-            doc.font(fontNormal).fontSize(8).fillColor("#475569").text(originLoc, margin + 8, y + 34, { width: halfWidth - 16, height: 30, ellipsis: true });
-            doc.text(`GSTIN/PAN: Unregistered Vendor`, margin + 8, y + 68);
+            const consigneeName = `${order.consigneeName || ''} ${order.consigneeLastName || ''}`.trim() || "Durga Bhingarde";
+            doc.font(fontNormal).fontSize(8).text(consigneeName, margin + 6, col1Y);
+            col1Y += 11;
 
-            // Right Box: Consignee / Billed To
-            const rightBoxX = margin + halfWidth + 8;
-            doc.font(fontBold).fontSize(8).fillColor("#0D9488").text("BILLED / SHIPPED TO:", rightBoxX, y + 8);
-            
-            const consigneeName = `${order.consigneeName || ''} ${order.consigneeLastName || ''}`.trim().toUpperCase() || "CUSTOMER";
-            doc.font(fontBold).fontSize(9.5).fillColor("#0F172A").text(consigneeName, rightBoxX, y + 20, { width: halfWidth - 16, ellipsis: true });
+            const shipAddress = order.address 
+                ? `${order.address}, ${order.address2 || ''}\n${order.destinationCity || ''} ${order.destinationPincode || ''}\n${order.destinationState || ''}\nIndia`
+                : "A501 Near Himmat Bahaddur\nParisar\nA501, near Himmat Bahaddur\nParisar\nKolhapur 416003\nMaharashtra\nIndia";
 
-            let fullAddress = (order.address || "").toUpperCase();
-            if (order.address2) fullAddress += `, ${(order.address2).toUpperCase()}`;
-            fullAddress += `, ${(order.destinationCity || '').toUpperCase()}, ${(order.destinationState || '').toUpperCase()} - ${order.destinationPincode || ''}`;
+            doc.text(shipAddress, margin + 6, col1Y, { width: colW - 12 });
 
-            doc.font(fontNormal).fontSize(8).fillColor("#475569").text(fullAddress, rightBoxX, y + 34, { width: halfWidth - 16, height: 32, ellipsis: true });
-            
-            const contactStr = order.billingPhone || order.contactNo || "N/A";
-            doc.text(`Phone: ${contactStr}`, rightBoxX, y + 68);
+            // --- Column 2: SOLD BY (Dynamic height calculation) ---
+            let col2Y = y + 6;
+            const col2X = margin + colW + 6;
+            doc.font(fontBold).fontSize(8).text("SOLD BY:", col2X, col2Y);
+            col2Y += 12;
 
-            y += addressBlockHeight + 10;
+            doc.font(fontBold).fontSize(8).text(sellerName, col2X, col2Y, { width: colW - 12 });
+            col2Y += 12;
 
-            // ================= 3. SHIPPING & ORDER METADATA BAR =================
-            const metaBarHeight = 28;
-            doc.rect(margin, y, printWidth, metaBarHeight).stroke();
+            doc.font(fontNormal).fontSize(7.5).text(sellerAddress, col2X, col2Y, { width: colW - 12 });
+            col2Y += addressTextHeight + 4; // Places remaining details strictly below address
 
-            const metaColWidth = printWidth / 4;
-            for (let c = 1; c < 4; c++) {
-                doc.moveTo(margin + (metaColWidth * c), y).lineTo(margin + (metaColWidth * c), y + metaBarHeight).stroke();
-            }
+            doc.text(`Ph: ${sellerPhone}`, col2X, col2Y);
+            col2Y += 10;
+            doc.text(`GSTIN No. ${sellerGstin}`, col2X, col2Y);
+            col2Y += 10;
+            doc.text(`Website: ${sellerWebsite}`, col2X, col2Y, { width: colW - 12, ellipsis: true });
+            col2Y += 10;
+            doc.text(`Email: ${sellerEmail}`, col2X, col2Y, { width: colW - 12, ellipsis: true });
 
-            // Date
-            const formattedDate = order.orderDate ? new Date(order.orderDate).toLocaleDateString('en-GB') : "N/A";
-            doc.font(fontBold).fontSize(6.5).fillColor("#64748B").text("DATE", margin + 5, y + 4);
-            doc.font(fontNormal).fontSize(8).fillColor("#0F172A").text(formattedDate, margin + 5, y + 14);
+            // --- Column 3: INVOICE DETAILS ---
+            let col3Y = y + 6;
+            const col3X = margin + (colW * 2) + 6;
+            doc.font(fontBold).fontSize(8).text("INVOICE DETAILS:", col3X, col3Y);
+            col3Y += 14;
 
-            // Payment Mode
-            const payMethod = (order.paymentMethod || "COD").toUpperCase();
-            doc.font(fontBold).fontSize(6.5).fillColor("#64748B").text("PAYMENT MODE", margin + metaColWidth + 5, y + 4);
-            doc.font(fontBold).fontSize(8).fillColor("#0F172A").text(payMethod, margin + metaColWidth + 5, y + 14);
+            const nowFormatted = new Date().toLocaleDateString('en-GB'); // DD/MM/YYYY
+            const invoiceNo = order.invoiceNo || "N/A";
+            const orderNo = order.externalOrderId || "N/A";
+            const orderDate = order.orderDate ? new Date(order.orderDate).toLocaleDateString('en-GB') : "N/A";
+            const courier = order.shipping?.courierName || "N/A";
+            const awbNo = order.shipping?.awbNumber || "N/A";
+            const paymentMethod = (order.paymentMethod || "N/A").toLowerCase();
 
-            // Courier
-            const courierName = (order.shipping?.courierName || "SURFACE").toUpperCase();
-            doc.font(fontBold).fontSize(6.5).fillColor("#64748B").text("COURIER PARTNER", margin + (metaColWidth * 2) + 5, y + 4);
-            doc.font(fontNormal).fontSize(8).fillColor("#0F172A").text(courierName, margin + (metaColWidth * 2) + 5, y + 14, { width: metaColWidth - 10, ellipsis: true });
+            const metaList = [
+                { label: "INVOICE NO.", val: `: ${invoiceNo}` },
+                { label: "INVOICE DATE", val: `: ${nowFormatted}` },
+                { label: "ORDER NO.", val: `: ${orderNo}` },
+                { label: "ORDER DATE", val: `: ${orderDate}` },
+                { label: "SHIPPED BY", val: `: ${courier}` },
+                { label: "AWB NO.", val: `: ${awbNo}` },
+                { label: "PAYMENT METHOD", val: `: ${paymentMethod}` }
+            ];
 
-            // AWB No
-            const awbNo = order.shipping?.awbNumber || "UNASSIGNED";
-            doc.font(fontBold).fontSize(6.5).fillColor("#64748B").text("AWB NUMBER", margin + (metaColWidth * 3) + 5, y + 4);
-            doc.font(fontNormal).fontSize(8).fillColor("#0F172A").text(awbNo, margin + (metaColWidth * 3) + 5, y + 14, { width: metaColWidth - 10, ellipsis: true });
+            metaList.forEach(meta => {
+                doc.font(fontBold).fontSize(7).text(meta.label, col3X, col3Y, { width: 75 });
+                doc.font(fontNormal).fontSize(7).text(meta.val, col3X + 68, col3Y, { width: colW - 78, ellipsis: true });
+                col3Y += 12;
+            });
 
-            y += metaBarHeight + 10;
+            y += gridHeight;
 
-            // ================= 4. ITEMIZED PRODUCTS TABLE =================
-            const tableHeaderHeight = 20;
-            doc.fillColor("#F8FAFC").rect(margin, y, printWidth, tableHeaderHeight).fill().stroke();
+            // ================= 3. ITEMIZED PRODUCTS TABLE =================
+            const tableHeaderHeight = 22;
+            doc.rect(margin, y, printWidth, tableHeaderHeight).strokeColor("#000000").lineWidth(0.5).stroke();
 
-            // Column Width Definitions
-            const col1 = 20;  // #
-            const col2 = 120; // Description
-            const col3 = 45;  // Rate
-            const col4 = 30;  // Qty
-            const col5 = 40;  // Discount
-            const col6 = printWidth - (col1 + col2 + col3 + col4 + col5); // Subtotal (~73pt)
+            // Table Column Widths
+            const c1 = 30;  // S.NO.
+            const c2 = 150; // PRODUCT NAME
+            const c3 = 40;  // HSN
+            const c4 = 30;  // QTY
+            const c5 = 60;  // UNIT PRICE
+            const c6 = 65;  // UNIT DISCOUNT
+            const c7 = 55;  // TAXABLE VALUE
+            const c8 = 60;  // IGST (Value %)
+            const c9 = printWidth - (c1 + c2 + c3 + c4 + c5 + c6 + c7 + c8); // TOTAL (~65pt)
 
-            doc.font(fontBold).fontSize(7.5).fillColor("#334155");
-            doc.text("#", margin + 4, y + 6);
-            doc.text("ITEM DESCRIPTION", margin + col1 + 4, y + 6);
-            doc.text("RATE", margin + col1 + col2 + 4, y + 6, { width: col3 - 8, align: "right" });
-            doc.text("QTY", margin + col1 + col2 + col3 + 4, y + 6, { width: col4 - 8, align: "center" });
-            doc.text("DISC.", margin + col1 + col2 + col3 + col4 + 4, y + 6, { width: col5 - 8, align: "right" });
-            doc.text("TOTAL", margin + col1 + col2 + col3 + col4 + col5 + 4, y + 6, { width: col6 - 8, align: "right" });
+            doc.font(fontBold).fontSize(7.5).fillColor("#000000");
+            doc.text("S.NO.", margin + 4, y + 6);
+            doc.text("PRODUCT NAME", margin + c1 + 4, y + 6);
+            doc.text("HSN", margin + c1 + c2 + 4, y + 6);
+            doc.text("QTY", margin + c1 + c2 + c3 + 4, y + 6, { width: c4 - 8, align: "center" });
+            doc.text("UNIT PRICE", margin + c1 + c2 + c3 + c4 + 4, y + 6, { width: c5 - 8, align: "right" });
+            doc.text("UNIT DISCOUNT", margin + c1 + c2 + c3 + c4 + c5 + 4, y + 6, { width: c6 - 8, align: "right" });
+            doc.text("TAXABLE VALUE", margin + c1 + c2 + c3 + c4 + c5 + c6 + 4, y + 3, { width: c7 - 8, align: "right" });
+            doc.text("IGST (Value %)", margin + c1 + c2 + c3 + c4 + c5 + c6 + c7 + 4, y + 3, { width: c8 - 8, align: "right" });
+            doc.text("TOTAL (Including GST)", margin + c1 + c2 + c3 + c4 + c5 + c6 + c7 + c8 + 4, y + 3, { width: c9 - 8, align: "right" });
 
             y += tableHeaderHeight;
 
-            let itemsList = order.orderItems && order.orderItems.length > 0 ? order.orderItems : [
-                { name: "General Parcel Goods", units: order.qty || 1, sellingPrice: order.subTotal || order.invoiceValue || 0, discount: 0 }
-            ];
+            const itemsList = order.orderItems || [];
 
-            const itemRowHeight = 22;
-            doc.font(fontNormal).fontSize(8).fillColor("#000000");
+            if (!itemsList.length) {
+                continue;
+            }
+
+            const itemRowHeight = 40;
 
             itemsList.forEach((item, index) => {
                 doc.rect(margin, y, printWidth, itemRowHeight).stroke();
 
-                const rate = item.sellingPrice || 0;
-                const units = item.units || 1;
-                const disc = item.discount || 0;
-                const total = (rate * units) - disc;
+                const qty = Number(item.units || 1);
+                const unitPrice = Number(item.sellingPrice || 0);
+                const discount = Number(item.discount || 0);
+                const tax = Number(item.tax || 0);
 
-                doc.text(`${index + 1}`, margin + 4, y + 6);
-                doc.text(item.name || "Item", margin + col1 + 4, y + 6, { width: col2 - 8, ellipsis: true });
-                doc.text(`₹${rate}`, margin + col1 + col2 + 4, y + 6, { width: col3 - 8, align: "right" });
-                doc.text(`${units}`, margin + col1 + col2 + col3 + 4, y + 6, { width: col4 - 8, align: "center" });
-                doc.text(`₹${disc}`, margin + col1 + col2 + col3 + col4 + 4, y + 6, { width: col5 - 8, align: "right" });
-                doc.text(`₹${total.toFixed(2)}`, margin + col1 + col2 + col3 + col4 + col5 + 4, y + 6, { width: col6 - 8, align: "right" });
+                const taxable = (unitPrice * qty) - discount;
+                const gstAmount = taxable * (tax / 100);
+
+                const igstText = tax > 0
+                    ? `${gstAmount.toFixed(2)} (${tax}%)`
+                    : "";
+
+                const total = taxable + gstAmount;
+
+                doc.font(fontNormal).fontSize(8).fillColor("#000000");
+                doc.text(`${index + 1}`, margin + 4, y + 8);
+
+                // Product Name + SKU Line
+                doc.font(fontBold).fontSize(8).text(item.name || "", margin + c1 + 4, y + 8, { width: c2 - 8, ellipsis: true });
+                doc.font(fontNormal).fontSize(7.5).text(`SKU: ${item.sku || ''}`, margin + c1 + 4, y + 20, { width: c2 - 8, ellipsis: true });
+
+                doc.text(item.hsn || "", margin + c1 + c2 + 4, y + 8);
+                doc.text(`${qty}`, margin + c1 + c2 + c3 + 4, y + 8, { width: c4 - 8, align: "center" });
+                doc.text(`Rs. ${Number(unitPrice).toFixed(2)}`, margin + c1 + c2 + c3 + c4 + 4, y + 8, { width: c5 - 8, align: "right" });
+                doc.text(`${Number(discount).toFixed(2)}`, margin + c1 + c2 + c3 + c4 + c5 + 4, y + 8, { width: c6 - 8, align: "right" });
+                doc.text(`${Number(taxable).toFixed(2)}`, margin + c1 + c2 + c3 + c4 + c5 + c6 + 4, y + 8, { width: c7 - 8, align: "right" });
+                doc.text(igstText, margin + c1 + c2 + c3 + c4 + c5 + c6 + c7 + 4, y + 8, { width: c8 - 8, align: "right" });
+                doc.text(`${Number(total).toFixed(2)}`, margin + c1 + c2 + c3 + c4 + c5 + c6 + c7 + c8 + 4, y + 8, { width: c9 - 8, align: "right" });
 
                 y += itemRowHeight;
             });
 
-            // ================= 5. FINANCIAL SUMMARY TOTALS =================
-            y += 5;
-            const summaryBoxWidth = 160;
-            const summaryX = margin + printWidth - summaryBoxWidth;
+            // ================= 4. ORDER SUMMARY =================
+            let itemsTotal = 0;
 
-            const summaryRows = [
-                { label: "Sub Total:", val: `₹${(order.subTotal || order.invoiceValue || 0).toFixed(2)}` },
-                { label: "Shipping Charges:", val: `₹${(order.shippingCharges || 0).toFixed(2)}` },
-                { label: "Discount:", val: `- ₹${(order.totalDiscount || 0).toFixed(2)}` },
-                { label: "Grand Total:", val: `₹${(order.invoiceValue || 0).toFixed(2)}`, bold: true }
-            ];
+            itemsList.forEach(item => {
+                const qty = Number(item.units || 1);
+                const unitPrice = Number(item.sellingPrice || 0);
+                const discount = Number(item.discount || 0);
+                const tax = Number(item.tax || 0);
 
-            summaryRows.forEach(row => {
-                doc.font(row.bold ? fontBold : fontNormal).fontSize(row.bold ? 9.5 : 8).fillColor(row.bold ? "#0F172A" : "#475569");
-                doc.text(row.label, summaryX, y, { width: 85, align: "right" });
-                doc.text(row.val, summaryX + 90, y, { width: 70, align: "right" });
-                y += 14;
+                const taxable = (unitPrice * qty) - discount;
+                const gst = taxable * (tax / 100);
+
+                itemsTotal += taxable + gst;
             });
 
-            // ================= 6. AUTHORIZED SIGNATURE & FOOTER =================
-            const bottomY = doc.page.height - margin - 35;
-            doc.lineWidth(0.5).strokeColor("#CBD5E1").moveTo(margin, bottomY).lineTo(margin + printWidth, bottomY).stroke();
+            const shippingCharges = Number(order.shippingCharges || 0);
+            const giftwrapCharges = Number(order.giftwrapCharges || 0);
+            const transactionCharges = Number(order.transactionCharges || 0);
 
-            doc.font(fontNormal).fontSize(7).fillColor("#64748B").text(
-                "This is a computer-generated tax invoice and requires no physical signature under Indian Information Technology Act.",
-                margin + 5,
-                bottomY + 8,
-                { width: printWidth - 10, align: "center" }
+            const grandTotal = Number(order.invoiceValue || itemsTotal);
+
+            const summaryRows = [
+                { label: "Items Total", value: itemsTotal }
+            ];
+
+            if (shippingCharges > 0) {
+                summaryRows.push({ label: "Shipping Charges", value: shippingCharges });
+            }
+
+            if (giftwrapCharges > 0) {
+                summaryRows.push({ label: "Gift Wrap Charges", value: giftwrapCharges });
+            }
+
+            if (transactionCharges > 0) {
+                summaryRows.push({ label: "Transaction Charges", value: transactionCharges });
+            }
+
+            summaryRows.push({ label: "Grand Total", value: grandTotal });
+
+            const boxWidth = 220;
+            const boxX = margin + printWidth - boxWidth;
+            const rowHeight = 18;
+            const boxHeight = (summaryRows.length * rowHeight) + 10;
+
+            doc.rect(boxX, y, boxWidth, boxHeight).stroke();
+
+            let currentY = y + 6;
+
+            summaryRows.forEach((row) => {
+                if (row.label === "Grand Total") {
+                    doc.moveTo(boxX, currentY - 3)
+                        .lineTo(boxX + boxWidth, currentY - 3)
+                        .stroke();
+
+                    doc.font(fontBold);
+                } else {
+                    doc.font(fontNormal);
+                }
+
+                doc.fontSize(8);
+                doc.text(row.label, boxX + 8, currentY);
+
+                doc.text(
+                    `Rs. ${row.value.toFixed(2)}`,
+                    boxX,
+                    currentY,
+                    {
+                        width: boxWidth - 8,
+                        align: "right"
+                    }
+                );
+
+                currentY += rowHeight;
+            });
+
+            y += boxHeight + 20;
+
+            // ================= 5. AUTHORIZED SIGNATURE (LEFT) & REVERSE CHARGE (RIGHT) =================
+            const sigBoxWidth = 140;
+            const sigBoxHeight = 45;
+
+            // Left Side: 1. Signature Box Drawn Above
+            doc.rect(margin, y, sigBoxWidth, sigBoxHeight).strokeColor("#000000").lineWidth(0.5).stroke();
+
+            // Left Side: 2. Authorized Signature Text Placed Below the Box
+            const textY = y + sigBoxHeight + 6;
+            doc.font(fontNormal).fontSize(8).fillColor("#000000").text("Authorized Signature for", margin, textY);
+            doc.font(fontBold).fontSize(8).text(sellerName, margin, textY + 11);
+
+            // Right Side: Reverse Charge Statement
+            const rightTextX = margin + printWidth - 250;
+            doc.font(fontNormal).fontSize(8).fillColor("#000000").text(
+                "Whether tax is payable under reverse charge - No",
+                rightTextX,
+                textY + 11,
+                { width: 250, align: "right" }
             );
         }
 

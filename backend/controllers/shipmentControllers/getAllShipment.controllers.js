@@ -99,6 +99,8 @@ const getAllShipments = async (req, res) => {
 
         courier: shipment.courierName,
 
+        pickup_date: shipment.pickupDate,
+
         pickup_location: shipment.pickupLocation,
 
         payment_method: order.paymentMethod,

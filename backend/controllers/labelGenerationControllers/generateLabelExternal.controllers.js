@@ -7,56 +7,30 @@ const Shipping = require("../../models/upload/shipping.model");
 
 const generateLabel = async (req, res) => {
     try {
-        const { shipmentIds } = req.body;
+        const { orderIds } = req.body;
 
-if (!shipmentIds || shipmentIds.length === 0) {
-    return res.status(400).json({
-        success: false,
-        message: "No shipment IDs provided"
-    });
-}
+        if (!orderIds || orderIds.length === 0) {
+            return res.status(400).json({ success: false, message: "No order IDs provided" });
+        }
 
-// Fetch shipments
-const shippings = await Shipping.find({
-    shipmentId: { $in: shipmentIds }
-}).lean();
+        // Fetch orders and populate reference details
+        const orders = await Order.find({ _id: { $in: orderIds } }).lean();
 
-if (!shippings.length) {
-    return res.status(404).json({
-        success: false,
-        message: "Shipments not found"
-    });
-}
+        const shippings = await Shipping.find({
+            orderId: { $in: orderIds }
+        }).lean();
 
-// Fetch corresponding orders
-const orderIds = shippings.map(s => s.orderId);
+        const shippingMap = new Map(
+            shippings.map(s => [s.orderId.toString(), s])
+        );
 
-const orders = await Order.find({
-    _id: { $in: orderIds }
-}).lean();
+        orders.forEach(order => {
+            order.shipping = shippingMap.get(order._id.toString()) || null;
+        });
 
-const orderMap = new Map(
-    orders.map(order => [order._id.toString(), order])
-);
-
-// Merge order + shipping
-const labels = shippings.map(shipping => {
-    const order = orderMap.get(shipping.orderId.toString());
-
-    if (!order) return null;
-
-    return {
-        ...order,
-        shipping
-    };
-}).filter(Boolean);
-
-if (!labels.length) {
-    return res.status(404).json({
-        success: false,
-        message: "Orders not found for shipments"
-    });
-}
+        if (!orders || orders.length === 0) {
+            return res.status(404).json({ success: false, message: "Orders not found" });
+        }
 
         // 4 x 6 inches in PDF Points (1 inch = 72 points) -> 288 x 432 points
         const LABEL_WIDTH = 288;
@@ -79,8 +53,8 @@ if (!labels.length) {
         const margin = 10;
         const printWidth = LABEL_WIDTH - (margin * 2); // 268 pt
 
-        for (let i = 0; i < labels.length; i++) {
-    const order = labels[i];
+        for (let i = 0; i < orders.length; i++) {
+            const order = orders[i];
 
             if (i > 0) doc.addPage();
 
@@ -90,16 +64,31 @@ if (!labels.length) {
                .rect(margin, margin, printWidth, LABEL_HEIGHT - (margin * 2))
                .stroke();
 
-            let y = margin;
+            // ================= 0. AAYSH EXPRESS TOP BORDER STRAP =================
+            const strapHeight = 16;
+            doc.rect(margin, margin, printWidth, strapHeight)
+               .fillColor("#0F172A")
+               .fill();
 
-            // ================= 1. BRANDING & LOGO HEADER BOX (ENLARGED LOGO) =================
-            const headerHeight = 52; // Increased header height to fit larger logo safely
-            doc.rect(margin, y, printWidth, headerHeight).stroke();
+            doc.font(fontBold)
+               .fontSize(9)
+               .fillColor("#FFFFFF")
+               .text("AAYSH EXPRESS", margin, margin + 4, {
+                   width: printWidth,
+                   align: "center"
+               });
+
+            // Start content Y position right below the top strap
+            let y = margin + strapHeight;
+
+            // ================= 1. BRANDING & LOGO HEADER BOX =================
+            const headerHeight = 52; 
+            doc.rect(margin, y, printWidth, headerHeight).strokeColor("#000000").stroke();
 
             // LOGO ZONE (Left Header)
-            const logoPath = path.join(__dirname, "../../assets/aaysh_logo_2.png"); 
-            const logoWidth = 115; // Increased logo width
-            const logoHeight = 42; // Increased logo height
+            const logoPath = path.join(__dirname, "../../assets/fiberise_logo.jpg"); 
+            const logoWidth = 115; 
+            const logoHeight = 42; 
 
             if (fs.existsSync(logoPath)) {
                 doc.image(logoPath, margin + 5, y + 5, {
@@ -114,7 +103,7 @@ if (!labels.length) {
                 doc.font(fontNormal).fontSize(6.5).fillColor("#64748B").text("LOGISTICS & FULFILLMENT", margin + 6, y + 28);
             }
 
-            // ORDER DATE ZONE (Right Header Box - Formerly COD location)
+            // ORDER DATE ZONE (Right Header Box)
             const rightHeaderX = margin + printWidth - 95;
             doc.moveTo(rightHeaderX, y).lineTo(rightHeaderX, y + headerHeight).stroke();
 
@@ -135,13 +124,13 @@ if (!labels.length) {
             const barcodeBoxHeight = 70;
             doc.rect(margin, y, printWidth, barcodeBoxHeight).stroke();
 
-            const awbNo = order.shipping?.awbNumber || "UNASSIGNED";
+            const awbNo = order.shipping?.awbNumber;
 
             try {
                 // Barcode generated directly from AWB Number
                 const barcodeBuffer = await bwipjs.toBuffer({
                     bcid: "code128",
-                    text: awbNo,
+                    text: String(awbNo || ""),
                     scale: 3,
                     height: 12,
                     includetext: false
@@ -153,14 +142,14 @@ if (!labels.length) {
                 doc.image(barcodeBuffer, bcX, y + 8, { width: bcRenderWidth, height: 38 });
 
                 // Text AWB Readout
-                doc.font(fontMono).fontSize(12).text(awbNo, margin, y + 50, {
+                doc.font(fontMono).fontSize(12).fillColor("#000000").text(awbNo || "", margin, y + 50, {
                     align: "center",
                     width: printWidth
                 });
 
             } catch (bcErr) {
                 console.error("Barcode Generation Error:", bcErr);
-                doc.font(fontBold).fontSize(10).text(`AWB: ${awbNo}`, margin, y + 25, {
+                doc.font(fontBold).fontSize(10).fillColor("#000000").text(`AWB: ${awbNo}`, margin, y + 25, {
                     align: "center",
                     width: printWidth
                 });
@@ -246,7 +235,7 @@ if (!labels.length) {
                 ellipsis: true
             });
 
-            // Col 3: Invoice Value (Shifted here from top header)
+            // Col 3: Invoice Value
             doc.font(fontBold).fontSize(6.5).fillColor("#475569").text("INVOICE VALUE", margin + (colWidth * 2) + 4, y + 5);
             doc.font(fontBold).fontSize(9.5).fillColor("#000000").text(`Rs ${order.invoiceValue || 0}`, margin + (colWidth * 2) + 4, y + 20);
 
@@ -277,7 +266,7 @@ if (!labels.length) {
             doc.font(fontBold).fontSize(8).fillColor("#000000").text(
                 `COURIER: ${courierNameStr} | DEST: ${destCityStr} (${destStateStr})`,
                 margin + 6,
-                y + 25,
+                y + 22,
                 { width: printWidth - 80, ellipsis: true }
             );
 
@@ -286,7 +275,7 @@ if (!labels.length) {
             doc.font(fontBold).fontSize(10).fillColor("#000000").text(
                 `[ ${paymentType} ]`,
                 margin + printWidth - 75,
-                y + 24,
+                y + 21,
                 { width: 70, align: "right" }
             );
         }
