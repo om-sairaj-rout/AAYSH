@@ -345,14 +345,20 @@ const AdminPickupPage = () => {
     return matchesTab && matchesSearch;
   });
 
+  const selectablePickups = filteredPickups.filter(
+  p =>
+    p.pickupStatus !== "Completed" &&
+    p.pickupStatus !== "Failed"
+);
+
   // Bulk Selection Handlers
   const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedPickupIds(filteredPickups.map(p => p._id));
-    } else {
-      setSelectedPickupIds([]);
-    }
-  };
+  if (e.target.checked) {
+    setSelectedPickupIds(selectablePickups.map(p => p._id));
+  } else {
+    setSelectedPickupIds([]);
+  }
+};
 
   const handleSelectRow = (id) => {
     if (selectedPickupIds.includes(id)) {
@@ -590,7 +596,10 @@ const AdminPickupPage = () => {
                     <input
                       type="checkbox"
                       onChange={handleSelectAll}
-                      checked={filteredPickups.length > 0 && selectedPickupIds.length === filteredPickups.length}
+                       checked={
+    selectablePickups.length > 0 &&
+    selectedPickupIds.length === selectablePickups.length
+  }
                       className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                     />
                   </th>
@@ -634,6 +643,10 @@ const AdminPickupPage = () => {
                         <td className="p-4 text-center">
                           <input
                             type="checkbox"
+                            disabled={
+    pickup.pickupStatus === "Completed" ||
+    pickup.pickupStatus === "Failed"
+  }
                             checked={isChecked}
                             onChange={() => handleSelectRow(pickup._id)}
                             className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"

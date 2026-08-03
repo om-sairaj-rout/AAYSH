@@ -43,13 +43,14 @@ const contactForm = async (req, res) => {
     });
 
   } catch (err) {
-    console.log(err);
+  console.error("MAIL ERROR:", err);
 
-    return res.status(500).json({
-      success: false,
-      message: "Mail send failed"
-    });
-  }
+  return res.status(500).json({
+    success: false,
+    message: err.message,
+    error: err
+  });
+}
 };
 
 module.exports = contactForm;

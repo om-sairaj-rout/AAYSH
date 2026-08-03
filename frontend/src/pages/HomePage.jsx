@@ -79,7 +79,7 @@ const HomePage = () => {
   const getStatusBadgeStyles = (status) => {
     switch (status) {
       case 'Booked': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      case 'Not Shipped': return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'Shipped': return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'Cancelled': return 'bg-rose-100 text-rose-800 border-rose-200';
       case 'In Transit': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'Delivered': return 'bg-blue-100 text-blue-800 border-blue-200';
