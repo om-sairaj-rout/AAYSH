@@ -70,18 +70,26 @@ if (!shipping) {
 
 const order = await Order.findById(shipping.orderId);
 
-      if (!order) {
-        failedShipments.push({
-  shipment_id: shipmentId,
-  reason: "Order not found.",
-});
-        continue;
-      }
+if (!order) {
+  failedShipments.push({
+    shipment_id: shipmentId,
+    reason: "Order not found.",
+  });
+  continue;
+}
+
+if (shipping.awbNumber) {
+  failedShipments.push({
+    shipment_id: shipmentId,
+    reason: "AWB already assigned.",
+  });
+  continue;
+}
 
 
       if (shipping.shippingStatus !== "Pending") {
         failedShipments.push({
-          order_id: orderId,
+          order_id: order.externalOrderId,
           reason: `Shipping status is '${shipping.shippingStatus}'.`,
         });
         continue;
@@ -114,7 +122,7 @@ const order = await Order.findById(shipping.orderId);
 
       if (!awb) {
         failedShipments.push({
-          order_id: orderId,
+          order_id: order.externalOrderId,
           reason: `No ${category} AWB available for ${courier.name}.`,
         });
         continue;
@@ -130,6 +138,7 @@ const order = await Order.findById(shipping.orderId);
       shipping.courierName = courier.name;
       shipping.shippingStatus = "Booked";
       shipping.bookedAt = new Date();
+      shipping.pickupStatus = "Scheduled";
 
       await shipping.save();
 
@@ -157,21 +166,22 @@ const order = await Order.findById(shipping.orderId);
 return res.status(200).json({
   success: true,
   message:
-    failedShipments.length > 0
-      ? "Some AWBs were assigned successfully."
-      : "AWB assigned successfully.",
+  failedShipments.length > 0
+    ? "Some shipments were assigned successfully."
+    : "AWB assigned successfully.",
   assigned_shipments: assignedShipments,
   failed_shipments: failedShipments,
 });
 
   } catch (error) {
-    console.error(error);
+  console.error(error);
 
-    return res.status(500).json({
-      success: false,
-      message: "Failed to assign AWB.",
-    });
-  }
+  return res.status(500).json({
+    success: false,
+    message: "Failed to assign AWB.",
+    error: error.message,
+  });
+}
 };
 
 module.exports = generateAwbExternal;

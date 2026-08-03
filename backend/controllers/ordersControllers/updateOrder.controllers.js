@@ -118,7 +118,6 @@ if (!allowedStatuses.includes(shipping.shippingStatus)) {
 
     if (order_date !== undefined) {
       order.orderDate = new Date(order_date);
-      order.pickupDate = new Date(order_date);
     }
 
     if (pickup_location !== undefined) {
