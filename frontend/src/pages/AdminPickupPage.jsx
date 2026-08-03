@@ -209,7 +209,8 @@ const AdminPickupPage = () => {
   const [isFailModalOpen, setIsFailModalOpen] = useState(false);
   const [isBulkFailModalOpen, setIsBulkFailModalOpen] = useState(false);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   const isTodayTab = activeTab === "Today's Pickups";
 
@@ -261,11 +262,41 @@ const AdminPickupPage = () => {
 
   // Metrics computation strictly on the basis of pickupStatus
   const counts = {
-    today: userFilteredPickups.filter(p => p.pickupDate === todayStr && getStatus(p) !== 'Failed').length,
-    future: userFilteredPickups.filter(p => p.pickupDate > todayStr && getStatus(p) !== 'Failed').length,
-    failed: userFilteredPickups.filter(p => getStatus(p) === 'Failed').length,
-    completed: userFilteredPickups.filter(p => getStatus(p) === 'Completed').length,
-    scheduled: userFilteredPickups.filter(p => getStatus(p) === 'Scheduled' || getStatus(p) === 'Pending').length,
+    today: userFilteredPickups.filter((p) => {
+      if (!p.pickupDate) return false;
+
+      const d = new Date(p.pickupDate);
+      d.setHours(0, 0, 0, 0);
+
+      return (
+        d.getTime() === today.getTime() &&
+        getStatus(p) !== "Failed"
+      );
+    }).length,
+
+    future: userFilteredPickups.filter((p) => {
+      if (!p.pickupDate) return false;
+
+      const d = new Date(p.pickupDate);
+      d.setHours(0, 0, 0, 0);
+
+      return (
+        d > today &&
+        getStatus(p) !== "Failed"
+      );
+    }).length,
+
+    failed: userFilteredPickups.filter(
+      (p) => getStatus(p) === "Failed"
+    ).length,
+
+    completed: userFilteredPickups.filter(
+      (p) => getStatus(p) === "Completed"
+    ).length,
+
+    scheduled: userFilteredPickups.filter(
+      (p) => getStatus(p) === "Scheduled"
+    ).length,
   };
 
   // 2. Further filter by Active Tab & Search Query
@@ -273,15 +304,33 @@ const AdminPickupPage = () => {
     let matchesTab = false;
     const status = getStatus(item);
 
+    const pickupDay = item.pickupDate
+      ? new Date(item.pickupDate)
+      : null;
+
+    if (pickupDay) {
+      pickupDay.setHours(0, 0, 0, 0);
+    }
+
     if (activeTab === "Today's Pickups") {
-      matchesTab = item.pickupDate === todayStr && status !== 'Failed';
-    } else if (activeTab === "Future Pickups") {
-      matchesTab = item.pickupDate > todayStr && status !== 'Failed';
-    } else if (activeTab === "Failed Pickups") {
-      matchesTab = status === 'Failed';
-    } else if (activeTab === "Completed Pickups") {
-      matchesTab = status === 'Completed';
-    } else if (activeTab === "All Pickups") {
+      matchesTab =
+        pickupDay &&
+        pickupDay.getTime() === today.getTime() &&
+        status !== "Failed";
+    }
+    else if (activeTab === "Future Pickups") {
+      matchesTab =
+        pickupDay &&
+        pickupDay > today &&
+        status !== "Failed";
+    }
+    else if (activeTab === "Failed Pickups") {
+      matchesTab = status === "Failed";
+    }
+    else if (activeTab === "Completed Pickups") {
+      matchesTab = status === "Completed";
+    }
+    else if (activeTab === "All Pickups") {
       matchesTab = true;
     }
 
@@ -353,22 +402,39 @@ const AdminPickupPage = () => {
   };
 
   // Bulk Action: Complete
-  const handleBulkComplete = () => {
-    setPickups(prev =>
-      prev.map(p => (selectedPickupIds.includes(p._id) ? { ...p, pickupStatus: 'Completed', status: 'Completed', failureReason: null } : p))
-    );
-    toast.success(`Marked ${selectedPickupIds.length} pickups as Completed`);
-    setSelectedPickupIds([]);
+  const handleBulkComplete = async () => {
+    try {
+      await Promise.all(
+        selectedPickupIds.map(id => completePickupAPI(id))
+      );
+
+      toast.success(`${selectedPickupIds.length} pickups completed`);
+
+      setSelectedPickupIds([]);
+
+      fetchPickups();
+    } catch (err) {
+      toast.error(err.message);
+    }
   };
 
   // Bulk Action: Fail
-  const handleConfirmBulkFail = (reason) => {
-    setPickups(prev =>
-      prev.map(p => (selectedPickupIds.includes(p._id) ? { ...p, pickupStatus: 'Failed', status: 'Failed', failureReason: reason } : p))
-    );
-    toast.error(`Marked ${selectedPickupIds.length} pickups as Failed`);
-    setIsBulkFailModalOpen(false);
-    setSelectedPickupIds([]);
+  const handleConfirmBulkFail = async (reason) => {
+    try {
+      await Promise.all(
+        selectedPickupIds.map(id => failPickupAPI(id, reason))
+      );
+
+      toast.success(`${selectedPickupIds.length} pickups marked as failed`);
+
+      setIsBulkFailModalOpen(false);
+
+      setSelectedPickupIds([]);
+
+      fetchPickups();
+    } catch (err) {
+      toast.error(err.message);
+    }
   };
 
   return (
@@ -558,6 +624,7 @@ const AdminPickupPage = () => {
                 filteredPickups.map((pickup) => {
                   const isChecked = selectedPickupIds.includes(pickup._id);
                   const currentStatus = getStatus(pickup);
+                  const isTerminalStatus = currentStatus === 'Completed' || currentStatus === 'Failed';
 
                   return (
                     <tr key={pickup._id} className={`hover:bg-slate-50/80 transition-colors ${isChecked ? 'bg-indigo-50/20' : ''}`}>
@@ -593,8 +660,13 @@ const AdminPickupPage = () => {
                       </td>
 
                       {/* Date */}
-                      <td className="p-3.5 font-mono text-slate-700">
-                        {pickup.pickupDate ? new Date(pickup.pickupDate).toLocaleDateString() : 'N/A'}
+                      <td className="p-3.5 font-mono text-slate-700 flex flex-col">
+                        <span>
+                          {pickup.pickupDate ? new Date(pickup.pickupDate).toLocaleDateString() : 'N/A'}
+                        </span>
+                        <span>
+                          {pickup.pickupTime || 'N/A'}
+                        </span>
                       </td>
 
                       {/* Status Badge */}
@@ -617,25 +689,23 @@ const AdminPickupPage = () => {
                       {/* Admin Controls - ONLY in Today's Pickups */}
                       {isTodayTab && (
                         <td className="p-3.5 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {currentStatus !== 'Completed' && (
+                          {!isTerminalStatus ? (
+                            <div className="flex items-center justify-end gap-1.5">
                               <button
                                 onClick={() => handleCompletePickup(pickup._id)}
                                 className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs rounded-lg transition-colors"
                               >
                                 ✓ Complete
                               </button>
-                            )}
 
-                            {currentStatus !== 'Failed' && (
                               <button
                                 onClick={() => handleOpenFailModal(pickup)}
                                 className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-lg transition-colors"
                               >
                                 ✕ Fail
                               </button>
-                            )}
-                          </div>
+                            </div>
+                          ) : null}
                         </td>
                       )}
 

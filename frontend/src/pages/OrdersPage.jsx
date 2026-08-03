@@ -325,7 +325,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
                       <p className="font-bold text-slate-700">₹{item.sellingPrice || 0} x {item.units || 1}</p>
                       {(item.discount > 0 || item.tax > 0) && (
                         <p className="text-[10px] text-slate-400">
-                          Disc: ₹{item.discount} | Tax: ₹{item.tax}
+                          Disc: ₹{item.discount} | Tax: {item.tax}%
                         </p>
                       )}
                     </div>

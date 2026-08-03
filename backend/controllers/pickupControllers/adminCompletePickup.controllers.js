@@ -14,9 +14,11 @@ const completePickup = async (req, res) => {
     }
 
     pickup.pickupStatus = "Completed";
-    pickup.failureReason = "";
-    pickup.pickedUpAt = new Date();
+pickup.failureReason = "";
+pickup.pickedUpAt = new Date();
 
+pickup.shippingStatus = "Shipped";
+pickup.shippedAt = new Date();
     await pickup.save();
 
     return res.json({
