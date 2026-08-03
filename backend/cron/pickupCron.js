@@ -1,7 +1,8 @@
 const cron = require("node-cron");
 const Shipping = require("../models/upload/shipping.model");
 
-cron.schedule("0 18 * * *", async () => {
+// Every 5 minutes from 6:00 PM to 11:55 PM
+cron.schedule("*/5 18-23 * * *", async () => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -26,7 +27,9 @@ cron.schedule("0 18 * * *", async () => {
       }
     );
 
-    console.log(`[Pickup Cron] ${result.modifiedCount} pickup(s) marked as Failed.`);
+    console.log(
+      `[Pickup Cron] ${result.modifiedCount} pickup(s) marked as Failed.`
+    );
   } catch (err) {
     console.error("[Pickup Cron]", err);
   }
