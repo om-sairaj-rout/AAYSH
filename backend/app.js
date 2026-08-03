@@ -35,6 +35,8 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+require("./cron/pickupCron");
+
 app.use('/api', authRouter);
 app.use('/api', shipmentRouter);
 app.use('/api', trackingRouter);

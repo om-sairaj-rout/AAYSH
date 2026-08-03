@@ -51,10 +51,30 @@ const CopyButton = ({ text, label, e }) => {
 
 /* ================= SCHEDULE PICKUP MODAL ================= */
 const SchedulePickupModal = ({ isOpen, onClose, selectedCourier, ordersCount, onFinalSubmit, defaultPickupLocation }) => {
-  const [pickupDate, setPickupDate] = useState(new Date().toISOString().split('T')[0]);
+  const todayStr = new Date().toISOString().split('T')[0];
+  
+  const [pickupDate, setPickupDate] = useState(todayStr);
   const [pickupLocation, setPickupLocation] = useState('');
   const [pickupTime, setPickupTime] = useState('11:00');
   const [notes, setNotes] = useState('');
+
+  // Helper to format Date object into HH:mm format
+  const getFormattedTime = (dateObj) => {
+    const hours = String(dateObj.getHours()).padStart(2, '0');
+    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
+  // Compute dynamic min time for native <input type="time" />
+  const getMinTime = () => {
+    if (pickupDate === todayStr) {
+      const now = new Date();
+      const nowFormatted = getFormattedTime(now);
+      // If current time is past 11:00 AM, use current time; otherwise fallback to 11:00
+      return nowFormatted > '11:00' ? nowFormatted : '11:00';
+    }
+    return '11:00';
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -67,13 +87,31 @@ const SchedulePickupModal = ({ isOpen, onClose, selectedCourier, ordersCount, on
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const [hours, minutes] = pickupTime.split(':').map(Number);
-    const totalMinutes = hours * 60 + minutes;
-    const startLimit = 11 * 60;
-    const endLimit = 17 * 60;
+    const now = new Date();
+    const isToday = pickupDate === todayStr;
 
-    if (totalMinutes < startLimit || totalMinutes > endLimit) {
-      toast.error('Pickup time must be between 11:00 AM and 5:00 PM');
+    const [hours, minutes] = pickupTime.split(':').map(Number);
+    const selectedMinutes = hours * 60 + minutes;
+
+    const startLimit = 11 * 60; // 11:00 AM
+    const endLimit = 17 * 60;   // 5:00 PM
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    // 1. Check if same-day scheduling is attempted after 5:00 PM
+    if (isToday && currentMinutes >= endLimit) {
+      toast.error('Pickups for today are closed as it is past 5:00 PM. Please select a future date.');
+      return;
+    }
+
+    // 2. Check general 11:00 AM to 5:00 PM boundary
+    if (selectedMinutes < startLimit || selectedMinutes > endLimit) {
+      toast.error('Pickup time must be between 11:00 AM and 5:00 PM.');
+      return;
+    }
+
+    // 3. Check if time is in the past for today
+    if (isToday && selectedMinutes <= currentMinutes) {
+      toast.error('Pickup time must be later than the current time.');
       return;
     }
 
@@ -112,7 +150,7 @@ const SchedulePickupModal = ({ isOpen, onClose, selectedCourier, ordersCount, on
               type="date"
               required
               value={pickupDate}
-              min={new Date().toISOString().split('T')[0]}
+              min={todayStr}
               onChange={(e) => setPickupDate(e.target.value)}
               className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
             />
@@ -144,14 +182,14 @@ const SchedulePickupModal = ({ isOpen, onClose, selectedCourier, ordersCount, on
             <input
               type="time"
               required
-              min="11:00"
+              min={getMinTime()}
               max="17:00"
               value={pickupTime}
               onChange={(e) => setPickupTime(e.target.value)}
               className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
             />
             <p className="text-[11px] text-slate-400 mt-1">
-              Select a time window between 11:00 AM and 5:00 PM for courier slot assignment.
+              Select a future time window between 11:00 AM and 5:00 PM today or on a future date.
             </p>
           </div>
 
@@ -188,6 +226,7 @@ const SchedulePickupModal = ({ isOpen, onClose, selectedCourier, ordersCount, on
     </div>
   );
 };
+
 
 /* ================= ORDER DETAILS & TRACKING MODAL ================= */
 const OrderDetailsModal = ({ isOpen, onClose, order }) => {
