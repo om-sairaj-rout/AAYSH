@@ -14,6 +14,9 @@ const getSpecificOrder = async (req, res) => {
     if (!isAdmin) {
       filter.uploadedBy = req.user.id;
     }
+    console.log(req.params);
+console.log(req.user);
+console.log(filter);
 
     const order = await Order.findOne(filter).lean();
 
