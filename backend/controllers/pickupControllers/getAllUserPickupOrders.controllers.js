@@ -3,19 +3,26 @@ const Shipping = require("../../models/upload/shipping.model");
 const getUserPickups = async (req, res) => {
   try {
     const pickups = await Shipping.find({
-      awbNumber: { $ne: "" },
-    })
-      .populate({
-        path: "orderId",
-        select:
-          "externalOrderId pickupLocation orderItems",
-      })
-      .sort({
-        pickupDate: 1,
-        createdAt: -1,
-      });
+  awbNumber: { $ne: "" },
+})
+  .populate({
+    path: "orderId",
+    match: {
+      uploadedBy: req.user.id,
+    },
+    select:
+      "externalOrderId pickupLocation orderItems",
+  })
+  .sort({
+    pickupDate: 1,
+    createdAt: -1,
+  });
 
-    const data = pickups.map((item) => ({
+const userPickups = pickups.filter(
+  (pickup) => pickup.orderId !== null
+);
+
+    const data = userPickups.map((item) => ({
       _id: item._id,
 
       orderId: item.orderId?._id,

@@ -211,6 +211,11 @@ const AdminPickupPage = () => {
 
   const todayStr = new Date().toISOString().split('T')[0];
 
+  const isTodayTab = activeTab === "Today's Pickups";
+
+  // Helper to extract normalized pickup status from item
+  const getStatus = (item) => item.pickupStatus || item.status;
+
   // 1. First filter pickups by selected User
   const userFilteredPickups = pickups.filter(p => {
     if (selectedUser === 'ALL') return true;
@@ -254,23 +259,28 @@ const AdminPickupPage = () => {
     fetchPickups();
   }, []);
 
-  // Metrics computation (derived from user-filtered pickups)
+  // Metrics computation strictly on the basis of pickupStatus
   const counts = {
-    today: userFilteredPickups.filter(p => p.pickupDate === todayStr && p.status !== 'Failed').length,
-    future: userFilteredPickups.filter(p => p.pickupDate > todayStr && p.status !== 'Failed').length,
-    failed: userFilteredPickups.filter(p => p.status === 'Failed').length,
-    completed: userFilteredPickups.filter(p => p.status === 'Completed').length,
+    today: userFilteredPickups.filter(p => p.pickupDate === todayStr && getStatus(p) !== 'Failed').length,
+    future: userFilteredPickups.filter(p => p.pickupDate > todayStr && getStatus(p) !== 'Failed').length,
+    failed: userFilteredPickups.filter(p => getStatus(p) === 'Failed').length,
+    completed: userFilteredPickups.filter(p => getStatus(p) === 'Completed').length,
+    scheduled: userFilteredPickups.filter(p => getStatus(p) === 'Scheduled' || getStatus(p) === 'Pending').length,
   };
 
   // 2. Further filter by Active Tab & Search Query
   const filteredPickups = userFilteredPickups.filter((item) => {
     let matchesTab = false;
+    const status = getStatus(item);
+
     if (activeTab === "Today's Pickups") {
-      matchesTab = item.pickupDate === todayStr && item.status !== 'Failed';
+      matchesTab = item.pickupDate === todayStr && status !== 'Failed';
     } else if (activeTab === "Future Pickups") {
-      matchesTab = item.pickupDate > todayStr && item.status !== 'Failed';
+      matchesTab = item.pickupDate > todayStr && status !== 'Failed';
     } else if (activeTab === "Failed Pickups") {
-      matchesTab = item.status === 'Failed';
+      matchesTab = status === 'Failed';
+    } else if (activeTab === "Completed Pickups") {
+      matchesTab = status === 'Completed';
     } else if (activeTab === "All Pickups") {
       matchesTab = true;
     }
@@ -345,7 +355,7 @@ const AdminPickupPage = () => {
   // Bulk Action: Complete
   const handleBulkComplete = () => {
     setPickups(prev =>
-      prev.map(p => (selectedPickupIds.includes(p._id) ? { ...p, status: 'Completed', failureReason: null } : p))
+      prev.map(p => (selectedPickupIds.includes(p._id) ? { ...p, pickupStatus: 'Completed', status: 'Completed', failureReason: null } : p))
     );
     toast.success(`Marked ${selectedPickupIds.length} pickups as Completed`);
     setSelectedPickupIds([]);
@@ -354,7 +364,7 @@ const AdminPickupPage = () => {
   // Bulk Action: Fail
   const handleConfirmBulkFail = (reason) => {
     setPickups(prev =>
-      prev.map(p => (selectedPickupIds.includes(p._id) ? { ...p, status: 'Failed', failureReason: reason } : p))
+      prev.map(p => (selectedPickupIds.includes(p._id) ? { ...p, pickupStatus: 'Failed', status: 'Failed', failureReason: reason } : p))
     );
     toast.error(`Marked ${selectedPickupIds.length} pickups as Failed`);
     setIsBulkFailModalOpen(false);
@@ -397,7 +407,8 @@ const AdminPickupPage = () => {
               </select>
             </div>
 
-            {selectedPickupIds.length > 0 && (
+            {/* Bulk actions only available in Today's Pickups tab */}
+            {isTodayTab && selectedPickupIds.length > 0 && (
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleBulkComplete}
@@ -459,15 +470,16 @@ const AdminPickupPage = () => {
           </div>
         </div>
 
-        {/* Tab Selection & Search Header */}
+        {/* Tab Selection & Search Header with Status-based Badge Counts */}
         <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-3 rounded-xl shadow-sm border border-slate-100">
           <div className="flex flex-wrap items-center gap-1.5">
-            {["Today's Pickups", "Future Pickups", "Failed Pickups", "All Pickups"].map((tab) => {
+            {["Today's Pickups", "Future Pickups", "Failed Pickups", "Completed Pickups", "All Pickups"].map((tab) => {
               const isActive = activeTab === tab;
               const count =
                 tab === "Today's Pickups" ? counts.today :
                 tab === "Future Pickups" ? counts.future :
-                tab === "Failed Pickups" ? counts.failed : userFilteredPickups.length;
+                tab === "Failed Pickups" ? counts.failed :
+                tab === "Completed Pickups" ? counts.completed : userFilteredPickups.length;
 
               return (
                 <button
@@ -506,52 +518,61 @@ const AdminPickupPage = () => {
           <table className="w-full text-left border-collapse table-auto">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/50">
-                <th className="p-4 w-12 text-center">
-                  <input
-                    type="checkbox"
-                    onChange={handleSelectAll}
-                    checked={filteredPickups.length > 0 && selectedPickupIds.length === filteredPickups.length}
-                    className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                  />
-                </th>
+                {/* Show Checkbox Column Header ONLY in Today's Pickups */}
+                {isTodayTab && (
+                  <th className="p-4 w-12 text-center">
+                    <input
+                      type="checkbox"
+                      onChange={handleSelectAll}
+                      checked={filteredPickups.length > 0 && selectedPickupIds.length === filteredPickups.length}
+                      className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                  </th>
+                )}
                 <th className="p-3.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">Order / AWB</th>
                 <th className="p-3.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">Courier</th>
                 <th className="p-3.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">Seller & Location</th>
                 <th className="p-3.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">Pickup Date</th>
                 <th className="p-3.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">Status</th>
-                <th className="p-3.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase text-right">Admin Actions</th>
+                {/* Show Admin Actions Header ONLY in Today's Pickups */}
+                {isTodayTab && (
+                  <th className="p-3.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase text-right">Admin Actions</th>
+                )}
               </tr>
             </thead>
 
             <tbody className="divide-y divide-slate-100 text-[13px] font-medium text-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400 font-medium">
+                  <td colSpan={isTodayTab ? 7 : 5} className="p-8 text-center text-slate-400 font-medium">
                     Loading admin pickup database...
                   </td>
                 </tr>
               ) : filteredPickups.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400 font-medium">
+                  <td colSpan={isTodayTab ? 7 : 5} className="p-8 text-center text-slate-400 font-medium">
                     No matching pickup records found.
                   </td>
                 </tr>
               ) : (
                 filteredPickups.map((pickup) => {
                   const isChecked = selectedPickupIds.includes(pickup._id);
+                  const currentStatus = getStatus(pickup);
 
                   return (
                     <tr key={pickup._id} className={`hover:bg-slate-50/80 transition-colors ${isChecked ? 'bg-indigo-50/20' : ''}`}>
                       
-                      {/* Checkbox */}
-                      <td className="p-4 text-center">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handleSelectRow(pickup._id)}
-                          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                        />
-                      </td>
+                      {/* Checkbox - ONLY in Today's Pickups */}
+                      {isTodayTab && (
+                        <td className="p-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleSelectRow(pickup._id)}
+                            className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          />
+                        </td>
+                      )}
 
                       {/* Order / AWB */}
                       <td className="p-3.5">
@@ -579,12 +600,12 @@ const AdminPickupPage = () => {
                       {/* Status Badge */}
                       <td className="p-3.5">
                         <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${
-                          pickup.pickupStatus === 'Completed' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
-                          pickup.pickupStatus === 'Failed' ? 'bg-rose-100 text-rose-800 border-rose-200' :
-                          pickup.pickupStatus === 'Future' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' :
+                          currentStatus === 'Completed' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                          currentStatus === 'Failed' ? 'bg-rose-100 text-rose-800 border-rose-200' :
+                          currentStatus === 'Future' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' :
                           'bg-amber-100 text-amber-800 border-amber-200'
                         }`}>
-                          {pickup.pickupStatus}
+                          {currentStatus || 'Scheduled'}
                         </span>
                         {pickup.failureReason && (
                           <p className="text-[11px] text-rose-500 mt-1 max-w-xs truncate" title={pickup.failureReason}>
@@ -593,28 +614,30 @@ const AdminPickupPage = () => {
                         )}
                       </td>
 
-                      {/* Admin Controls */}
-                      <td className="p-3.5 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {pickup.pickupStatus !== 'Completed' && (
-                            <button
-                              onClick={() => handleCompletePickup(pickup._id)}
-                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs rounded-lg transition-colors"
-                            >
-                              ✓ Complete
-                            </button>
-                          )}
+                      {/* Admin Controls - ONLY in Today's Pickups */}
+                      {isTodayTab && (
+                        <td className="p-3.5 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {currentStatus !== 'Completed' && (
+                              <button
+                                onClick={() => handleCompletePickup(pickup._id)}
+                                className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs rounded-lg transition-colors"
+                              >
+                                ✓ Complete
+                              </button>
+                            )}
 
-                          {pickup.pickupStatus !== 'Failed' && (
-                            <button
-                              onClick={() => handleOpenFailModal(pickup)}
-                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-lg transition-colors"
-                            >
-                              ✕ Fail
-                            </button>
-                          )}
-                        </div>
-                      </td>
+                            {currentStatus !== 'Failed' && (
+                              <button
+                                onClick={() => handleOpenFailModal(pickup)}
+                                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-lg transition-colors"
+                              >
+                                ✕ Fail
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
 
                     </tr>
                   );

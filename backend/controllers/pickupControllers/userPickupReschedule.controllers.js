@@ -3,11 +3,12 @@ const Shipping = require("../../models/upload/shipping.model");
 const reschedulePickup = async (req, res) => {
   try {
     const {
-      pickupId,
-      pickupDate,
-      pickupLocation,
-      notes,
-    } = req.body;
+  pickupId,
+  pickupDate,
+  pickupLocation,
+  pickupTime,
+  notes,
+} = req.body;
 
     if (!pickupId || !pickupDate) {
       return res.status(400).json({
@@ -25,21 +26,38 @@ const reschedulePickup = async (req, res) => {
       });
     }
 
-    pickup.pickupDate = pickupDate;
-    pickup.pickupLocation = pickupLocation || pickup.pickupLocation;
+    if (pickupTime) {
+  if (pickupTime < "11:00" || pickupTime > "17:00") {
+    return res.status(400).json({
+      success: false,
+      message: "Pickup time must be between 11:00 AM and 5:00 PM.",
+    });
+  }
+}
 
-    // Save notes inside pickupInstructions
-    pickup.pickupInstructions = notes || "";
-
-    // Reset failure state
-    pickup.pickupStatus = "Scheduled";
-
-    await pickup.save();
+    const updatedPickup = await Shipping.findByIdAndUpdate(
+  pickupId,
+  {
+    $set: {
+      pickupDate,
+      pickupTime: pickupTime || pickup.pickupTime,
+      pickupLocation: pickupLocation || pickup.pickupLocation,
+      pickupInstructions: notes || "",
+      pickupStatus: "Scheduled",
+      failureReason: "",
+      pickedUpAt: null,
+    },
+  },
+  {
+    new: true,
+    runValidators: true,
+  }
+);
 
     return res.status(200).json({
       success: true,
       message: "Pickup rescheduled successfully.",
-      data: pickup,
+      data: updatedPickup,
     });
 
   } catch (err) {
