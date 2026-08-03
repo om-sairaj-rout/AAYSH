@@ -7,30 +7,58 @@ const User = require("../../models/user.model");
 
 const generateInvoice = async (req, res) => {
     try {
-        const { orderIds } = req.body;
+        const { shipmentIds } = req.body;
 
-        if (!orderIds || orderIds.length === 0) {
-            return res.status(400).json({ success: false, message: "No order IDs provided" });
+        if (!shipmentIds || shipmentIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "No shipment IDs provided"
+            });
         }
 
-        // Fetch order details
-        const orders = await Order.find({ _id: { $in: orderIds } }).lean();
+        // Fetch shipments using external logic
+        const shippings = await Shipping.find({
+            shipmentId: { $in: shipmentIds }
+        }).lean();
 
-        if (!orders || orders.length === 0) {
-            return res.status(404).json({ success: false, message: "Orders not found" });
+        if (!shippings.length) {
+            return res.status(404).json({
+                success: false,
+                message: "Shipments not found"
+            });
         }
 
-        // Fetch shipping details
-        const shippings = await Shipping.find({ orderId: { $in: orderIds } }).lean();
-        const shippingMap = new Map(shippings.map(s => [s.orderId.toString(), s]));
+        // Extract order ids
+        const orderIds = shippings.map(shipment => shipment.orderId);
+
+        // Fetch orders
+        const orders = await Order.find({
+            _id: { $in: orderIds }
+        }).lean();
+
+        if (!orders.length) {
+            return res.status(404).json({
+                success: false,
+                message: "Orders not found"
+            });
+        }
 
         // Fetch seller details (if seller is linked via uploadedBy)
         const seller = await User.findById(orders[0].uploadedBy).lean();
+
+        // Attach shipping to order
+        const shippingMap = new Map(
+            shippings.map(shipment => [
+                shipment.orderId.toString(),
+                shipment
+            ])
+        );
 
         orders.forEach(order => {
             order.shipping = shippingMap.get(order._id.toString()) || null;
         });
 
+        // Set dimensions to standard A4 (matching internal style)
         const doc = new PDFDocument({ margin: 20, size: "A4", autoFirstPage: true });
 
         res.setHeader("Content-Type", "application/pdf");
@@ -45,7 +73,7 @@ const generateInvoice = async (req, res) => {
         const printWidth = doc.page.width - (margin * 2); // ~555 pt
 
         // Dynamic Seller Info fallback
-        const sellerName = seller?.username || "N/A";
+        const sellerName = seller?.company_name || seller?.username || "N/A";
         const sellerAddress = seller?.address 
             ? `${seller.address}, ${seller.city || ''}, ${seller.state || ''} - ${seller.zip_code || ''}`
             : "N/A";
@@ -77,7 +105,7 @@ const generateInvoice = async (req, res) => {
                 y += 35;
             }
 
-            // "TAX INVOICE" Title Center Strip (Bigger, but smaller than logo)
+            // "TAX INVOICE" Title Center Strip
             doc.font(fontBold).fontSize(20).fillColor("#000000").text("TAX INVOICE", margin, y, {
                 align: "center",
                 width: printWidth
@@ -118,7 +146,7 @@ const generateInvoice = async (req, res) => {
 
             doc.text(shipAddress, margin + 6, col1Y, { width: colW - 12 });
 
-            // --- Column 2: SOLD BY (Dynamic height calculation) ---
+            // --- Column 2: SOLD BY ---
             let col2Y = y + 6;
             const col2X = margin + colW + 6;
             doc.font(fontBold).fontSize(8).text("SOLD BY:", col2X, col2Y);
@@ -146,7 +174,7 @@ const generateInvoice = async (req, res) => {
 
             const nowFormatted = new Date().toLocaleDateString('en-GB'); // DD/MM/YYYY
             const invoiceNo = order.invoiceNo || "N/A";
-            const orderNo = order.externalOrderId || "N/A";
+            const orderNo = order.externalOrderId || order._id.toString().slice(-8);
             const orderDate = order.orderDate ? new Date(order.orderDate).toLocaleDateString('en-GB') : "N/A";
             const courier = order.shipping?.courierName || "N/A";
             const awbNo = order.shipping?.awbNumber || "N/A";
@@ -198,11 +226,9 @@ const generateInvoice = async (req, res) => {
 
             y += tableHeaderHeight;
 
-            const itemsList = order.orderItems || [];
-
-            if (!itemsList.length) {
-                continue;
-            }
+            let itemsList = order.orderItems && order.orderItems.length > 0 ? order.orderItems : [
+                { name: "General Parcel Goods", units: order.qty || 1, sellingPrice: order.subTotal || order.invoiceValue || 0, discount: 0 }
+            ];
 
             const itemRowHeight = 40;
 
@@ -227,7 +253,7 @@ const generateInvoice = async (req, res) => {
                 doc.text(`${index + 1}`, margin + 4, y + 8);
 
                 // Product Name + SKU Line
-                doc.font(fontBold).fontSize(8).text(item.name || "", margin + c1 + 4, y + 8, { width: c2 - 8, ellipsis: true });
+                doc.font(fontBold).fontSize(8).text(item.name || "Item", margin + c1 + 4, y + 8, { width: c2 - 8, ellipsis: true });
                 doc.font(fontNormal).fontSize(7.5).text(`SKU: ${item.sku || ''}`, margin + c1 + 4, y + 20, { width: c2 - 8, ellipsis: true });
 
                 doc.text(item.hsn || "", margin + c1 + c2 + 4, y + 8);
@@ -282,8 +308,8 @@ const generateInvoice = async (req, res) => {
 
             const boxWidth = 220;
             const boxX = margin + printWidth - boxWidth;
-            const rowHeight = 18;
-            const boxHeight = (summaryRows.length * rowHeight) + 10;
+            const summaryRowHeight = 18;
+            const boxHeight = (summaryRows.length * summaryRowHeight) + 10;
 
             doc.rect(boxX, y, boxWidth, boxHeight).stroke();
 
@@ -313,7 +339,7 @@ const generateInvoice = async (req, res) => {
                     }
                 );
 
-                currentY += rowHeight;
+                currentY += summaryRowHeight;
             });
 
             y += boxHeight + 20;

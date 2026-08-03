@@ -23,8 +23,31 @@ const drawBarcode128 = async (doc, code, x, y) => {
 
 const generateManifest = async (req, res) => {
     try {
-        const { orderIds, courierName } = req.body;
+        const { shipmentIds, courierName } = req.body;
 
+        if (!shipmentIds || shipmentIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "No shipment IDs provided"
+            });
+        }
+
+        // Fetch shipment records using external logic
+        const shippings = await Shipping.find({
+            shipmentId: { $in: shipmentIds }
+        }).lean();
+
+        if (!shippings.length) {
+            return res.status(404).json({
+                success: false,
+                message: "Shipments not found"
+            });
+        }
+
+        // Get corresponding order ids
+        const orderIds = shippings.map(shipment => shipment.orderId);
+
+        // Fetch orders
         const orders = await Order.find({
             _id: { $in: orderIds }
         }).lean();
@@ -36,10 +59,7 @@ const generateManifest = async (req, res) => {
             });
         }
 
-        const shippings = await Shipping.find({
-            orderId: { $in: orderIds }
-        }).lean();
-
+        // Fetch seller details (using first order's uploadedBy)
         const seller = await User.findById(
             orders[0].uploadedBy
         ).lean();
@@ -51,15 +71,19 @@ const generateManifest = async (req, res) => {
             });
         }
 
+        // Attach shipping object to each order
         const shippingMap = new Map(
-            shippings.map(s => [s.orderId.toString(), s])
+            shippings.map(shipment => [
+                shipment.orderId.toString(),
+                shipment
+            ])
         );
 
         orders.forEach(order => {
             order.shipping = shippingMap.get(order._id.toString()) || null;
         });
 
-        // Set autoFirstPage to true and disable automatic page creation
+        // Set autoFirstPage to true and disable automatic page creation (matching internal style)
         const doc = new PDFDocument({ margin: 25, size: "A4", autoFirstPage: true });
 
         res.setHeader("Content-Type", "application/pdf");
@@ -92,44 +116,43 @@ const generateManifest = async (req, res) => {
 
         const drawHeader = (yPos) => {
             // ================= 1. CENTER BRAND HEADER =================
-            // Centered Title Block
-           const titleY = yPos + 5;
+            const titleY = yPos + 5;
 
-doc.font(fontBold).fontSize(16);
+            doc.font(fontBold).fontSize(16);
 
-// Calculate text widths
-const aayshWidth = doc.widthOfString("AAYSH ");
-const expressWidth = doc.widthOfString("EXPRESS");
-const totalWidth = aayshWidth + expressWidth;
+            // Calculate text widths
+            const aayshWidth = doc.widthOfString("AAYSH ");
+            const expressWidth = doc.widthOfString("EXPRESS");
+            const totalWidth = aayshWidth + expressWidth;
 
-// Center both words together
-const startX = (doc.page.width - totalWidth) / 2;
+            // Center both words together
+            const startX = (doc.page.width - totalWidth) / 2;
 
-// Draw AAYSH
-doc.fillColor("#0F172A");
-doc.text("AAYSH ", startX, titleY, {
-    lineBreak: false
-});
+            // Draw AAYSH
+            doc.fillColor("#0F172A");
+            doc.text("AAYSH ", startX, titleY, {
+                lineBreak: false
+            });
 
-// Draw EXPRESS
-doc.fillColor("#0D9488");
-doc.text("EXPRESS", startX + aayshWidth, titleY, {
-    lineBreak: false
-});
+            // Draw EXPRESS
+            doc.fillColor("#0D9488");
+            doc.text("EXPRESS", startX + aayshWidth, titleY, {
+                lineBreak: false
+            });
 
-// Subtitle
-doc.font(fontNormal)
-   .fontSize(8)
-   .fillColor("#64748B")
-   .text(
-       "CARGO HANDOVER MANIFEST",
-       margin,
-       titleY + 22,
-       {
-           align: "center",
-           width: printWidth
-       }
-   );
+            // Subtitle
+            doc.font(fontNormal)
+               .fontSize(8)
+               .fillColor("#64748B")
+               .text(
+                   "CARGO HANDOVER MANIFEST",
+                   margin,
+                   titleY + 22,
+                   {
+                       align: "center",
+                       width: printWidth
+                   }
+               );
 
             // Subtitle Date
             const nowFormatted = new Date().toLocaleString("en-US", {
@@ -178,7 +201,7 @@ doc.font(fontNormal)
 
         y = drawTableHeader(y);
 
-        // ================= TABLE ROWS (SINGLE PAGE ENFORCED) =================
+        // ================= TABLE ROWS =================
         const rowHeight = 35;
 
         for (let i = 0; i < orders.length; i++) {
@@ -250,25 +273,25 @@ doc.font(fontNormal)
         // Address Block positioned directly below Seller Signature
         doc.font(fontNormal).fontSize(7.5).fillColor("#333333");
         doc.text(
-    sellerAddress,
-    rightColX,
-    footerY + 56,
-    {
-        width: colWidth - 16
-    }
-);
+            sellerAddress,
+            rightColX,
+            footerY + 56,
+            {
+                width: colWidth - 16
+            }
+        );
 
-// Position after address
-const contactY = doc.y + 5;
+        // Position after address
+        const contactY = doc.y + 5;
 
-doc.font(fontBold)
-   .fontSize(8)
-   .fillColor("#000000")
-   .text(
-       `Contact: ${sellerContact || "N/A"}`,
-       rightColX,
-       contactY
-   );
+        doc.font(fontBold)
+           .fontSize(8)
+           .fillColor("#000000")
+           .text(
+               `Contact: ${sellerContact || "N/A"}`,
+               rightColX,
+               contactY
+           );
 
         doc.end();
 

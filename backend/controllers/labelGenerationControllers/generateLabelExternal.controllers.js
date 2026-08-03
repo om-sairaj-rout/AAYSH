@@ -7,30 +7,56 @@ const Shipping = require("../../models/upload/shipping.model");
 
 const generateLabel = async (req, res) => {
     try {
-        const { orderIds } = req.body;
+        const { shipmentIds } = req.body;
 
-        if (!orderIds || orderIds.length === 0) {
-            return res.status(400).json({ success: false, message: "No order IDs provided" });
-        }
+if (!shipmentIds || shipmentIds.length === 0) {
+    return res.status(400).json({
+        success: false,
+        message: "No shipment IDs provided"
+    });
+}
 
-        // Fetch orders and populate reference details
-        const orders = await Order.find({ _id: { $in: orderIds } }).lean();
+// Fetch shipments
+const shippings = await Shipping.find({
+    shipmentId: { $in: shipmentIds }
+}).lean();
 
-        const shippings = await Shipping.find({
-            orderId: { $in: orderIds }
-        }).lean();
+if (!shippings.length) {
+    return res.status(404).json({
+        success: false,
+        message: "Shipments not found"
+    });
+}
 
-        const shippingMap = new Map(
-            shippings.map(s => [s.orderId.toString(), s])
-        );
+// Fetch corresponding orders
+const orderIds = shippings.map(s => s.orderId);
 
-        orders.forEach(order => {
-            order.shipping = shippingMap.get(order._id.toString()) || null;
-        });
+const orders = await Order.find({
+    _id: { $in: orderIds }
+}).lean();
 
-        if (!orders || orders.length === 0) {
-            return res.status(404).json({ success: false, message: "Orders not found" });
-        }
+const orderMap = new Map(
+    orders.map(order => [order._id.toString(), order])
+);
+
+// Merge order + shipping
+const labels = shippings.map(shipping => {
+    const order = orderMap.get(shipping.orderId.toString());
+
+    if (!order) return null;
+
+    return {
+        ...order,
+        shipping
+    };
+}).filter(Boolean);
+
+if (!labels.length) {
+    return res.status(404).json({
+        success: false,
+        message: "Orders not found for shipments"
+    });
+}
 
         // 4 x 6 inches in PDF Points (1 inch = 72 points) -> 288 x 432 points
         const LABEL_WIDTH = 288;
@@ -53,8 +79,8 @@ const generateLabel = async (req, res) => {
         const margin = 10;
         const printWidth = LABEL_WIDTH - (margin * 2); // 268 pt
 
-        for (let i = 0; i < orders.length; i++) {
-            const order = orders[i];
+        for (let i = 0; i < labels.length; i++) {
+    const order = labels[i];
 
             if (i > 0) doc.addPage();
 
@@ -65,30 +91,32 @@ const generateLabel = async (req, res) => {
                .stroke();
 
             // ================= 0. AAYSH EXPRESS TOP BORDER STRAP =================
-            const strapHeight = 16;
-            doc.rect(margin, margin, printWidth, strapHeight)
-               .fillColor("#0F172A")
-               .fill();
+const strapHeight = 16;
+doc.rect(margin, margin, printWidth, strapHeight)
+   .fillColor("#0F172A")
+   .fill();
 
-            doc.font(fontBold)
-               .fontSize(9)
-               .fillColor("#FFFFFF")
-               .text("AAYSH EXPRESS", margin, margin + 4, {
-                   width: printWidth,
-                   align: "center"
-               });
+doc.font(fontBold)
+   .fontSize(9)
+   .fillColor("#FFFFFF")
+   .text("AAYSH EXPRESS", margin, margin + 4, {
+       width: printWidth,
+       align: "center"
+   });
 
-            // Start content Y position right below the top strap
-            let y = margin + strapHeight;
+// Start content Y position right below the top strap
+let y = margin + strapHeight;
 
-            // ================= 1. BRANDING & LOGO HEADER BOX =================
-            const headerHeight = 52; 
-            doc.rect(margin, y, printWidth, headerHeight).strokeColor("#000000").stroke();
+            // ================= 1. BRANDING & LOGO HEADER BOX (ENLARGED LOGO) =================
+            const headerHeight = 52; // Increased header height to fit larger logo safely
+            doc.rect(margin, y, printWidth, headerHeight)
+   .strokeColor("#000000")
+   .stroke();
 
             // LOGO ZONE (Left Header)
-            const logoPath = path.join(__dirname, "../../assets/fiberise_logo.jpg"); 
-            const logoWidth = 115; 
-            const logoHeight = 42; 
+            const logoPath = path.join(__dirname, "../../assets/fiberise_logo.jpg");
+            const logoWidth = 115; // Increased logo width
+            const logoHeight = 42; // Increased logo height
 
             if (fs.existsSync(logoPath)) {
                 doc.image(logoPath, margin + 5, y + 5, {
@@ -103,7 +131,7 @@ const generateLabel = async (req, res) => {
                 doc.font(fontNormal).fontSize(6.5).fillColor("#64748B").text("LOGISTICS & FULFILLMENT", margin + 6, y + 28);
             }
 
-            // ORDER DATE ZONE (Right Header Box)
+            // ORDER DATE ZONE (Right Header Box - Formerly COD location)
             const rightHeaderX = margin + printWidth - 95;
             doc.moveTo(rightHeaderX, y).lineTo(rightHeaderX, y + headerHeight).stroke();
 
@@ -124,13 +152,13 @@ const generateLabel = async (req, res) => {
             const barcodeBoxHeight = 70;
             doc.rect(margin, y, printWidth, barcodeBoxHeight).stroke();
 
-            const awbNo = order.shipping?.awbNumber;
+            const awbNo = order.shipping?.awbNumber || "UNASSIGNED";
 
             try {
                 // Barcode generated directly from AWB Number
                 const barcodeBuffer = await bwipjs.toBuffer({
                     bcid: "code128",
-                    text: String(awbNo || ""),
+                    text: awbNo,
                     scale: 3,
                     height: 12,
                     includetext: false
@@ -142,14 +170,14 @@ const generateLabel = async (req, res) => {
                 doc.image(barcodeBuffer, bcX, y + 8, { width: bcRenderWidth, height: 38 });
 
                 // Text AWB Readout
-                doc.font(fontMono).fontSize(12).fillColor("#000000").text(awbNo || "", margin, y + 50, {
+                doc.font(fontMono).fontSize(12).text(awbNo, margin, y + 50, {
                     align: "center",
                     width: printWidth
                 });
 
             } catch (bcErr) {
                 console.error("Barcode Generation Error:", bcErr);
-                doc.font(fontBold).fontSize(10).fillColor("#000000").text(`AWB: ${awbNo}`, margin, y + 25, {
+                doc.font(fontBold).fontSize(10).text(`AWB: ${awbNo}`, margin, y + 25, {
                     align: "center",
                     width: printWidth
                 });
@@ -235,7 +263,7 @@ const generateLabel = async (req, res) => {
                 ellipsis: true
             });
 
-            // Col 3: Invoice Value
+            // Col 3: Invoice Value (Shifted here from top header)
             doc.font(fontBold).fontSize(6.5).fillColor("#475569").text("INVOICE VALUE", margin + (colWidth * 2) + 4, y + 5);
             doc.font(fontBold).fontSize(9.5).fillColor("#000000").text(`Rs ${order.invoiceValue || 0}`, margin + (colWidth * 2) + 4, y + 20);
 
