@@ -24,12 +24,14 @@ import PickupRoute from "./PickupRoute.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import ExcelReportsPage from "./pages/ExcelReportsPage.jsx";
 import ProtectedRoute from "./ProtectedRoute.jsx";
+import CustomerTracking from "./pages/CustomerTracking.jsx";
 
 const router = createBrowserRouter([
   { path: "/", element: <HomePage /> },
   { path: "/login", element: <Login /> },
   { path: "/forgot-password", element: <ForgotPassword /> },
   { path: "/reset-password/:token", element: <ResetPassword /> },
+  { path: "/track/:awb", element: <CustomerTracking /> },
   {
     element: (
     <ProtectedRoute>
