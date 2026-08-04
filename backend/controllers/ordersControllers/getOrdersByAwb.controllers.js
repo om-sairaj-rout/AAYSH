@@ -5,6 +5,7 @@ const Tracking = require("../../models/upload/tracking.model");
 const getOrderByAwb = async (req, res) => {
   try {
     const { awbNumber } = req.params;
+    console.log("AWB:", awbNumber);
 
     if (!awbNumber) {
       return res.status(400).json({

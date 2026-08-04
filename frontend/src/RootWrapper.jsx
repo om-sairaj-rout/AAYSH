@@ -31,7 +31,7 @@ const router = createBrowserRouter([
   { path: "/login", element: <Login /> },
   { path: "/forgot-password", element: <ForgotPassword /> },
   { path: "/reset-password/:token", element: <ResetPassword /> },
-  { path: "/track/:awb", element: <CustomerTracking /> },
+  { path: "/track/:awbNumber", element: <CustomerTracking /> },
   {
     element: (
     <ProtectedRoute>

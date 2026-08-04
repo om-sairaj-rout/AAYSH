@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useSelector } from "react-redux";
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Package, Truck, User, Building, FileText, Calendar, Phone } from 'lucide-react';
 import { getPublicOrderByAwb } from '../api/ordersAPI'; 
@@ -9,8 +8,7 @@ const CustomerTracking = () => {
   const { awbNumber } = useParams(); 
   const navigate = useNavigate();
 
-  const { isAdmin, user } = useSelector((state) => state.auth);
-  const canSeeWeight = isAdmin || user?.showWeight;
+  const canSeeWeight = false;
   
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
