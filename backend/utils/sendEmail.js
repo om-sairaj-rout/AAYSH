@@ -1,27 +1,10 @@
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
-(async () => {
-  try {
-    await transporter.verify();
-    console.log("SMTP Connected");
-  } catch (err) {
-    console.error("SMTP Verify Error:", err);
-  }
-})();
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendMail = async (to, subject, html) => {
-  console.log(process.env.EMAIL_USER);
-console.log(process.env.EMAIL_PASS);
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER,
+  await resend.emails.send({
+    from: "Aaysh Express <onboarding@resend.dev>",
     to,
     subject,
     html,
