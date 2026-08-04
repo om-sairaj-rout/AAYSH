@@ -77,7 +77,7 @@ const getTrackingByAwb = async (req, res) => {
           failure_reason: item.failureReason || "",
         })),
 
-        track_url: `${process.env.FRONTEND_URL}/track/awb/${shipment.awbNumber}`,
+        track_url: `${process.env.FRONTEND_URL}/track/${shipment.awbNumber}`,
       },
     });
   } catch (err) {

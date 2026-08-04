@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSelector } from "react-redux";
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Package, Truck, User, Building, FileText, Calendar, Phone } from 'lucide-react';
-import { getOrderByAwb } from '../api/ordersAPI'; 
+import { getPublicOrderByAwb } from '../api/ordersAPI'; 
 import OrderTracker from '../components/OrderTracker'; // <--- Imported OrderTracker Component
 
 const CustomerTracking = () => {
@@ -20,7 +20,7 @@ const CustomerTracking = () => {
     const fetchOrderDetails = async () => {
       try {
         setLoading(true);
-        const res = await getOrderByAwb(awbNumber);
+        const res = await getPublicOrderByAwb(awbNumber);
         console.log("Fetched order details:", res);
         
         if (res?.success && res.order) {

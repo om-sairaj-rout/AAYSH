@@ -50,6 +50,10 @@ orderRouter.get(
   getOrderByAwbController
 );
 
+orderRouter.get(
+  "/public/orders/awb/:awbNumber",
+  getOrderByAwbController
+);
 
 orderRouter.post(
   "/external/orders/create-order",

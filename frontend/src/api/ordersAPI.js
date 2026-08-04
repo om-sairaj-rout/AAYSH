@@ -97,3 +97,17 @@ export const getOrderByAwb = async (awbNumber) => {
 
   return data;
 };
+
+export const getPublicOrderByAwb = async (awbNumber) => {
+  const res = await fetch(
+    `${BASE}/api/public/orders/awb/${awbNumber}`
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.message);
+  }
+
+  return data;
+};
