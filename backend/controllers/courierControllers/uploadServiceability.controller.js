@@ -1,7 +1,7 @@
 const xlsx = require("xlsx");
 
-const Courier = require("../../models/courier/courier.model");
-const PincodeServiceability = require("../../models/pincodeServiceability.model");
+const Courier = require("../../models/awb/courier.model");
+const PincodeServiceability = require("../../models/upload/serviceability.model");
 
 const getCategory = require("../../utils/categoryMapper");
 
