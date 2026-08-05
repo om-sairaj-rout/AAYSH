@@ -259,7 +259,7 @@ if (!allowedStatuses.includes(shipping.shippingStatus)) {
 
     order.category = getCategory(order.destinationCity, order.destinationState);
     const serviceType =
-  shipping.serviceType || "Surface";
+  shipping.serviceType || "surface";
     order.expectedHours = getExpectedHours(order.category, serviceType);
 
    

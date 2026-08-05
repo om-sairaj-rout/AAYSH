@@ -1,5 +1,5 @@
 const SLA = {
-  Surface: {
+  surface: {
     "Local NCR": 48,
     "North Zone": 96,
     Metro: 120,
@@ -7,7 +7,7 @@ const SLA = {
     "North East": 168,
   },
 
-  Air: {
+  air: {
     "Local NCR": 24,
     "North Zone": 72,
     Metro: 96,
@@ -15,7 +15,7 @@ const SLA = {
     "North East": 120,
   },
 
-  Prime: {
+  prime: {
     "Local NCR": 24,
     "North Zone": 48,
     Metro: 48,
@@ -26,11 +26,11 @@ const SLA = {
 
 const getExpectedHours = (
   zone,
-  serviceType = "Surface"
+  serviceType = "surface"
 ) => {
   return (
     SLA[serviceType]?.[zone] ??
-    SLA.Surface["Rest of India"]
+    SLA.surface["Rest of India"]
   );
 };
 

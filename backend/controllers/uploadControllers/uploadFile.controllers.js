@@ -190,7 +190,7 @@ const uploadFileController = async (req, res) => {
 );
 
       const expectedHours =
-        getExpectedHours(category, "Surface"); 
+        getExpectedHours(category, "surface"); 
 
       const shipmentId =
         await generateUniqueShipmentId();

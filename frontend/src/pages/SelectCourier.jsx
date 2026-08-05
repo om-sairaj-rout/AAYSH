@@ -14,21 +14,21 @@ const SelectCourier = ({ isOpen, onClose, onConfirm, selectedOrdersCount = 2 }) 
 
   const serviceTypes = [
     {
-      value: "Surface",
+      value: "surface",
       title: "Surface",
       icon: Truck,
       desc: "Standard ground transport",
       tag: "Economical"
     },
     {
-      value: "Air",
+      value: "air",
       title: "Air",
       icon: Plane,
       desc: "Express flight delivery",
       tag: "Fast"
     },
     {
-      value: "Prime",
+      value: "prime",
       title: "Prime",
       icon: Zap,
       desc: "Priority hand-off & delivery",

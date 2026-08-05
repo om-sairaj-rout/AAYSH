@@ -137,7 +137,7 @@ const shipmentId = await generateUniqueShipmentId();
   body.billing_city,body.billing_state
 );
 
-const serviceType = "Surface";
+const serviceType = "surface";
 
 const expectedHours =
   getExpectedHours(category,serviceType);

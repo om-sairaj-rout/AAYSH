@@ -41,7 +41,7 @@ const orderCalculations = (order, shipping) => {
   );
 
   const serviceType =
-  shipping?.serviceType || "Surface";
+  shipping?.serviceType || "surface";
 
   // ==========================
   // EXPECTED HOURS
