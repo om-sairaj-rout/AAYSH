@@ -1,187 +1,379 @@
 const Awb = require("../../models/awb/awb.model");
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
-const Courier = require("../../models/awb/courier.model");
+const PincodeServiceability = require("../../models/upload/serviceability.model");
+const CourierPriority = require("../../models/upload/courierPriority.model");
 
+// ================= CATEGORY LOGIC =================
+const getAwbCategory = (weight, service) => {
+  if (service === "prime") return "prime";
 
-const getAwbCategory = (weight, isPrime) => {
-  if (isPrime) return "prime";
-
-  if (!weight || weight > 3) {
-    return "over3kg";
-  }
-
-  if (weight <= 1) {
-    return "under1kg";
-  }
-
-  return "over3kg";
+  return weight > 3 ? "over3kg" : "under3kg";
 };
 
 const generateAwbExternal = async (req, res) => {
   try {
     const {
-  courier_name,
-  is_prime = false,
-  shipments,
-} = req.body;
+      serviceType,
+      shipments,
+      pickupDate,
+      pickupLocation,
+      pickupTime,
+      notes,
+    } = req.body;
+
+    const service = serviceType?.toLowerCase();
 
     // =========================================
     // Validation
     // =========================================
 
-    if (!courier_name || !Array.isArray(shipments) || shipments.length === 0) {
-  return res.status(400).json({
-    success: false,
-    message: "courier_name and shipments are required.",
-  });
-}
-
-    const courier = await Courier.findOne({
-      name: courier_name,
-    });
-
-    if (!courier) {
-      return res.status(404).json({
+    if (!service || !Array.isArray(shipments) || shipments.length === 0) {
+      return res.status(400).json({
         success: false,
-        message: "Courier not found.",
+        message: "Service type and shipments are required.",
       });
     }
 
-    const assignedShipments = [];
-    const failedShipments = [];
+    if (!["surface", "air", "prime"].includes(service)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid service type.",
+      });
+    }
+
+    const priority = await CourierPriority.findOne({
+      service,
+    }).lean();
+
+    if (!priority) {
+      return res.status(400).json({
+        success: false,
+        message: "Priority list not configured.",
+      });
+    }
+
+    const updatedShipments = [];
+
+    // =========================================
+    // Fetch all Shipping records
+    // =========================================
+
+    const shippingDocs = await Shipping.find({
+      shipmentId: { $in: shipments },
+    }).lean();
+
+    const shippingMap = new Map(
+      shippingDocs.map((s) => [s.shipmentId, s])
+    );
+
+    // =========================================
+    // Fetch Orders
+    // =========================================
+
+    const orderIds = shippingDocs.map((s) => s.orderId);
+
+    const orderDocs = await Order.find({
+      _id: { $in: orderIds },
+    }).lean();
+
+    const orderMap = new Map(
+      orderDocs.map((o) => [
+        o._id.toString(),
+        o,
+      ])
+    );
+
+    // =========================================
+    // Fetch Serviceability
+    // =========================================
+
+    const pincodes = [
+      ...new Set(
+        orderDocs.map(
+          (o) => o.destinationPincode
+        )
+      ),
+    ];
+
+    const serviceabilityDocs =
+      await PincodeServiceability.find({
+        pincode: { $in: pincodes },
+      }).lean();
+
+    const serviceabilityMap = new Map(
+      serviceabilityDocs.map((s) => [
+        s.pincode,
+        s,
+      ])
+    );
+
+    // =========================================
+    // Bulk Updates
+    // =========================================
+
+    const shippingUpdates = [];
+    const orderUpdates = [];
 
     // =========================================
     // Assign AWB
     // =========================================
 
     for (const shipmentId of shipments) {
-  const shipping = await Shipping.findOne({
-  shipmentId,
-});
+      const shipping =
+        shippingMap.get(shipmentId);
 
-if (!shipping) {
-  failedShipments.push({
-    shipment_id: shipmentId,
-    reason: "Shipment not found.",
-  });
-  continue;
-}
-
-const order = await Order.findById(shipping.orderId);
-
-if (!order) {
-  failedShipments.push({
-    shipment_id: shipmentId,
-    reason: "Order not found.",
-  });
-  continue;
-}
-
-if (shipping.awbNumber) {
-  failedShipments.push({
-    shipment_id: shipmentId,
-    reason: "AWB already assigned.",
-  });
-  continue;
-}
-
-
-      if (shipping.shippingStatus !== "Pending") {
-        failedShipments.push({
-          order_id: order.externalOrderId,
-          reason: `Shipping status is '${shipping.shippingStatus}'.`,
+      if (!shipping) {
+        updatedShipments.push({
+          shipmentId,
+          error: "Shipment not found",
         });
         continue;
       }
 
-      const category = getAwbCategory(
-        order.weight,
-        is_prime
+      if (shipping.awbNumber) {
+        updatedShipments.push({
+          shipmentId,
+          orderId: shipping.orderId,
+          error: "AWB already assigned",
+        });
+        continue;
+      }
+
+      const order = orderMap.get(
+        shipping.orderId.toString()
       );
 
-      const awb = await Awb.findOneAndUpdate(
-        {
-          courierId: courier._id,
-          category,
-          status: "available",
-        },
-        {
-          $set: {
-            status: "booked",
-            assignedOrder: order._id,
-          },
-        },
-        {
-          new: true,
-          sort: {
-            createdAt: 1,
-          },
+      if (!order) {
+        updatedShipments.push({
+          shipmentId,
+          error: "Order not found",
+        });
+        continue;
+      }
+
+      const serviceability =
+        serviceabilityMap.get(
+          order.destinationPincode
+        );
+
+      if (!serviceability) {
+        updatedShipments.push({
+          shipmentId,
+          orderId: order.externalOrderId,
+          consigneeName:
+            order.consigneeName,
+          destinationPincode:
+            order.destinationPincode,
+          error:
+            "Destination pincode is not serviceable",
+        });
+        continue;
+      }
+
+      // Couriers supporting requested service
+
+      const availableCouriers =
+        serviceability.couriers.filter(
+          (c) => c[service]
+        );
+
+      if (!availableCouriers.length) {
+        updatedShipments.push({
+          shipmentId,
+          orderId: order.externalOrderId,
+          consigneeName:
+            order.consigneeName,
+          destinationPincode:
+            order.destinationPincode,
+          error: `${service} service unavailable`,
+        });
+        continue;
+      }
+
+      const courierMap = new Map();
+
+      availableCouriers.forEach((c) => {
+        courierMap.set(
+          c.courierId.toString(),
+          c
+        );
+      });
+
+      const category =
+        getAwbCategory(
+          order.weight,
+          service
+        );
+
+      let awb = null;
+      let selectedCourier = null;
+
+      // Priority-based AWB allocation
+
+      for (const priorityCourier of priority.priority) {
+        if (
+          !courierMap.has(
+            priorityCourier.courierId.toString()
+          )
+        ) {
+          continue;
         }
-      );
+
+        awb =
+          await Awb.findOneAndUpdate(
+            {
+              courierId:
+                priorityCourier.courierId,
+              category,
+              status: "available",
+            },
+            {
+              $set: {
+                status: "booked",
+                assignedOrder:
+                  order._id,
+              },
+            },
+            {
+              new: true,
+              sort: {
+                createdAt: 1,
+              },
+            }
+          );
+
+        if (awb) {
+          selectedCourier =
+            priorityCourier;
+          break;
+        }
+      }
 
       if (!awb) {
-        failedShipments.push({
-          order_id: order.externalOrderId,
-          reason: `No ${category} AWB available for ${courier.name}.`,
+        updatedShipments.push({
+          shipmentId,
+          orderId:
+            order.externalOrderId,
+          consigneeName:
+            order.consigneeName,
+          destinationPincode:
+            order.destinationPincode,
+          error:
+            "No AWB available for any courier",
         });
+
         continue;
       }
 
+     // Shipping update
+shippingUpdates.push({
+  updateOne: {
+    filter: {
+      shipmentId,
+    },
+    update: {
+      awbNumber: awb.awbNumber,
+      courierId: selectedCourier.courierId,
+      courierName: selectedCourier.courierName,
+      serviceType: service,
 
-      // =========================================
-      // Update Shipping
-      // =========================================
+      pickupDate,
+      pickupTime,
+      pickupInstructions: notes,
+      pickupLocation,
 
-      shipping.awbNumber = awb.awbNumber;
-      shipping.courierId = courier._id;
-      shipping.courierName = courier.name;
-      shipping.shippingStatus = "Booked";
-      shipping.bookedAt = new Date();
-      shipping.pickupStatus = "Scheduled";
+      pickupStatus: "Scheduled",
+      shippingStatus: "Booked",
+      bookedAt: new Date(),
+      totalWeight: order.weight || 0,
+    },
+  },
+});
 
-      await shipping.save();
+// Order update
+orderUpdates.push({
+  updateOne: {
+    filter: {
+      _id: order._id,
+    },
+    update: {
+      pickupDate,
+      pickupTime,
+      pickupInstructions: notes,
+      pickupLocation,
+    },
+  },
+});
 
-      assignedShipments.push({
-  shipment_id: shipping.shipmentId,
-  order_id: order.externalOrderId,
-  awb_number: awb.awbNumber,
-  courier_name: courier.name,
-  shipping_status: shipping.shippingStatus,
+updatedShipments.push({
+  shipmentId,
+  orderId: order.externalOrderId,
+  consigneeName: order.consigneeName,
+  destinationPincode: order.destinationPincode,
+
+  awbNumber: awb.awbNumber,
+  courier: selectedCourier.courierName,
+  serviceType: service,
+  category,
 });
     }
 
-    // =========================================
-    // Response
-    // =========================================
+// Bulk updates
+if (shippingUpdates.length) {
+  await Shipping.bulkWrite(
+    shippingUpdates
+  );
+}
 
-    if (assignedShipments.length === 0) {
+if (orderUpdates.length) {
+  await Order.bulkWrite(
+    orderUpdates
+  );
+}
+
+const successCount =
+  updatedShipments.filter(
+    (o) => o.awbNumber
+  ).length;
+
+if (!successCount) {
   return res.status(400).json({
     success: false,
-    message: "No AWB could be assigned.",
-    failed_shipments: failedShipments,
+    message:
+      "No shipments could be assigned.",
+    data: updatedShipments,
   });
 }
 
-return res.status(200).json({
-  success: true,
-  message:
-  failedShipments.length > 0
-    ? "Some shipments were assigned successfully."
-    : "AWB assigned successfully.",
-  assigned_shipments: assignedShipments,
-  failed_shipments: failedShipments,
-});
+const failedCount =
+  updatedShipments.filter(
+    (o) => o.error
+  ).length;
 
-  } catch (error) {
-  console.error(error);
+return res.status(200).json({
+  success: successCount > 0,
+  message:
+    "AWB assignment completed",
+
+  summary: {
+    total: updatedShipments.length,
+    success: successCount,
+    failed: failedCount,
+  },
+
+  data: updatedShipments,
+});
+} catch (err) {
+  console.error(err);
 
   return res.status(500).json({
     success: false,
-    message: "Failed to assign AWB.",
-    error: error.message,
+    message:
+      "Server error during AWB assignment",
   });
 }
-};
+}
 
-module.exports = generateAwbExternal;
+module.exports =
+  generateAwbExternal;

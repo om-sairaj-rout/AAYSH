@@ -149,7 +149,7 @@ const ServiceabilityPage = () => {
               <div className="p-3 bg-indigo-50/60 border border-indigo-100 rounded-xl text-xs space-y-1">
                 <span className="font-bold text-indigo-900 block text-[11px]">Expected Sheet Structure:</span>
                 <p className="text-[10px] text-indigo-700 leading-relaxed font-mono">
-                  Headers: <span className="font-bold">Pincode, City, Prime</span>
+                  Headers: <span className="font-bold">Pincode, City, State, Prime</span>
                 </p>
               </div>
 
@@ -281,38 +281,6 @@ const ServiceabilityPage = () => {
                 <X className="w-4 h-4" />
               </button>
             </div>
-
-            <form onSubmit={handleAddCourier} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Company Entity Name</label>
-                <input
-                  type="text"
-                  value={newCourierName}
-                  onChange={(e) => setNewCourierName(e.target.value)}
-                  placeholder="e.g., Delhivery, BlueDart, Ecom Express"
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 text-xs font-semibold text-slate-800"
-                  required
-                  autoFocus
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsCourierModalOpen(false)}
-                  className="w-1/3 py-2.5 border border-slate-200 text-slate-500 font-bold text-xs rounded-xl hover:bg-slate-50 transition-colors uppercase tracking-wider cursor-pointer"
-                >
-                  Dismiss
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading || !newCourierName.trim()}
-                  className="w-2/3 py-2.5 bg-[#1E293B] hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors shadow-xs uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer"
-                >
-                  {loading ? "Adding..." : "Add Partner"}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

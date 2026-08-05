@@ -575,7 +575,7 @@ const OrdersPage = () => {
   setOrdersToShip([]);
 
   // Save API response and open assignment modal
-  setAssignmentResponse(res.data); // or res, depending on your API
+  setAssignmentResponse(res); // or res, depending on your API
   setIsAssignmentModalOpen(true);
 
   fetchOrders();
