@@ -69,7 +69,9 @@ let primeCount = 0;
 
 // Remove old serviceability of this courier before importing fresh sheet
 await PincodeServiceability.updateMany(
-  {},
+  {
+    "couriers.courierId": courier._id,
+  },
   {
     $pull: {
       couriers: {
@@ -82,6 +84,8 @@ await PincodeServiceability.updateMany(
     // =====================================
     // Process Rows
     // =====================================
+
+    const bulkOperations = [];
 
     for (const row of rows) {
       const pincode = String(
@@ -171,80 +175,57 @@ if (prime) primeCount++;
       // Find Existing Pincode
       // ============================
 
-      let serviceability =
-        await PincodeServiceability.findOne({
-          pincode,
-        }).lean();
+      bulkOperations.push({
+  updateOne: {
+    filter: {
+      pincode,
+    },
+    update: {
+      $set: {
+        zone,
+      },
 
-      // ============================
-      // Create New
-      // ============================
+      $pull: {
+        couriers: {
+          courierId: courier._id,
+        },
+      },
 
-      if (!serviceability) {
-        serviceability =
-          await PincodeServiceability.create({
-            pincode,
-
-            zone,
-
-            couriers: [
-              {
-                courierId: courier._id,
-                courierName: courier.name,
-
-                prime,
-                surface,
-                air,
-              },
-            ],
-          });
-
-        created++;
-        continue;
-      }
-
-      // ============================
-      // Update Existing Courier
-      // ============================
-
-      const courierIndex =
-        serviceability.couriers.findIndex(
-          (c) =>
-            c.courierId.toString() ===
-            courier._id.toString()
-        );
-
-      if (courierIndex >= 0) {
-        serviceability.couriers[
-          courierIndex
-        ].prime = prime;
-
-        serviceability.couriers[
-          courierIndex
-        ].surface = surface;
-
-        serviceability.couriers[
-          courierIndex
-        ].air = air;
-
-        serviceability.couriers[
-          courierIndex
-        ].courierName = courier.name;
-      } else {
-        serviceability.couriers.push({
+      $push: {
+        couriers: {
           courierId: courier._id,
           courierName: courier.name,
-
           prime,
           surface,
           air,
-        });
-      }
+        },
+      },
+    },
 
-      await serviceability.save();
+    upsert: true,
+  },
+});
 
-      updated++;
+if (bulkOperations.length >= 1000) {
+  await PincodeServiceability.bulkWrite(
+    bulkOperations,
+    { ordered: false }
+  );
+
+  updated += bulkOperations.length;
+
+  bulkOperations.length = 0;
+}
     }
+
+    if (bulkOperations.length > 0) {
+  await PincodeServiceability.bulkWrite(
+    bulkOperations,
+    { ordered: false }
+  );
+
+  updated += bulkOperations.length;
+}
 
     // Remove pincodes that no longer have any courier
 await PincodeServiceability.deleteMany({
@@ -269,8 +250,7 @@ await Courier.findByIdAndUpdate(courier._id, {
         "Pincode serviceability uploaded successfully.",
 
       totalRows: rows.length,
-      created,
-      updated,
+      processed: updated,
     });
   } catch (error) {
     console.error(error);

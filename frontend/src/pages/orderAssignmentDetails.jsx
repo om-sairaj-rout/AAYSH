@@ -4,7 +4,14 @@ import { toast } from 'react-hot-toast';
 const OrderAssignmentDetailsModal = ({ isOpen, onClose, responseData }) => {
   if (!isOpen || !responseData) return null;
 
-  const { summary, data } = responseData;
+  const {
+  summary = {
+    total: responseData?.data?.length || 0,
+    success: 0,
+    failed: responseData?.data?.length || 0,
+  },
+  data = [],
+} = responseData;
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
@@ -78,7 +85,7 @@ const OrderAssignmentDetailsModal = ({ isOpen, onClose, responseData }) => {
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
                   {data?.map((item, idx) => {
-                    const isSuccess = Boolean(item.awbNumber);
+                    const isSuccess = !item.error && item.awbNumber;
 
                     return (
                       <tr key={item.orderId || idx} className="hover:bg-slate-50/80 transition-colors">
@@ -122,7 +129,17 @@ const OrderAssignmentDetailsModal = ({ isOpen, onClose, responseData }) => {
                               </button>
                             </div>
                           ) : (
-                            <span className="text-slate-400 italic">Not Assigned</span>
+                            <div>
+    <span className="text-slate-400 italic">
+        Not Assigned
+    </span>
+
+    {item.error && (
+        <p className="text-[11px] text-rose-600 mt-1">
+            {item.error}
+        </p>
+    )}
+</div>
                           )}
                         </td>
 

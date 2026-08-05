@@ -3,9 +3,11 @@ import { useSelector } from "react-redux";
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getOrders } from '../api/ordersAPI';
 import SelectCourier from './SelectCourier'; 
+import OrderAssignmentDetailsModal from './OrderAssignmentDetails';
 import { shipOrdersAPI } from '../api/shipingAPI';
 import { toast } from 'react-hot-toast';
 import OrderTracker from '../components/OrderTracker';
+
 
 /* ================= COPY BUTTON UI COMPONENT ================= */
 const CopyButton = ({ text, label, e }) => {
@@ -387,7 +389,8 @@ const OrdersPage = () => {
   const [counts, setCounts] = useState({});
   const [allOrders, setAllOrders] = useState([]);
   const [selectedOrders, setSelectedOrders] = useState([]);
-  const { isAdmin, user } = useSelector((state) => state.auth);
+  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
+  const [assignmentResponse, setAssignmentResponse] = useState(null);
 
   // Search & Order Date Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -565,15 +568,20 @@ const OrdersPage = () => {
       const res = await shipOrdersAPI(payload);
 
       if (res.success) {
-        toast.success("Shipment & Pickup Scheduled Successfully");
+  toast.success("Shipment & Pickup Scheduled Successfully");
 
-        setIsScheduleModalOpen(false);
-        setSelectedCourierData(null);
-        setSelectedOrders([]);
-        setOrdersToShip([]);
+  // Close previous modals
+  setIsScheduleModalOpen(false);
+  setSelectedCourierData(null);
+  setSelectedOrders([]);
+  setOrdersToShip([]);
 
-        fetchOrders();
-      } else {
+  // Save API response and open assignment modal
+  setAssignmentResponse(res.data); // or res, depending on your API
+  setIsAssignmentModalOpen(true);
+
+  fetchOrders();
+} else {
         toast.error(res.message || "Failed to schedule pickup");
       }
     } catch (err) {
@@ -991,6 +999,15 @@ const OrdersPage = () => {
         onClose={() => { setIsDetailsModalOpen(false); setSelectedOrderDetails(null); }}
         order={selectedOrderDetails}
       />
+
+      <OrderAssignmentDetailsModal
+  isOpen={isAssignmentModalOpen}
+  onClose={() => {
+    setIsAssignmentModalOpen(false);
+    setAssignmentResponse(null);
+  }}
+  responseData={assignmentResponse}
+/>
     </div>
   );
 };
