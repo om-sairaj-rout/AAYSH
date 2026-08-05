@@ -68,6 +68,11 @@ const SideBar = ({ isOpen, setIsOpen }) => {
           icon: <Barcode size={20} />,
           path: "/update/AWB",
         },
+        {
+          name: "Serviceability Management",
+          icon: <Barcode size={20} />,
+          path: "/update/serviceability",
+        },
       ],
     },
     {

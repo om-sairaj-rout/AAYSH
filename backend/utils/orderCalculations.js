@@ -34,15 +34,21 @@ const orderCalculations = (order, shipping) => {
   // CATEGORY
   // ==========================
   const category =
-    order.category ||
-    getCategory(order.destinationCity);
+  order.category ||
+  getCategory(
+    order.destinationCity,
+    order.destinationState
+  );
+
+  const serviceType =
+  shipping?.serviceType || "Surface";
 
   // ==========================
   // EXPECTED HOURS
   // ==========================
   const expectedHours =
     order.expectedHours ||
-    getExpectedHours(category);
+    getExpectedHours(category,serviceType);
 
   // ==========================
   // SLA STATUS

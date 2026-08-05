@@ -13,6 +13,25 @@ const courierSchema =
   type: Boolean,
   default: true,
 },
+ totalPincodes: {
+      type: Number,
+      default: 0,
+    },
+
+    surfacePincodesCount: {
+      type: Number,
+      default: 0,
+    },
+
+    airPincodesCount: {
+      type: Number,
+      default: 0,
+    },
+
+    primePincodesCount: {
+      type: Number,
+      default: 0,
+    },
     },
     {
       timestamps: true,

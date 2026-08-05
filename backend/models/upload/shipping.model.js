@@ -113,6 +113,16 @@ attemptFailureReason: {
   default: "",
 },
 
+serviceType: {
+    type: String,
+    enum: [
+        "Prime",
+        "Surface",
+        "Air"
+    ],
+    default: null,
+},
+
     shippingCharges: {
       type: Number,
       default: 0,

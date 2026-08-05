@@ -186,11 +186,11 @@ const uploadFileController = async (req, res) => {
 );
 
       const category = getCategory(
-  row["City"] || ""
+  row["City"],row["State"]
 );
 
       const expectedHours =
-        getExpectedHours(category);
+        getExpectedHours(category, "Surface"); 
 
       const shipmentId =
         await generateUniqueShipmentId();

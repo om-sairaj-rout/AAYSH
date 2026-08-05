@@ -25,6 +25,7 @@ import HomePage from "./pages/HomePage.jsx";
 import ExcelReportsPage from "./pages/ExcelReportsPage.jsx";
 import ProtectedRoute from "./ProtectedRoute.jsx";
 import CustomerTracking from "./pages/CustomerTracking.jsx";
+import ServiceabilityPage from "./pages/ServiceabilityPage.jsx";
 
 const router = createBrowserRouter([
   { path: "/", element: <HomePage /> },
@@ -51,6 +52,7 @@ const router = createBrowserRouter([
       { path: "/user/remove-account", element: <RemoveAccount /> },
       { path: "/reports/shipments", element: <ShipmentPage /> },
       { path: "/update/AWB", element: <AwbManagement /> },
+      { path: "/update/serviceability", element: <ServiceabilityPage /> },
       { path: "/select-courier", element: <SelectCourier /> },
       { path: "/awb/:awbNumber", element: <AwbPage /> },
       { path: "/pickup", element: <PickupRoute /> },

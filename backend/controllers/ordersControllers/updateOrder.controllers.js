@@ -257,15 +257,13 @@ if (!allowedStatuses.includes(shipping.shippingStatus)) {
     // Recalculate Category & SLA
     // ============================
 
-    order.category = getCategory(order.destinationCity);
-    order.expectedHours = getExpectedHours(order.category);
+    order.category = getCategory(order.destinationCity, order.destinationState);
+    const serviceType =
+  shipping.serviceType || "Surface";
+    order.expectedHours = getExpectedHours(order.category, serviceType);
 
-    // Continue with Shipping update...
-
+   
         // ============================
-    // Update Shipping
-    // ============================
-    // ============================
     // Update Shipping
     // ============================
 

@@ -19,7 +19,10 @@ const uploadAwbSheet =
   require("../controllers/courierControllers/uploadAwbSheet.controller");
 
 const getCouriersExternal =
-  require("../controllers/courierControllers/getCourierExternal.controllers");
+  require("../controllers/courierControllers/getCourierExternal.controller");
+
+const uploadServiceabilitySheet =
+  require("../controllers/courierControllers/uploadServiceability.controller");
 
 
 // ==========================
@@ -57,6 +60,14 @@ courierRouter.post(
   authRoles("admin"),
   upload.single("awbSheet"),
   uploadAwbSheet
+);
+
+courierRouter.post(
+  "/serviceability/upload",
+  checkAuth,
+  authRoles("admin"),
+  upload.single("serviceabilitySheet"),
+  uploadServiceabilitySheet
 );
 
 module.exports = courierRouter;

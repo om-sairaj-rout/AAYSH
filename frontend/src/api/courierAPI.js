@@ -27,3 +27,12 @@ export const uploadAwbSheetAPI = async (formData) => {
   });
   return res.json();
 };
+
+export const uploadServiceabilitySheetAPI = async (formData) => {
+  const res = await fetch(`${BASE}/api/serviceability/upload`, {
+    method: "POST",
+    credentials: "include",
+    body: formData
+  });
+  return res.json();
+};

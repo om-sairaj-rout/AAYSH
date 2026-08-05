@@ -134,11 +134,13 @@ const shipmentId = await generateUniqueShipmentId();
     // Create Order
     // ===============================
     const category = getCategory(
-  body.billing_city || ""
+  body.billing_city,body.billing_state
 );
 
+const serviceType = "Surface";
+
 const expectedHours =
-  getExpectedHours(category);
+  getExpectedHours(category,serviceType);
 
     const order = await Order.create({
 
@@ -365,6 +367,8 @@ expectedHours,
   pickupLocation: body.pickup_location,
 
   shippingStatus: "Pending",
+
+  serviceType,
 
   totalWeight: body.weight || 0,
 
