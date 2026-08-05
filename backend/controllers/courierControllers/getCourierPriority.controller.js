@@ -1,5 +1,5 @@
 const Courier = require("../../models/awb/courier.model");
-const CourierPriority = require("../../models/pincode/courierPriority.model");
+const CourierPriority = require("../../models/upload/courierPriority.model");
 
 const getCourierPriority = async (req, res) => {
   try {

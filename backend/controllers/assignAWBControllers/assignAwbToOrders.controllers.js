@@ -1,8 +1,8 @@
 const Awb = require("../../models/awb/awb.model");
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
-const PincodeServiceability = require("../../models/pincode/pincodeServiceability.model");
-const CourierPriority = require("../../models/pincode/courierPriority.model");
+const PincodeServiceability = require("../../models/upload/serviceability.model");
+const CourierPriority = require("../../models/upload/courierPriority.model");
 
 // ================= CATEGORY LOGIC =================
 const getAwbCategory = (weight, service) => {
