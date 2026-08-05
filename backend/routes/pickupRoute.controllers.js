@@ -11,6 +11,8 @@ const UserPickupCancel = require("../controllers/pickupControllers/userCancelPic
 const getAdminPickups = require("../controllers/pickupControllers/getAllAdminPickupOrders.controllers");
 const UserPickupsComplete = require("../controllers/pickupControllers/adminCompletePickup.controllers");
 const UserPickupFailed = require("../controllers/pickupControllers/adminFailPickup.controllers");
+const UserPickupsRescheduleExternal = require("../controllers/pickupControllers/userPickupRescheduleExternal.controllers");
+const UserPickupCancelExternal = require("../controllers/pickupControllers/userCancelPickupExternal.controllers");
 
 pickupRouter.get(
   "/user/pickups",
@@ -31,6 +33,12 @@ pickupRouter.put(
 );
 
 pickupRouter.put(
+  "/external/user/pickups/reschedule",
+  checkAuth,
+  UserPickupsRescheduleExternal
+);
+
+pickupRouter.put(
   "/admin/pickups/complete",
   checkAuth,
   UserPickupsComplete
@@ -40,6 +48,12 @@ pickupRouter.put(
   "/user/pickups/cancel",
   checkAuth,
   UserPickupCancel
+);
+
+pickupRouter.put(
+  "/external/user/pickups/cancel",
+  checkAuth,
+  UserPickupCancelExternal
 );
 
 pickupRouter.put(

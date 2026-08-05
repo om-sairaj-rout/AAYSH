@@ -28,12 +28,20 @@ const generateAwbExternal = async (req, res) => {
     // Validation
     // =========================================
 
-    if (!service || !Array.isArray(shipments) || shipments.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Service type and shipments are required.",
-      });
-    }
+    if (
+  !service ||
+  !Array.isArray(shipments) ||
+  shipments.length === 0 ||
+  !pickupDate ||
+  !pickupTime ||
+  !pickupLocation
+) {
+  return res.status(400).json({
+    success: false,
+    message:
+      "serviceType, shipments, pickupDate, pickupTime and pickupLocation are required.",
+  });
+}
 
     if (!["surface", "air", "prime"].includes(service)) {
       return res.status(400).json({
