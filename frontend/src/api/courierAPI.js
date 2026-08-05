@@ -9,6 +9,25 @@ export const fetchCourierPartnersAPI = async () => {
   return res.json();
 };
 
+export const getCourierPriorityAPI = async (service) => {
+  const res = await fetch(`${BASE}/api/priority/${service}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+  });
+  return res.json();
+};
+
+export const updateCourierPriorityAPI = async (service, priority) => {
+  const res = await fetch(`${BASE}/api/priority/${service}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ priority }),
+  });
+  return res.json();
+};
+
 export const addCourierPartnerAPI = async (name) => {
   const res = await fetch(`${BASE}/api/courier/add`, {
     method: "POST",

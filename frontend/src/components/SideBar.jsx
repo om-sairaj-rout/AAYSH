@@ -73,6 +73,11 @@ const SideBar = ({ isOpen, setIsOpen }) => {
           icon: <Barcode size={20} />,
           path: "/update/serviceability",
         },
+        {
+          name: "Courier Priority Management",
+          icon: <Barcode size={20} />,
+          path: "/update/courier-priority",
+        },
       ],
     },
     {

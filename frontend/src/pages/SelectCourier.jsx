@@ -1,210 +1,165 @@
 import { useState, useEffect } from 'react';
 import { 
   X, 
-  Zap,
-  Crown
+  Truck, 
+  Plane, 
+  Zap, 
+  CheckCircle2, 
+  ArrowRight 
 } from 'lucide-react';
-import { fetchCourierPartnersAPI } from "../api/courierAPI"; 
 import { toast } from 'react-hot-toast';
 
 const SelectCourier = ({ isOpen, onClose, onConfirm, selectedOrdersCount = 2 }) => {
-  const [selectedCourier, setSelectedCourier] = useState(null);
-const [selectedCourierName, setSelectedCourierName] = useState("");
+  const [selectedServiceType, setSelectedServiceType] = useState("");
 
-const [isPrime, setIsPrime] = useState(false);
+  const serviceTypes = [
+    {
+      value: "Surface",
+      title: "Surface",
+      icon: Truck,
+      desc: "Standard ground transport",
+      tag: "Economical"
+    },
+    {
+      value: "Air",
+      title: "Air",
+      icon: Plane,
+      desc: "Express flight delivery",
+      tag: "Fast"
+    },
+    {
+      value: "Prime",
+      title: "Prime",
+      icon: Zap,
+      desc: "Priority hand-off & delivery",
+      tag: "Priority"
+    }
+  ];
 
-  const [couriers, setCouriers] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-
-  // ✅ FETCH COURIERS FROM DB
   useEffect(() => {
-    const loadCouriers = async () => {
-      try {
-        setLoading(true);
-
-        const res = await fetchCourierPartnersAPI();
-
-        if (res?.success) {
-          setCouriers(res.data);
-        } else {
-          setCouriers([]);
-        }
-
-      } catch (err) {
-        console.error("Courier fetch failed:", err);
-        setCouriers([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (isOpen) {
-  loadCouriers();
-
-  setIsPrime(false);
-
-  setSelectedCourier(null);
-  setSelectedCourierName("");
-}
+      setSelectedServiceType("");
+    }
   }, [isOpen]);
 
-
   const handleApplyAndShip = () => {
-    if (!selectedCourier) {
-      toast.error("Please select a preferred courier company to continue.");
+    if (!selectedServiceType) {
+      toast.error("Please select a service type.");
       return;
     }
 
     onConfirm({
-    courierId: selectedCourier,
-    courierName: selectedCourierName,
-    isPrime
-});
+      serviceType: selectedServiceType
+    });
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all duration-300">
       
-      {/* ================= MODAL SURFACE BODY CONTAINER ================= */}
-      <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden max-h-[92vh]">
+      {/* ================= MODAL CONTAINER ================= */}
+      <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
         
-        {/* ================= MODAL BAR HEADER ================= */}
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
-          <div>
-            <h2 className="text-base font-black text-slate-800 tracking-tight">
-              Select Your Preferred Courier Company
+        {/* ================= HEADER ================= */}
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
+          <div className="space-y-0.5">
+            <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
+              Select Service Type
             </h2>
-            <p className="text-[11px] font-medium text-slate-400 mt-0.5">
-              Processing <span className="text-indigo-600 font-bold">{selectedOrdersCount} selected shipments</span> forward into delivery channels.
+            <p className="text-xs font-medium text-slate-500">
+              Processing <span className="text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded-full">{selectedOrdersCount} selected shipments</span>
             </p>
           </div>
 
           <button 
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors cursor-pointer"
+            className="p-2 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-200"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* ================= MODAL CENTRAL OVERFLOW WORKSPACE ================= */}
-        <div className="p-6 overflow-y-auto space-y-6 bg-[#F8FAFC]/50 flex-1">
-
-          {/* Loading State */}
-          {loading && (
-            <p className="text-xs text-slate-500">Loading couriers...</p>
-          )}
-          {/* TWO-COLUMN GRID SELECTION COMPONENT */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {couriers.map((courier) => {
-              const isSelected = selectedCourier === courier._id;
+        {/* ================= CONTENT ================= */}
+        <div className="p-6 overflow-y-auto bg-slate-50/50 flex-1">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            {serviceTypes.map((service) => {
+              const selected = selectedServiceType === service.value;
+              const Icon = service.icon;
 
               return (
                 <div
-                  key={courier._id}
-                  onClick={() => {
-    setSelectedCourier(courier._id);
-    setSelectedCourierName(courier.name);
-}}
-                  className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between group select-none ${
-                    isSelected
-                      ? 'bg-cyan-500 border-cyan-500 text-white shadow-md shadow-cyan-500/10'
-                      : 'bg-[#E2F1ED]/60 border-[#CDE5DF] text-slate-700 hover:bg-[#E2F1ED] hover:border-[#b9ded5]'
+                  key={service.value}
+                  onClick={() => setSelectedServiceType(service.value)}
+                  className={`group relative cursor-pointer rounded-2xl border-2 p-4 transition-all duration-200 ease-out flex flex-col justify-between ${
+                    selected
+                      ? "bg-gradient-to-b from-indigo-600 to-indigo-700 border-indigo-600 text-white shadow-lg shadow-indigo-600/25 translate-y-[-2px]"
+                      : "bg-white border-slate-200/80 hover:border-indigo-300 hover:shadow-md text-slate-700"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="relative flex items-center justify-center">
-                      <input
-                        type="radio"
-                        name="courierSelection"
-                        checked={isSelected}
-                        onChange={() => {
-    setSelectedCourier(courier._id);
-    setSelectedCourierName(courier.name);
-}}
-                        className={`w-4 h-4 cursor-pointer focus:ring-0 ${
-                          isSelected ? 'text-white border-white' : 'text-cyan-500 border-slate-300'
-                        }`}
-                      />
+                  <div>
+                    {/* Top row with icon & selection mark */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className={`p-2.5 rounded-xl transition-colors ${
+                        selected 
+                          ? "bg-white/15 text-white" 
+                          : "bg-slate-100 text-slate-600 group-hover:bg-indigo-50 group-hover:text-indigo-600"
+                      }`}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+
+                      {selected ? (
+                        <CheckCircle2 className="w-5 h-5 text-white fill-white/20" />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border-2 border-slate-300 group-hover:border-indigo-400" />
+                      )}
                     </div>
 
-                    <span className="text-xs font-bold flex items-center gap-1.5">
-                      {courier.icon && <Zap className="w-3.5 h-3.5 text-emerald-500" />}
-                      {courier.name}
-                    </span>
+                    {/* Service info */}
+                    <h3 className={`font-bold text-base tracking-tight ${selected ? "text-white" : "text-slate-900"}`}>
+                      {service.title}
+                    </h3>
+                    <p className={`text-[11px] mt-1 line-clamp-2 leading-relaxed ${
+                      selected ? "text-indigo-100" : "text-slate-500"
+                    }`}>
+                      {service.desc}
+                    </p>
                   </div>
 
-                  {/* Badge */}
-                  {courier.tags?.length > 0 && (
-                    <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
-                      isSelected
-                        ? 'bg-white/20 text-white'
-                        : 'bg-amber-400 text-amber-950 font-extrabold'
+                  {/* Tag badge */}
+                  <div className="mt-4 pt-3 border-t border-slate-100/10">
+                    <span className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                      selected 
+                        ? "bg-white/20 text-white" 
+                        : "bg-slate-100 text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600"
                     }`}>
-                      {courier.tags[0]}
+                      {service.tag}
                     </span>
-                  )}
+                  </div>
                 </div>
               );
             })}
           </div>
-          {/* PRIME SERVICE SELECTION TOGGLE */}
-          <div 
-            onClick={() => setIsPrime(!isPrime)}
-            className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between select-none ${
-              isPrime 
-                ? 'bg-purple-50 border-purple-400 shadow-sm' 
-                : 'bg-white border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="isPrimeToggle"
-                checked={isPrime}
-                onChange={(e) => setIsPrime(e.target.checked)}
-                className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 cursor-pointer"
-              />
-              <label htmlFor="isPrimeToggle" className="cursor-pointer flex items-center gap-2">
-                <Crown className={`w-4 h-4 ${isPrime ? 'text-purple-600' : 'text-slate-400'}`} />
-                <span className={`text-xs font-bold ${isPrime ? 'text-purple-900' : 'text-slate-700'}`}>
-                  Use Prime Service
-                </span>
-              </label>
-            </div>
-            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-              isPrime ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-500'
-            }`}>
-              {isPrime ? 'Prime Active' : 'Standard Delivery'}
-            </span>
-          </div>
-
         </div>
 
-        {/* ================= MODAL BAR BOTTOM CONTROL LAYER ================= */}
-        <div className="p-5 border-t border-slate-100 bg-white sticky bottom-0 z-10 flex flex-col md:flex-row gap-4 items-center justify-center">
+        {/* ================= FOOTER CONTROLS ================= */}
+        <div className="px-6 py-4 border-t border-slate-100 bg-white sticky bottom-0 z-10 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-xl border border-slate-200 font-semibold text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer active:scale-95"
+          >
+            Cancel
+          </button>
 
-          <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 md:flex-none px-5 py-2.5 rounded-xl border border-slate-200 font-bold text-xs text-slate-500 uppercase tracking-wider hover:bg-slate-50 transition-colors cursor-pointer text-center"
-            >
-              Dismiss
-            </button>
-
-            <button
-              type="button"
-              onClick={handleApplyAndShip}
-              className="flex-1 md:flex-none px-6 py-2.5 rounded-xl bg-[#2C7A8B] hover:bg-[#205b68] text-white font-bold text-xs uppercase tracking-wider transition-all shadow-md shadow-[#2C7A8B]/10 cursor-pointer text-center"
-            >
-              Apply and Ship
-            </button>
-          </div>
-
+          <button
+            type="button"
+            onClick={handleApplyAndShip}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-all shadow-md shadow-indigo-600/20 active:scale-95 cursor-pointer"
+          >
+            <span>Continue</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
 
       </div>

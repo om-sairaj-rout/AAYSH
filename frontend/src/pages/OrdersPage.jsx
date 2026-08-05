@@ -898,7 +898,12 @@ const OrdersPage = () => {
                             In Transit
                           </span>
                         )}
-                        {!['Pending', 'Booked', 'Cancelled','RTO','Delivered','In Transit'].includes(order.shipping?.shippingStatus) && (
+                        {order.shipping?.shippingStatus === "Shipped" && (
+                          <span className="bg-blue-100 text-blue-800 font-bold text-xs px-3 py-1 rounded-full border border-blue-200">
+                            Shipped
+                          </span>
+                        )}
+                        {!['Pending', 'Booked', 'Cancelled','RTO','Delivered','In Transit','Shipped'].includes(order.shipping?.shippingStatus) && (
                           <span className="text-slate-400 italic text-xs">{order.shipping?.shippingStatus || "No Actions"}</span>
                         )}
                       </div>

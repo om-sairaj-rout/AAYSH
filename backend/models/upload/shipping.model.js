@@ -116,9 +116,9 @@ attemptFailureReason: {
 serviceType: {
     type: String,
     enum: [
-        "Prime",
-        "Surface",
-        "Air"
+        "prime",
+        "surface",
+        "air"
     ],
     default: null,
 },

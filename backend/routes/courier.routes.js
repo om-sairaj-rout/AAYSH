@@ -24,6 +24,12 @@ const getCouriersExternal =
 const uploadServiceabilitySheet =
   require("../controllers/courierControllers/uploadServiceability.controller");
 
+const getCourierPriority =
+  require("../controllers/courierControllers/getCourierPriority.controller");
+
+const updateCourierPriority =
+  require("../controllers/courierControllers/updateCourierPriority.controller");
+
 
 // ==========================
 // ADD COURIER
@@ -68,6 +74,16 @@ courierRouter.post(
   authRoles("admin"),
   upload.single("serviceabilitySheet"),
   uploadServiceabilitySheet
+);
+
+courierRouter.get(
+  "/priority/:service",
+  getCourierPriority
+);
+
+courierRouter.put(
+  "/priority/:service",
+  updateCourierPriority
 );
 
 module.exports = courierRouter;

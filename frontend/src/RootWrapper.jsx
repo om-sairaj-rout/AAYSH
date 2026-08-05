@@ -26,6 +26,7 @@ import ExcelReportsPage from "./pages/ExcelReportsPage.jsx";
 import ProtectedRoute from "./ProtectedRoute.jsx";
 import CustomerTracking from "./pages/CustomerTracking.jsx";
 import ServiceabilityPage from "./pages/ServiceabilityPage.jsx";
+import CourierPriorityPage from "./pages/CourierPriorityPage.jsx";
 
 const router = createBrowserRouter([
   { path: "/", element: <HomePage /> },
@@ -53,6 +54,7 @@ const router = createBrowserRouter([
       { path: "/reports/shipments", element: <ShipmentPage /> },
       { path: "/update/AWB", element: <AwbManagement /> },
       { path: "/update/serviceability", element: <ServiceabilityPage /> },
+      { path: "/update/courier-priority", element: <CourierPriorityPage /> },
       { path: "/select-courier", element: <SelectCourier /> },
       { path: "/awb/:awbNumber", element: <AwbPage /> },
       { path: "/pickup", element: <PickupRoute /> },
