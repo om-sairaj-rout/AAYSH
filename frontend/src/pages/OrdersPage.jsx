@@ -1,9 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useSelector } from "react-redux";
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getOrders } from '../api/ordersAPI';
 import SelectCourier from './SelectCourier'; 
-import OrderAssignmentDetails from './OrderAssignmentDetails';
+import OrderResponse from './OrderResponse';
 import { shipOrdersAPI } from '../api/shipingAPI';
 import { toast } from 'react-hot-toast';
 import OrderTracker from '../components/OrderTracker';
@@ -1000,7 +999,7 @@ const OrdersPage = () => {
         order={selectedOrderDetails}
       />
 
-      <OrderAssignmentDetails
+      <OrderResponse
   isOpen={isAssignmentModalOpen}
   onClose={() => {
     setIsAssignmentModalOpen(false);
