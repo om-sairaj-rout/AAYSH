@@ -28,6 +28,41 @@ const reschedulePickupExternal = async (req, res) => {
       });
     }
 
+    // ==========================
+// Pickup Date Validation (IST)
+// ==========================
+
+const requestedDate = new Date(pickupDate);
+
+const todayIST = new Date(
+  new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Kolkata",
+  })
+);
+
+requestedDate.setHours(0, 0, 0, 0);
+todayIST.setHours(0, 0, 0, 0);
+
+if (requestedDate < todayIST) {
+  return res.status(400).json({
+    success: false,
+    message:
+      "Pickup date cannot be earlier than today's date.",
+  });
+}
+
+// ==========================
+// Pickup Time Validation
+// ==========================
+
+if (pickupTime < "11:00" || pickupTime > "17:00") {
+  return res.status(400).json({
+    success: false,
+    message:
+      "Pickup time must be between 11:00 AM and 5:00 PM IST.",
+  });
+}
+
     const shipping = await Shipping.findOne({
       shipmentId,
     });
