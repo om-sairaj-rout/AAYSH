@@ -28,12 +28,23 @@ const getCouriers = async (req, res) => {
         });
 
         return {
-          _id: courier._id,
-          name: courier.name,
-          unbookedUnder1kg: under1kg,
-          unbookedOver3kg: over3kg,
-          unbookedPrime: prime, // Returning Prime count to frontend
-        };
+  _id: courier._id,
+  name: courier.name,
+
+  // AWB Counts
+  unbookedUnder1kg: under1kg,
+  unbookedOver3kg: over3kg,
+  unbookedPrime: prime,
+
+  // Serviceability Counts
+  totalPincodes: courier.totalPincodes || 0,
+  surfacePincodesCount:
+    courier.surfacePincodesCount || 0,
+  airPincodesCount:
+    courier.airPincodesCount || 0,
+  primePincodesCount:
+    courier.primePincodesCount || 0,
+};
       })
     );
 
