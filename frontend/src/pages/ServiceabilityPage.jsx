@@ -71,7 +71,7 @@ const ServiceabilityPage = () => {
     const formData = new FormData();
 
     formData.append("courierId", selectedCourierId);
-    formData.append("file", selectedFile);
+    formData.append("serviceabilitySheet", selectedFile);
 
     const res =
       await uploadServiceabilitySheetAPI(formData);

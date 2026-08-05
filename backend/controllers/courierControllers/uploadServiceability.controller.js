@@ -139,12 +139,11 @@ const state = String(
       let air = true;
 
       if (
-        zone === "LOCAL" ||
-        zone === "NCR" ||
-        zone === "NORTH"
-      ) {
-        air = false;
-      }
+  zone === "Local NCR" ||
+  zone === "North Zone"
+) {
+  air = false;
+}
 
       // Jammu & Kashmir Exception
 
@@ -175,7 +174,7 @@ if (prime) primeCount++;
       let serviceability =
         await PincodeServiceability.findOne({
           pincode,
-        });
+        }).lean();
 
       // ============================
       // Create New

@@ -47,10 +47,11 @@ const pincodeServiceabilitySchema = new mongoose.Schema(
     zone: {
       type: String,
       enum: [
-        "LOCAL",
-        "NCR",
-        "NORTH",
-        "REST",
+        "Local NCR",
+"Metro",
+"North Zone",
+"North East",
+"Rest of India"
       ],
       required: true,
     },
