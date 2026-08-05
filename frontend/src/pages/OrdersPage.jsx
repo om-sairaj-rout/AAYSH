@@ -555,14 +555,13 @@ const OrdersPage = () => {
       }));
 
       const payload = {
-        courierId: selectedCourierData.courierId,
-        isPrime: Boolean(selectedCourierData.isPrime),
-        pickupDate: scheduleData.pickupDate,
-        pickupLocation: scheduleData.pickupLocation,
-        pickupTime: scheduleData.pickupTime,
-        notes: scheduleData.notes,
-        orders: orderPayloads
-      };
+  serviceType: selectedCourierData.serviceType,
+  pickupDate: scheduleData.pickupDate,
+  pickupLocation: scheduleData.pickupLocation,
+  pickupTime: scheduleData.pickupTime,
+  notes: scheduleData.notes,
+  orders: orderPayloads
+};
 
       const res = await shipOrdersAPI(payload);
 
