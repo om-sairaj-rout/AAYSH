@@ -8,9 +8,9 @@ const getCouriers = async (req, res) => {
 
     const data = await Promise.all(
       couriers.map(async (courier) => {
-        const under1kg = await Awb.countDocuments({
+        const under3kg = await Awb.countDocuments({
           courierId: courier._id,
-          category: "under1kg",
+          category: "under3kg",
           status: "available",
         });
 
@@ -32,7 +32,7 @@ const getCouriers = async (req, res) => {
   name: courier.name,
 
   // AWB Counts
-  unbookedUnder1kg: under1kg,
+  unbookedUnder1kg: under3kg,
   unbookedOver3kg: over3kg,
   unbookedPrime: prime,
 

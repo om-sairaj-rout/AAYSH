@@ -20,7 +20,7 @@ const AwbManagement = () => {
   const [newCourierName, setNewCourierName] = useState('');
   
   const [selectedCourierId, setSelectedCourierId] = useState('');
-  const [weightCategory, setWeightCategory] = useState('under1kg'); 
+  const [weightCategory, setWeightCategory] = useState('under3kg'); 
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -146,9 +146,9 @@ const AwbManagement = () => {
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
-                    onClick={() => setWeightCategory('under1kg')}
+                    onClick={() => setWeightCategory('under3kg')}
                     className={`py-2.5 rounded-xl border font-bold text-xs transition-all ${
-                      weightCategory === 'under1kg'
+                      weightCategory === 'under3kg'
                         ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
