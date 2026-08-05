@@ -181,26 +181,20 @@ if (prime) primeCount++;
       pincode,
     },
     update: {
-      $set: {
-        zone,
-      },
+  $set: {
+    zone,
+  },
 
-      $pull: {
-        couriers: {
-          courierId: courier._id,
-        },
-      },
-
-      $push: {
-        couriers: {
-          courierId: courier._id,
-          courierName: courier.name,
-          prime,
-          surface,
-          air,
-        },
-      },
+  $push: {
+    couriers: {
+      courierId: courier._id,
+      courierName: courier.name,
+      prime,
+      surface,
+      air,
     },
+  },
+},
 
     upsert: true,
   },
