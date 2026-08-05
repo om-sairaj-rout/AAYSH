@@ -1,7 +1,7 @@
-import { X, CheckCircle2, XCircle, Package, Copy, ExternalLink } from 'lucide-react';
+import { X, CheckCircle2, XCircle, Package, Copy } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
-const OrderAssignmentDetailsModal = ({ isOpen, onClose, responseData }) => {
+const OrderAssignmentDetails = ({ isOpen, onClose, responseData }) => {
   if (!isOpen || !responseData) return null;
 
   const {
@@ -181,4 +181,4 @@ const OrderAssignmentDetailsModal = ({ isOpen, onClose, responseData }) => {
   );
 };
 
-export default OrderAssignmentDetailsModal;
+export default OrderAssignmentDetails;
