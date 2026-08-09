@@ -35,61 +35,71 @@ orders = orders.map(order => ({
   }
 }));
 
-    // =========================
-    // YEAR FILTER
-    // =========================
-    if (selectedYear) {
-  orders = orders.filter((order) => {
-    if (!order.orderDate) return false;
+const allOrders = orders;
+
+// =========================
+// YEAR FILTER
+// Used only for annual analytics
+// =========================
+let yearOrders = allOrders;
+
+if (selectedYear) {
+  yearOrders = allOrders.filter((order) => {
+    const date = order.orderDate || order.createdAt;
+
+    if (!date) return false;
 
     return (
-      new Date(order.orderDate).getFullYear().toString() === selectedYear
+      new Date(date).getFullYear().toString() === selectedYear
     );
   });
 }
 
-    // =========================
-    // STATS
-    // =========================
+// =========================
+// STATS
+// Based on ALL orders
+// =========================
 
-const totalOrders = orders.length;
+const totalOrders = allOrders.length;
 
-const pendingOrders = orders.filter(
+const pendingOrders = allOrders.filter(
   o => !o.shipping || o.shipping.shippingStatus === "Pending"
 ).length;
 
-const bookedOrders = orders.filter(
+const bookedOrders = allOrders.filter(
   o => o.shipping?.shippingStatus === "Booked"
 ).length;
 
-const shippedOrders = orders.filter(
+const shippedOrders = allOrders.filter(
   o => o.shipping?.shippingStatus === "Shipped"
 ).length;
 
-const inTransitOrders = orders.filter(
+const inTransitOrders = allOrders.filter(
   o =>
     o.shipping?.shippingStatus === "In Transit" ||
     o.shipping?.shippingStatus === "Out For Delivery"
 ).length;
 
-const deliveredOrders = orders.filter(
+const deliveredOrders = allOrders.filter(
   o => o.shipping?.shippingStatus === "Delivered"
 ).length;
 
-const delayedOrders = orders.filter(
+const delayedOrders = allOrders.filter(
   o => o.shipping?.shippingStatus === "Delayed"
 ).length;
 
-const cancelledOrders = orders.filter(
+const cancelledOrders = allOrders.filter(
   o => o.shipping?.shippingStatus === "Cancelled"
 ).length;
 
-const rtoOrders = orders.filter(
+const rtoOrders = allOrders.filter(
   o => o.shipping?.shippingStatus === "RTO"
 ).length;
 
-const totalCost = orders.reduce(
-  (sum, order) => sum + Number(order.invoiceValue || 0),
+// Cost is based on selected year
+const totalCost = yearOrders.reduce(
+  (sum, order) =>
+    sum + Number(order.invoiceValue || 0),
   0
 );
 
@@ -112,25 +122,28 @@ const totalCost = orders.reduce(
       "Dec",
     ];
 
-    const chartData = months.map((month, index) => {
+const chartData = months.map((month, index) => {
 
-      const monthOrders = orders.filter(
-  (o) =>
-    o.orderDate &&
-    new Date(o.orderDate).getMonth() === index
-);
+  const monthOrders = yearOrders.filter((o) => {
+    const date = o.orderDate || o.createdAt;
 
-      return {
-        name: month,
-        orders: monthOrders.length,
-        cost: monthOrders.reduce(
-          (acc, curr) =>
-            acc + Number(curr.invoiceValue || 0),
-          0
-        ),
-      };
+    return (
+      date &&
+      new Date(date).getMonth() === index
+    );
+  });
 
-    });
+  return {
+    name: month,
+    orders: monthOrders.length,
+    cost: monthOrders.reduce(
+      (acc, curr) =>
+        acc + Number(curr.invoiceValue || 0),
+      0
+    ),
+  };
+
+});
 
     // =========================
     // TOP CITIES
@@ -138,7 +151,7 @@ const totalCost = orders.reduce(
 
     const cityMap = {};
 
-    orders.forEach((o) => {
+    allOrders.forEach((o) => {
 
       const city =
         o.destinationCity || "Unknown";
