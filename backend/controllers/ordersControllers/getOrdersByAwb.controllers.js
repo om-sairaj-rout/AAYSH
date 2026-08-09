@@ -1,6 +1,7 @@
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const Tracking = require("../../models/upload/tracking.model");
+const orderCalculations = require("../../utils/orderCalculations");
 
 const getOrderByAwb = async (req, res) => {
   try {
@@ -43,12 +44,34 @@ const getOrderByAwb = async (req, res) => {
     })
       .sort({ updatedAt: 1 })
       .lean();
+      
+      // =========================
+// SLA + EXPECTED DELIVERY DATE
+// =========================
+const sla = orderCalculations(order, shipping);
 
+let expectedDeliveryDate = null;
+
+if (
+  order.pickupDate &&
+  sla.expectedHours &&
+  shipping.shippingStatus?.toLowerCase() !== "delivered"
+) {
+  const pickupDate = new Date(order.pickupDate);
+
+  if (!isNaN(pickupDate.getTime())) {
+    expectedDeliveryDate = new Date(
+      pickupDate.getTime() +
+      sla.expectedHours * 60 * 60 * 1000
+    );
+  }
+}
     return res.status(200).json({
       success: true,
       order,
       shipping,
       tracking,
+      expectedDeliveryDate,
     });
 
   } catch (err) {

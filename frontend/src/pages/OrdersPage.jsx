@@ -799,7 +799,7 @@ const OrdersPage = () => {
                           <div className="space-y-1.5">
                             {order.orderItems.map((item, idx) => (
                               <div key={idx} className="bg-slate-50/90 p-2 rounded-lg border border-slate-200/60">
-                                <p className="font-semibold text-slate-800 text-xs line-clamp-1">{item.name || `Item #${idx + 1}`}</p>
+                                <p className="font-semibold text-slate-800 text-xs line-clamp-1">{item.name}</p>
                                 {item.sku && <p className="text-[11px] text-slate-500 mt-0.5 font-mono">SKU: {item.sku}</p>}
                               </div>
                             ))}

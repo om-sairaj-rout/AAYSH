@@ -31,6 +31,7 @@ const CustomerTracking = () => {
         if (res?.success && res.order) {
           setOrder({
             ...res.order,
+             expectedDeliveryDate: res.expectedDeliveryDate,
             shipping: {
               ...res.shipping,
               trackingHistory: res.tracking || [],
@@ -60,46 +61,71 @@ const CustomerTracking = () => {
   };
 
   const getStatusBanner = (status) => {
-    switch (status) {
-      case 'Delivered':
-        return {
-          bg: 'bg-emerald-500',
-          lightBg: 'bg-emerald-50',
-          textColor: 'text-emerald-700',
-          icon: CheckCircle2,
-          title: 'Package Delivered',
-          subtitle: 'Your order has been safely delivered.'
-        };
-      case 'In Transit':
-      case 'Out for Delivery':
-        return {
-          bg: 'bg-indigo-600',
-          lightBg: 'bg-indigo-50',
-          textColor: 'text-indigo-700',
-          icon: Truck,
-          title: 'On the Way',
-          subtitle: 'Your package is currently in transit to its destination.'
-        };
-      case 'Cancelled':
-        return {
-          bg: 'bg-rose-500',
-          lightBg: 'bg-rose-50',
-          textColor: 'text-rose-700',
-          icon: Package,
-          title: 'Shipment Cancelled',
-          subtitle: 'This shipment has been cancelled.'
-        };
-      default:
-        return {
-          bg: 'bg-amber-500',
-          lightBg: 'bg-amber-50',
-          textColor: 'text-amber-700',
-          icon: Clock,
-          title: 'Order Processing',
-          subtitle: 'We are preparing your order for shipment.'
-        };
-    };
-  };
+  switch (status?.toLowerCase()) {
+
+    case 'delivered':
+      return {
+        bg: 'bg-emerald-500',
+        lightBg: 'bg-emerald-50',
+        textColor: 'text-emerald-700',
+        icon: CheckCircle2,
+        title: 'Package Delivered',
+        subtitle: 'Your order has been safely delivered.'
+      };
+
+    case 'shipped':
+    case 'in transit':
+    case 'out for delivery':
+      return {
+        bg: 'bg-indigo-600',
+        lightBg: 'bg-indigo-50',
+        textColor: 'text-indigo-700',
+        icon: Truck,
+        title: 'On the Way',
+        subtitle: 'Your package is currently in transit to its destination.'
+      };
+
+    case 'cancelled':
+      return {
+        bg: 'bg-rose-500',
+        lightBg: 'bg-rose-50',
+        textColor: 'text-rose-700',
+        icon: Package,
+        title: 'Shipment Cancelled',
+        subtitle: 'This shipment has been cancelled.'
+      };
+
+    case 'rto':
+      return {
+        bg: 'bg-orange-500',
+        lightBg: 'bg-orange-50',
+        textColor: 'text-orange-700',
+        icon: Package,
+        title: 'Return Initiated',
+        subtitle: 'Your shipment is being returned.'
+      };
+
+    case 'delayed':
+      return {
+        bg: 'bg-yellow-500',
+        lightBg: 'bg-yellow-50',
+        textColor: 'text-yellow-700',
+        icon: Clock,
+        title: 'Shipment Delayed',
+        subtitle: 'Your package delivery is delayed.'
+      };
+
+    default:
+      return {
+        bg: 'bg-amber-500',
+        lightBg: 'bg-amber-50',
+        textColor: 'text-amber-700',
+        icon: Clock,
+        title: 'Order Processing',
+        subtitle: 'We are preparing your order for shipment.'
+      };
+  }
+};
 
   if (loading) {
     return (
@@ -196,11 +222,19 @@ const CustomerTracking = () => {
               </span>
               <span className="font-semibold text-slate-800 text-sm mt-1 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                {currentStatus === 'Delivered' && order.deliveryDate
-                  ? new Date(order.deliveryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-                  : order.pickupDate 
-                    ? new Date(order.pickupDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-                    : "Pending Update"}
+                {currentStatus?.toLowerCase() === 'delivered' && order.deliveryDate
+  ? new Date(order.deliveryDate).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    })
+  : order.expectedDeliveryDate
+    ? new Date(order.expectedDeliveryDate).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      })
+    : "Pending Update"}
               </span>
             </div>
           </div>

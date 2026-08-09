@@ -13,21 +13,34 @@ const getExpectedHours = require("../../utils/tatMapper");
 // =========================================
 
 const parseExcelDate = (value) => {
-  if (!value) return new Date();
+  // If Order Date is empty/missing, keep it blank
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
+    return null;
+  }
 
+  // If Excel returns a string
   if (typeof value === "string") {
     const parsed = new Date(value);
 
-    if (!isNaN(parsed)) {
+    if (!isNaN(parsed.getTime())) {
       return parsed;
     }
+
+    return null;
   }
 
+  // If Excel returns an Excel serial number
   if (typeof value === "number") {
-    return new Date((value - 25569) * 86400 * 1000);
+    return new Date(
+      (value - 25569) * 86400 * 1000
+    );
   }
 
-  return new Date();
+  return null;
 };
 
 // =========================================
@@ -196,17 +209,16 @@ const uploadFileController = async (req, res) => {
         await generateUniqueShipmentId();
 
       const externalOrderId =
-        row["Order ID"]?.toString().trim() ||
-        `EXT-${Date.now()}-${index}-${Math.floor(
-          Math.random() * 1000
-        )}`;
+        row["Order ID"]?.toString().trim() || "";
 
-      const alreadyExists = await Order.exists({
-  externalOrderId,
-});
+      if (externalOrderId) {
+  const alreadyExists = await Order.exists({
+    externalOrderId,
+  });
 
-if (alreadyExists) {
-  continue;
+  if (alreadyExists) {
+    continue;
+  }
 }
 
       const orderDoc = {
@@ -230,10 +242,10 @@ if (alreadyExists) {
         orderDate,
 
         pickupLocation:
-  row["Pickup Location"]?.toString().trim() || "Primary",
+  row["Pickup Location"]?.toString().trim() || req.user.address || "",
 
 consignorName:
-  row["Consignor Name"]?.toString().trim() || "",
+  row["Consignor Name"]?.toString().trim() || req.user.username || "",
 
 consigneeName:
   row["Customer Name"]?.toString().trim() || "",
@@ -289,7 +301,7 @@ orderItems: [
   {
     name: row["Product Name"]?.toString().trim() || "",
     sku: row["SKU"]?.toString().trim() || "",
-    units: Number(row["Units"]) || 1,
+    units: Number(row["Units"]) || 0,
     sellingPrice: Number(row["Selling Price"]) || 0,
     discount: Number(row["Discount"]) || 0,
     tax: Number(row["Tax"]) || 0,
@@ -297,7 +309,7 @@ orderItems: [
   },
 ],
 
-qty: Number(row["Units"]) || 1,
+qty: Number(row["Units"]) || 0,
 
 subTotal: Number(row["Sub Total"]) || 0,
 
