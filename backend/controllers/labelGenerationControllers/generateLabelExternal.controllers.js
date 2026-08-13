@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const Order = require("../../models/upload/order.model"); 
 const Shipping = require("../../models/upload/shipping.model");
+const User = require("../../models/user.model");
 
 const generateLabel = async (req, res) => {
     try {
@@ -39,15 +40,37 @@ const orderMap = new Map(
     orders.map(order => [order._id.toString(), order])
 );
 
+// Fetch users/sellers who uploaded these orders
+const uploadedByIds = [
+    ...new Set(
+        orders
+            .filter(order => order.uploadedBy)
+            .map(order => order.uploadedBy.toString())
+    )
+];
+
+const users = await User.find({
+    _id: { $in: uploadedByIds }
+}).lean();
+
+const userMap = new Map(
+    users.map(user => [user._id.toString(), user])
+);
+
 // Merge order + shipping
 const labels = shippings.map(shipping => {
     const order = orderMap.get(shipping.orderId.toString());
 
     if (!order) return null;
 
+    const seller = order.uploadedBy
+        ? userMap.get(order.uploadedBy.toString())
+        : null;
+
     return {
         ...order,
-        shipping
+        shipping,
+        seller
     };
 }).filter(Boolean);
 
@@ -113,23 +136,50 @@ let y = margin + strapHeight;
    .strokeColor("#000000")
    .stroke();
 
-            // LOGO ZONE (Left Header)
-            const logoPath = path.join(__dirname, "../../assets/fiberise_logo.jpg");
-            const logoWidth = 115; // Increased logo width
-            const logoHeight = 42; // Increased logo height
+            // ================= USER BRANDING / LOGO =================
 
-            if (fs.existsSync(logoPath)) {
-                doc.image(logoPath, margin + 5, y + 5, {
-                    fit: [logoWidth, logoHeight],
-                    align: "left",
-                    valign: "center"
-                });
-            } else {
-                // Fallback structured text branding
-                doc.font(fontBold).fontSize(14).fillColor("#1E293B").text("AAYSH", margin + 6, y + 10, { continued: true });
-                doc.fillColor("#0D9488").text("EXPRESS");
-                doc.font(fontNormal).fontSize(6.5).fillColor("#64748B").text("LOGISTICS & FULFILLMENT", margin + 6, y + 28);
-            }
+const seller = order.seller;
+
+const logoWidth = 115;
+const logoHeight = 42;
+
+// User's logo filename from MongoDB
+const logoFileName = seller?.logo
+    ? path.basename(seller.logo)
+    : null;
+
+const logoPath = logoFileName
+    ? path.join(__dirname, "../../assets", logoFileName)
+    : null;
+
+if (logoPath && fs.existsSync(logoPath)) {
+
+    // User has a valid logo
+    doc.image(logoPath, margin + 5, y + 5, {
+        fit: [logoWidth, logoHeight],
+        align: "left",
+        valign: "center"
+    });
+
+} else {
+
+    // No logo -> show user's name
+    const sellerName = seller?.username || "AAYSH EXPRESS";
+
+    doc.font(fontBold)
+       .fontSize(14)
+       .fillColor("#1E293B")
+       .text(
+           sellerName,
+           margin + 6,
+           y + 15,
+           {
+               width: 115,
+               height: 25,
+               ellipsis: true
+           }
+       );
+}
 
             // ORDER DATE ZONE (Right Header Box - Formerly COD location)
             const rightHeaderX = margin + printWidth - 95;

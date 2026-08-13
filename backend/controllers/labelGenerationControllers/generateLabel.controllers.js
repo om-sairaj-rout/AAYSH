@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const Order = require("../../models/upload/order.model"); 
 const Shipping = require("../../models/upload/shipping.model");
+const User = require("../../models/user.model");
 
 const generateLabel = async (req, res) => {
     try {
@@ -15,6 +16,7 @@ const generateLabel = async (req, res) => {
 
         // Fetch orders and populate reference details
         const orders = await Order.find({ _id: { $in: orderIds } }).lean();
+        
 
         const shippings = await Shipping.find({
             orderId: { $in: orderIds }
@@ -31,6 +33,8 @@ const generateLabel = async (req, res) => {
         if (!orders || orders.length === 0) {
             return res.status(404).json({ success: false, message: "Orders not found" });
         }
+
+        const seller = await User.findById(orders[0].uploadedBy).lean();
 
         // 4 x 6 inches in PDF Points (1 inch = 72 points) -> 288 x 432 points
         const LABEL_WIDTH = 288;
@@ -86,22 +90,40 @@ const generateLabel = async (req, res) => {
             doc.rect(margin, y, printWidth, headerHeight).strokeColor("#000000").stroke();
 
             // LOGO ZONE (Left Header)
-            const logoPath = path.join(__dirname, "../../assets/fiberise_logo.jpg"); 
-            const logoWidth = 115; 
-            const logoHeight = 42; 
 
-            if (fs.existsSync(logoPath)) {
-                doc.image(logoPath, margin + 5, y + 5, {
-                    fit: [logoWidth, logoHeight],
-                    align: "left",
-                    valign: "center"
-                });
-            } else {
-                // Fallback structured text branding
-                doc.font(fontBold).fontSize(14).fillColor("#1E293B").text("AAYSH", margin + 6, y + 10, { continued: true });
-                doc.fillColor("#0D9488").text("EXPRESS");
-                doc.font(fontNormal).fontSize(6.5).fillColor("#64748B").text("LOGISTICS & FULFILLMENT", margin + 6, y + 28);
+const logoPath = seller?.logo
+    ? path.join(__dirname, "../../assets", seller.logo)
+    : null;
+
+const logoWidth = 115;
+const logoHeight = 42;
+
+if (logoPath && fs.existsSync(logoPath)) {
+
+    // User has a logo → show user's logo
+    doc.image(logoPath, margin + 5, y + 5, {
+        fit: [logoWidth, logoHeight],
+        align: "left",
+        valign: "center"
+    });
+
+} else {
+
+    // User has no logo → show user's name
+    doc
+        .font(fontBold)
+        .fontSize(14)
+        .fillColor("#1E293B")
+        .text(
+            seller?.username || "AAYSH EXPRESS",
+            margin + 6,
+            y + 15,
+            {
+                width: 115,
+                ellipsis: true
             }
+        );
+}
 
             // ORDER DATE ZONE (Right Header Box)
             const rightHeaderX = margin + printWidth - 95;
