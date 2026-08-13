@@ -50,6 +50,11 @@ const userSchema = new mongoose.Schema({
   default: "",
 },
 
+logo: {
+  type: String,
+  default: "",
+},
+
 gstin: {
   type: String,
   default: "",

@@ -61,21 +61,35 @@ const generateInvoice = async (req, res) => {
 
             let y = margin;
 
-            // ================= 1. BRAND LOGO & HEADER =================
-            const logoPath = path.join(__dirname, "../../assets/fiberise_logo.jpg");
-            const logoWidth = 240; // Big logo
-            const logoX = margin + (printWidth - logoWidth) / 2; // Centered
+           // ================= 1. BRAND LOGO & HEADER =================
 
-            if (fs.existsSync(logoPath)) {
-                doc.image(logoPath, logoX, y, { width: logoWidth });
-                y += 65; // Adjust vertical space for big logo
-            } else {
-                doc.font(fontBold).fontSize(22).fillColor("#000000").text(sellerName, margin, y, {
-                    align: "center",
-                    width: printWidth
-                });
-                y += 35;
-            }
+const logoPath = seller?.logo
+    ? path.join(__dirname, "../../assets", seller.logo)
+    : null;
+
+const logoWidth = 240;
+const logoX = margin + (printWidth - logoWidth) / 2;
+
+if (logoPath && fs.existsSync(logoPath)) {
+    // User has a logo → show it
+    doc.image(logoPath, logoX, y, {
+        width: logoWidth
+    });
+
+    y += 65;
+} else {
+    // User has no logo → show username
+    doc
+        .font(fontBold)
+        .fontSize(22)
+        .fillColor("#000000")
+        .text(sellerName, margin, y, {
+            align: "center",
+            width: printWidth
+        });
+
+    y += 35;
+}
 
             // "TAX INVOICE" Title Center Strip (Bigger, but smaller than logo)
             doc.font(fontBold).fontSize(20).fillColor("#000000").text("TAX INVOICE", margin, y, {
