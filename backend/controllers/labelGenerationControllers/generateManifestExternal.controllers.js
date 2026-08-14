@@ -214,10 +214,8 @@ const generateManifest = async (req, res) => {
             const awbNo = String(order.shipping?.awbNumber || "");
 
             doc.font(fontNormal).fontSize(8.5).fillColor("#000000");
-            
-            // Checkbox + S.no
-            doc.rect(margin + 6, y + 12, 9, 9).stroke();
-            doc.text(`${i + 1}`, margin + 20, y + 12);
+
+            doc.text(`${i + 1}`, margin + 6, y + 12);
 
             // Order No
             doc.text(orderNo, margin + 45, y + 12, { width: 90, ellipsis: true });
