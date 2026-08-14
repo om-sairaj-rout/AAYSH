@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const {
@@ -94,7 +95,7 @@ const getAllOrders = async (req, res) => {
     const orderFilter = {};
 
     if (!isAdmin) {
-      orderFilter.uploadedBy = req.user.id;
+      orderFilter.uploadedBy = new mongoose.Types.ObjectId(req.user.id);
     }
 
     if (from || to) {
