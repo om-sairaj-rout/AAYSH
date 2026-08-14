@@ -1,5 +1,10 @@
 const BASE = import.meta.env.VITE_API_URL;
 
+const defaultFetchOptions = {
+  credentials: "include",
+  cache: "no-store",
+};
+
 export const shipOrdersAPI  = async (payload) => {
   const res = await fetch(`${BASE}/api/shipping/assign-awb`, {
     method: "POST",
@@ -50,7 +55,7 @@ export const pickupOrdersAPI = async (options = {}) => {
   const res = await fetch(`${BASE}/api/user/pickups?${params.toString()}`, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
+    ...defaultFetchOptions,
   });
 
   const data = await res.json();
@@ -106,7 +111,7 @@ export const getAdminPickupsAPI = async (options = {}) => {
   const res = await fetch(`${BASE}/api/admin/pickups?${params.toString()}`, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
+    ...defaultFetchOptions,
   });
 
   const data = await res.json();

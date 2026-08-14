@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getOrders } from '../api/ordersAPI';
 import SelectCourier from './SelectCourier'; 
@@ -10,6 +10,7 @@ import {
   formatDisplayDate,
   todayISODateOnly,
 } from '../utils/dateTime';
+import { useLatestRequestId } from '../utils/useLatestRequestId';
 
 
 /* ================= COPY BUTTON UI COMPONENT ================= */
@@ -417,8 +418,11 @@ const OrdersPage = () => {
     total: 0,
     total_pages: 1,
   });
+  const { startRequest, isLatestRequest } = useLatestRequestId();
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
+    const requestId = startRequest();
+
     try {
       const res = await getOrders({
         status: activeSegment !== "All Orders" ? activeSegment : undefined,
@@ -429,19 +433,31 @@ const OrdersPage = () => {
         perPage: ordersPerPage,
       });
 
+      if (!isLatestRequest(requestId)) return;
+
       if (res.success) {
         setAllOrders(res.orders || []);
         setCounts(res.counts || {});
         setPagination(res.meta?.pagination || { total: 0, total_pages: 1 });
       }
     } catch (err) {
+      if (!isLatestRequest(requestId)) return;
       console.error(err);
     }
-  };
+  }, [
+    activeSegment,
+    fromDate,
+    toDate,
+    searchQuery,
+    currentPage,
+    ordersPerPage,
+    startRequest,
+    isLatestRequest,
+  ]);
 
   useEffect(() => {
     fetchOrders();
-  }, [activeSegment, searchQuery, fromDate, toDate, currentPage, ordersPerPage]);
+  }, [fetchOrders]);
 
   useEffect(() => {
     setSelectedOrders([]);
@@ -582,6 +598,8 @@ const OrdersPage = () => {
                   key={tabName}
                   onClick={() => {
                     setActiveSegment(tabName);
+                    setCurrentPage(1);
+                    setSelectedOrders([]);
                   }}
                   className={`px-4 py-2 text-sm font-semibold rounded-lg border transition-all flex items-center gap-2 ${
                     isActive

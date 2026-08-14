@@ -23,6 +23,11 @@ connectToDB();
 const app = express();
 
 app.use(cookieParser());
+app.use((req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  res.set("Pragma", "no-cache");
+  next();
+});
 app.use(cors({
   origin: [
     "http://localhost:5173",

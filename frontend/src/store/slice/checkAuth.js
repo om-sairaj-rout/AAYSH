@@ -7,6 +7,7 @@ export const authVerify = createAsyncThunk('checkAuth/authVerify', async () => {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        cache: 'no-store',
     });
 
     if (!res.ok) {

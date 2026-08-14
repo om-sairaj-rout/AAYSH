@@ -1,5 +1,10 @@
 const BASE = import.meta.env.VITE_API_URL;
 
+const defaultFetchOptions = {
+  credentials: "include",
+  cache: "no-store",
+};
+
 export const getOrdersByDate = async (
   fromDate,
   toDate,
@@ -20,7 +25,7 @@ export const getOrdersByDate = async (
     `${BASE}/api/orders/filter?${params.toString()}`,
     {
       method: "GET",
-      credentials: "include",
+      ...defaultFetchOptions,
     }
   );
 
@@ -98,7 +103,7 @@ export const getOrders = async ({
     `${BASE}/api/orders?${params.toString()}`,
     {
       method: "GET",
-      credentials: "include",
+      ...defaultFetchOptions,
     }
   );
 

@@ -1,8 +1,9 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSelector } from "react-redux";
 import { ChevronLeft, ChevronRight, MoreHorizontal, FileText, ClipboardList, Tag } from 'lucide-react';
 import { getOrders } from '../api/ordersAPI';
 import { generateLabelAPI, generateInvoiceAPI, generateManifestAPI } from "../api/labelAPI";
+import { useLatestRequestId } from '../utils/useLatestRequestId';
 import { toast } from 'react-hot-toast';
 import { formatDisplayDate } from '../utils/dateTime';
 
@@ -115,6 +116,7 @@ const ShipmentPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage, setOrdersPerPage] = useState(20);
   const [pagination, setPagination] = useState({ total: 0, total_pages: 1 });
+  const { startRequest, isLatestRequest } = useLatestRequestId();
 
   const getBookedTab = () => {
     if (activeTab === "Today's Shipments") return "today";
@@ -122,7 +124,9 @@ const ShipmentPage = () => {
     return undefined;
   };
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
+    const requestId = startRequest();
+
     try {
       const res = await getOrders({
         forShipments: true,
@@ -131,19 +135,28 @@ const ShipmentPage = () => {
         perPage: ordersPerPage,
       });
 
+      if (!isLatestRequest(requestId)) return;
+
       if (res.success) {
         setAllOrders(res.orders || []);
         setCounts(res.counts || {});
         setPagination(res.meta?.pagination || { total: 0, total_pages: 1 });
       }
     } catch (err) {
+      if (!isLatestRequest(requestId)) return;
       console.error(err);
     }
-  };
+  }, [
+    activeTab,
+    currentPage,
+    ordersPerPage,
+    startRequest,
+    isLatestRequest,
+  ]);
 
   useEffect(() => {
     fetchOrders();
-  }, [activeTab, currentPage, ordersPerPage]);
+  }, [fetchOrders]);
 
   useEffect(() => {
     setSelectedOrders([]);
@@ -271,7 +284,11 @@ const ShipmentPage = () => {
               return (
                 <button
                   key={tabName}
-                  onClick={() => setActiveTab(tabName)}
+                  onClick={() => {
+                    setActiveTab(tabName);
+                    setCurrentPage(1);
+                    setSelectedOrders([]);
+                  }}
                   className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all flex items-center gap-2 ${
                     isActive
                       ? 'bg-[#1E293B] border-[#1E293B] text-white shadow-sm'
