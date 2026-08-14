@@ -8,12 +8,10 @@ const createAdmin = async () => {
   const hashedPassword = await bcrypt.hash("admin123", 10);
 
   await User.create({
-    username: "admin",
+    companyName: "admin",
     email: "admin@gmail.com",
     password: hashedPassword,
     mobile_number: "9999999999",
-    company_name: "FastDelivery",
-    gender: "Male",
     address: "Noida",
     zip_code: "201301",
     city: "Noida",

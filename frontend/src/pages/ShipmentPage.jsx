@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, MoreHorizontal, FileText, ClipboardList, Tag
 import { getOrders } from '../api/ordersAPI';
 import { generateLabelAPI, generateInvoiceAPI, generateManifestAPI } from "../api/labelAPI";
 import { toast } from 'react-hot-toast';
+import { formatDisplayDate } from '../utils/dateTime';
 
 /* ================= COPY BUTTON UI COMPONENT ================= */
 const CopyButton = ({ text, label, e }) => {
@@ -105,39 +106,35 @@ const ActionDropdown = ({ order, onPrintLabel, onPrintInvoice, onPrintManifest }
 
 /* ================= MAIN SHIPMENT PAGE COMPONENT ================= */
 const ShipmentPage = () => {
-  const [allOrders, setAllOrders] = useState([]); 
-  const [filteredOrders, setFilteredOrders] = useState([]); 
+  const [allOrders, setAllOrders] = useState([]);
   const [activeTab, setActiveTab] = useState('All Shipments'); 
   const [selectedOrders, setSelectedOrders] = useState([]);
+  const [counts, setCounts] = useState({});
   const { isAdmin, user } = useSelector((state) => state.auth);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [ordersPerPage, setOrdersPerPage] = useState(25);
+  const [ordersPerPage, setOrdersPerPage] = useState(20);
+  const [pagination, setPagination] = useState({ total: 0, total_pages: 1 });
+
+  const getBookedTab = () => {
+    if (activeTab === "Today's Shipments") return "today";
+    if (activeTab === "Previous Shipments") return "previous";
+    return undefined;
+  };
 
   const fetchOrders = async () => {
     try {
-      const res = await getOrders();
+      const res = await getOrders({
+        forShipments: true,
+        bookedTab: getBookedTab(),
+        page: currentPage,
+        perPage: ordersPerPage,
+      });
 
       if (res.success) {
-        const validStatuses = [
-          "Booked",
-          "Shipped",
-          "In Transit",
-          "Out For Delivery",
-          "Delivered",
-          "Cancelled",
-          "RTO",
-          "Returned",
-          "Exchange",
-          "Delayed",
-          "Delivery Attempt Failed",
-        ];
-
-        setAllOrders(
-          (res.orders || []).filter(order =>
-            validStatuses.includes(order.shipping?.shippingStatus)
-          )
-        );
+        setAllOrders(res.orders || []);
+        setCounts(res.counts || {});
+        setPagination(res.meta?.pagination || { total: 0, total_pages: 1 });
       }
     } catch (err) {
       console.error(err);
@@ -146,57 +143,20 @@ const ShipmentPage = () => {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [activeTab, currentPage, ordersPerPage]);
 
   useEffect(() => {
     setSelectedOrders([]);
     setCurrentPage(1);
-  }, [activeTab]);
+  }, [activeTab, ordersPerPage]);
 
-  useEffect(() => {
-    const today = new Date().toDateString();
+  const getTabCount = (tabName) => counts[tabName] || 0;
 
-    const result = allOrders.filter(order => {
-      const bookingDate = order.shipping?.bookedAt
-        ? new Date(order.shipping?.bookedAt).toDateString()
-        : null;
-
-      const isToday = bookingDate === today;
-
-      if (activeTab === "All Shipments") return true;
-      if (activeTab === "Today's Shipments") return isToday;
-      if (activeTab === "Previous Shipments") return !isToday;
-
-      return true;
-    });
-
-    setFilteredOrders(result);
-    setCurrentPage(1);
-    setSelectedOrders([]);
-  }, [activeTab, allOrders]);
-
-  const getTabCount = (tabName) => {
-    const today = new Date().toDateString();
-
-    return allOrders.filter(order => {
-      const bookingDate = order.shipping?.bookedAt
-        ? new Date(order.shipping?.bookedAt).toDateString()
-        : null;
-
-      const isToday = bookingDate === today;
-
-      if (tabName === "All Shipments") return true;
-      if (tabName === "Today's Shipments") return isToday;
-      if (tabName === "Previous Shipments") return !isToday;
-
-      return true;
-    }).length;
-  };
-
-  const indexOfLastOrder = currentPage * ordersPerPage;
-  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-  const currentOrders = (filteredOrders || []).slice(indexOfFirstOrder, indexOfLastOrder);
-  const totalPages = Math.ceil((filteredOrders?.length || 0) / ordersPerPage) || 1;
+  const currentOrders = allOrders;
+  const totalPages = pagination.total_pages || 1;
+  const totalShipments = pagination.total || 0;
+  const indexOfFirstOrder = totalShipments === 0 ? 0 : (currentPage - 1) * ordersPerPage + 1;
+  const indexOfLastOrder = Math.min(currentPage * ordersPerPage, totalShipments);
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
@@ -402,11 +362,11 @@ const ShipmentPage = () => {
                 const isChecked = selectedOrders.includes(order._id);
                 
                 const externalId = order.externalOrderId || order._id;
-                const orderDateFormatted = order.orderDate ? new Date(order.orderDate).toLocaleDateString() : '-';
+                const orderDateFormatted = formatDisplayDate(order.orderDate);
                 
                 // Pickup Date Resolution
-                const rawPickupDate = order.shipping?.pickupDate || order.pickupDate;
-                const pickupDateFormatted = rawPickupDate ? new Date(rawPickupDate).toLocaleDateString() : '-';
+                const rawPickupDate = order.shipping?.pickupDate;
+                const pickupDateFormatted = formatDisplayDate(rawPickupDate);
 
                 const fullName = `${order.consigneeName || ''} ${order.consigneeLastName || ''}`.trim() || '-';
                 const email = order.consigneeEmail || '';
@@ -625,7 +585,7 @@ const ShipmentPage = () => {
                 );
               })}
 
-              {filteredOrders.length === 0 && (
+              {allOrders.length === 0 && (
                 <tr>
                   <td colSpan={headers.length + 1} className="p-10 text-center text-slate-400 font-medium">
                     No shipments found in this category.
@@ -649,14 +609,14 @@ const ShipmentPage = () => {
               }}
               className="bg-slate-50 border border-gray-200 text-slate-700 font-bold text-xs rounded-lg py-1.5 px-2.5 focus:outline-none cursor-pointer"
             >
+              <option value={20}>20 Rows</option>
               <option value={25}>25 Rows</option>
               <option value={50}>50 Rows</option>
               <option value={100}>100 Rows</option>
             </select>
 
             <span className="text-xs text-slate-400">
-              Showing {filteredOrders.length > 0 ? indexOfFirstOrder + 1 : 0} -{" "}
-              {Math.min(indexOfLastOrder, filteredOrders.length)} of {filteredOrders.length} shipments
+              Showing {totalShipments > 0 ? indexOfFirstOrder : 0} - {indexOfLastOrder} of {totalShipments} shipments
             </span>
           </div>
 
@@ -675,7 +635,7 @@ const ShipmentPage = () => {
 
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages || filteredOrders.length === 0}
+              disabled={currentPage === totalPages || totalShipments === 0}
               className="p-2 rounded-lg border border-gray-200 text-slate-400 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-white transition-all"
             >
               <ChevronRight className="w-4 h-4" />

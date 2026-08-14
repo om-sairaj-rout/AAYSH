@@ -1,6 +1,7 @@
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const Tracking = require("../../models/upload/tracking.model");
+const { toISTDateTime } = require("../../utils/dateTime");
 
 const getTrackingByOrderId = async (req, res) => {
   try {
@@ -60,7 +61,7 @@ const getTrackingByOrderId = async (req, res) => {
         },
 
         shipment_track_activities: history.map((item) => ({
-          date: item.eventTime,
+          date: toISTDateTime(item.eventTime),
           status: item.status,
           activity: item.remarks || item.status,
           location: item.location,

@@ -1,16 +1,17 @@
 const cron = require("node-cron");
 const Shipping = require("../models/upload/shipping.model");
+const {
+  startOfTodayIST,
+  startOfTomorrowIST,
+} = require("../utils/dateTime");
 
 // Every 5 minutes from 6:00 PM to 11:55 PM IST
 cron.schedule(
   "*/5 18-23 * * *",
   async () => {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      const today = startOfTodayIST();
+      const tomorrow = startOfTomorrowIST();
 
       const result = await Shipping.updateMany(
         {

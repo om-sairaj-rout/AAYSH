@@ -3,6 +3,7 @@ const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const PincodeServiceability = require("../../models/upload/serviceability.model");
 const CourierPriority = require("../../models/upload/courierPriority.model");
+const { parseISODateOnly, now } = require("../../utils/dateTime");
 
 // ================= CATEGORY LOGIC =================
 const getAwbCategory = (weight, service) => {
@@ -35,6 +36,14 @@ if (!["surface", "air", "prime"].includes(service)) {
   return res.status(400).json({
     success: false,
     message: "Invalid service type",
+  });
+}
+
+const parsedPickupDate = parseISODateOnly(pickupDate);
+if (!parsedPickupDate) {
+  return res.status(400).json({
+    success: false,
+    message: "Invalid pickupDate. Expected format YYYY-MM-DD.",
   });
 }
 
@@ -101,7 +110,6 @@ const serviceabilityMap = new Map(
 
 // Store updates for bulk write
 const shippingUpdates = [];
-const orderUpdates = [];
 
 for (const item of orders) {
 
@@ -243,30 +251,16 @@ shippingUpdates.push({
       courierId: selectedCourier.courierId,
       courierName: selectedCourier.courierName,
       serviceType: service,
-      pickupDate,
+      pickupDate: parsedPickupDate,
       pickupTime,
       pickupInstructions: notes,
       pickupLocation,
       pickupStatus: "Scheduled",
       shippingStatus: "Booked",
-      bookedAt: new Date(),
+      bookedAt: now(),
       totalWeight: order.weight || 0,
     },
     upsert: true,
-  },
-});
-
-orderUpdates.push({
-  updateOne: {
-    filter: {
-      _id: order._id,
-    },
-    update: {
-      pickupDate,
-      pickupTime,
-      pickupInstructions: notes,
-      pickupLocation,
-    },
   },
 });
 
@@ -284,10 +278,6 @@ updatedOrders.push({
 
     if (shippingUpdates.length) {
   await Shipping.bulkWrite(shippingUpdates);
-}
-
-if (orderUpdates.length) {
-  await Order.bulkWrite(orderUpdates);
 }
 
     const successCount = updatedOrders.filter(

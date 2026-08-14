@@ -6,7 +6,7 @@ const updateUserController = async (req, res) => {
     const { id } = req.params;
 
     const updateData = {
-      username: req.body.username,
+      companyName: req.body.companyName,
       email: req.body.email,
       mobile_number: req.body.mobile_number,
       website: req.body.website,

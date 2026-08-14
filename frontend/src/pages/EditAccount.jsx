@@ -32,7 +32,7 @@ const EditAccount = () => {
 
   // Form Controlled States for pre-filling data
   const [formData, setFormData] = useState({
-  username: "",
+  companyName: "",
   email: "",
   password: "",
   mobile: "",
@@ -69,7 +69,7 @@ const EditAccount = () => {
   const handleSelectUser = (user) => {
     setSelectedUser(user);
     setFormData({
-      username: user.username || "",
+      companyName: user.companyName || "",
       email: user.email || "",
       password: "", 
       mobile: user.mobile_number || "",
@@ -100,8 +100,8 @@ const EditAccount = () => {
     e.preventDefault();
     const newErrors = {};
 
-    if (formData.username.trim().length < 3) {
-      newErrors.username = "Company name must contain at least 3 letters";
+    if (formData.companyName.trim().length < 3) {
+      newErrors.companyName = "Company name must contain at least 3 letters";
     }
     if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Invalid email address";
@@ -119,7 +119,7 @@ const EditAccount = () => {
 
     try {
       const updatedPayload = {
-        username: formData.username.trim(),
+        companyName: formData.companyName.trim(),
         email: formData.email.trim(),
         mobile_number: formData.mobile.trim(),
         website: formData.website.trim(),
@@ -175,7 +175,7 @@ const EditAccount = () => {
                         {user.isAdmin ? <ShieldCheck className="w-6 h-6 text-indigo-600" /> : <UserCircle className="w-6 h-6" />}
                       </div>
                       <div>
-                        <h3 className="font-bold text-slate-800 text-sm">{user.username}</h3>
+                        <h3 className="font-bold text-slate-800 text-sm">{user.companyName}</h3>
                         <p className="text-xs text-slate-400 font-medium">{user.email}</p>
                       </div>
                     </div>
@@ -216,7 +216,7 @@ const EditAccount = () => {
 
         <div className="pb-2">
           <h2 className="text-xl font-black text-slate-900">Modify System Profile</h2>
-          <p className="text-xs text-slate-400 font-medium mt-1">Editing credentials and configurations for: <span className="text-slate-700 font-bold">{selectedUser.username}</span></p>
+          <p className="text-xs text-slate-400 font-medium mt-1">Editing credentials and configurations for: <span className="text-slate-700 font-bold">{selectedUser.companyName}</span></p>
         </div>
 
         {errors.api && (
@@ -236,8 +236,8 @@ const EditAccount = () => {
 
     <input
       type="text"
-      name="username"
-      value={formData.username}
+      name="companyName"
+      value={formData.companyName}
       onChange={handleInputChange}
       placeholder="Company Name"
       className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100/50 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
@@ -245,9 +245,9 @@ const EditAccount = () => {
     />
   </div>
 
-  {errors.username && (
+  {errors.companyName && (
     <p className="text-red-500 text-xs mt-1">
-      {errors.username}
+      {errors.companyName}
     </p>
   )}
 </div>

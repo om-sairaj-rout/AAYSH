@@ -80,26 +80,6 @@ const OrderSchema = new mongoose.Schema(
       default: null,
     },
 
-    pickupDate: {
-      type: Date,
-      default: null,
-    },
-
-    pickupTime: {
-      type: String,
-      default: "",
-    },
-
-    pickupInstructions: {
-      type: String,
-      default: "",
-    },
-
-    pickupLocation: {
-      type: String,
-      default: "",
-    },
-
 
     // =====================================
     // Customer Details

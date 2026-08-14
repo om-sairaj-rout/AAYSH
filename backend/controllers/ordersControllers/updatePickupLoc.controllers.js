@@ -64,11 +64,6 @@ if (!allowedStatuses.includes(shipping.shippingStatus)) {
   continue;
 }
 
-      // Update Order
-      order.pickupLocation = pickup_location;
-      await order.save();
-
-      // Update Shipping
       shipping.pickupLocation = pickup_location;
       await shipping.save();
 

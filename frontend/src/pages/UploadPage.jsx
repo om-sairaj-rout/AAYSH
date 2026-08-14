@@ -2,6 +2,7 @@ import { FileSpreadsheet, CheckCircle, Loader2, AlertCircle, Clock, Trash2, File
 import { useState, useEffect } from 'react';
 import { uploadFile, getUploadHistory, deleteUploadRecord } from '../api/uploadAPI';
 import { toast } from 'react-hot-toast';
+import { formatDisplayDate } from '../utils/dateTime';
 
 const UploadPage = () => {
   const [file, setFile] = useState(null);
@@ -282,11 +283,7 @@ const UploadPage = () => {
 
                   <td className="px-6 py-4 text-sm text-slate-500">
 
-                    {new Date(item.uploadDate).toLocaleString('en-IN', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric'
-                    })}
+                    {formatDisplayDate(item.uploadDate)}
 
                   </td>
 

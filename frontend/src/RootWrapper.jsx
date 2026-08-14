@@ -27,6 +27,7 @@ import ProtectedRoute from "./ProtectedRoute.jsx";
 import CustomerTracking from "./pages/CustomerTracking.jsx";
 import ServiceabilityPage from "./pages/ServiceabilityPage.jsx";
 import CourierPriorityPage from "./pages/CourierPriorityPage.jsx";
+import UpdateOrdersPage from "./pages/UpdateOrdersPage.jsx";
 
 const router = createBrowserRouter([
   { path: "/", element: <HomePage /> },
@@ -55,6 +56,7 @@ const router = createBrowserRouter([
       { path: "/update/AWB", element: <AwbManagement /> },
       { path: "/update/serviceability", element: <ServiceabilityPage /> },
       { path: "/update/courier-priority", element: <CourierPriorityPage /> },
+      { path: "/update/order-updates", element: <UpdateOrdersPage /> },
       { path: "/select-courier", element: <SelectCourier /> },
       { path: "/awb/:awbNumber", element: <AwbPage /> },
       { path: "/pickup", element: <PickupRoute /> },

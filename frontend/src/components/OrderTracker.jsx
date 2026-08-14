@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDisplayDateTime } from '../utils/dateTime';
 
 /**
  * Reusable Order Tracking Progress Bar & Timeline Component
@@ -155,7 +156,7 @@ const sortedHistory = [...trackingHistory].sort((a, b) => {
                       )}
                     </span>
                     <span className="text-[11px] text-slate-400">
-                      {event.eventTime ? new Date(event.eventTime).toLocaleString() : ''}
+                      {event.eventTime ? formatDisplayDateTime(event.eventTime) : ''}
                     </span>
                   </div>
 

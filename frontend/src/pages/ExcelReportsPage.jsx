@@ -31,11 +31,11 @@ const ExcelReportsPage = () => {
 
   // Filter users based on search string matching name or email
   const filteredUsers = usersData.filter((u) => {
-    const username = u?.username || "";
+    const companyName = u?.companyName || "";
     const email = u?.email || "";
 
     return (
-      username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       email.toLowerCase().includes(searchQuery.toLowerCase())
     );
   });
@@ -157,7 +157,7 @@ const ExcelReportsPage = () => {
                     <User className="w-5 h-5" />
                   </div>
                   <div className="truncate">
-                    <h2 className="text-sm font-bold text-slate-800 truncate">{userItem.username}</h2>
+                    <h2 className="text-sm font-bold text-slate-800 truncate">{userItem.companyName}</h2>
                     <p className="text-xs text-slate-400 truncate mt-0.5">{userItem.email}</p>
                   </div>
                 </div>

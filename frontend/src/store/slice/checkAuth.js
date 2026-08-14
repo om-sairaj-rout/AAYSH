@@ -22,7 +22,8 @@ const checkAuthSlice = createSlice({
   initialState: {
     isAuthenticated: null,
     user: null,
-    loading: false,
+    loading: true,
+    initialized: false,
     error: null,
     isAdmin: false,
   },
@@ -39,7 +40,9 @@ const checkAuthSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(authVerify.pending, (state) => {
-        state.loading = true;
+        if (!state.initialized) {
+          state.loading = true;
+        }
         state.error = null;
       })
       .addCase(authVerify.fulfilled, (state, action) => {
@@ -47,10 +50,12 @@ const checkAuthSlice = createSlice({
         state.user = action.payload.userDets;
         state.isAdmin = action.payload.userDets.role === "admin";
         state.loading = false;
+        state.initialized = true;
       })
       .addCase(authVerify.rejected, (state, action) => {
         state.isAuthenticated = false;
         state.loading = false;
+        state.initialized = true;
         state.user = null;
         state.isAdmin = false;
         state.error = action.payload || action.error.message;

@@ -1,5 +1,16 @@
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
+const { toISTDate } = require("../../utils/dateTime");
+
+const getISTYear = (date) => {
+  const istDate = toISTDate(date);
+  return istDate ? istDate.split("-")[0] : null;
+};
+
+const getISTMonthIndex = (date) => {
+  const istDate = toISTDate(date);
+  return istDate ? Number(istDate.split("-")[1]) - 1 : -1;
+};
 
 const getDashboardController = async (req, res) => {
   try {
@@ -49,9 +60,7 @@ if (selectedYear) {
 
     if (!date) return false;
 
-    return (
-      new Date(date).getFullYear().toString() === selectedYear
-    );
+    return getISTYear(date) === selectedYear;
   });
 }
 
@@ -127,10 +136,7 @@ const chartData = months.map((month, index) => {
   const monthOrders = yearOrders.filter((o) => {
     const date = o.orderDate || o.createdAt;
 
-    return (
-      date &&
-      new Date(date).getMonth() === index
-    );
+    return date && getISTMonthIndex(date) === index;
   });
 
   return {

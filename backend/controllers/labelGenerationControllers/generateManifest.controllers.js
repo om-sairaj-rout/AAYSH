@@ -3,6 +3,7 @@ const bwipjs = require("bwip-js");
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const User = require("../../models/user.model");
+const { formatDisplayDateTime } = require("../../utils/dateTime");
 
 const drawBarcode128 = async (doc, code, x, y) => {
     if (!code) return;
@@ -77,7 +78,7 @@ const generateManifest = async (req, res) => {
         // Dynamic Details
         const manifestId = `MANIFEST-${Date.now().toString().slice(-4)}`;
         const courier = courierName || orders[0]?.shipping?.courierName || "Xpressbees Surface";
-        const sellerName = seller.company_name || seller.username;
+        const sellerName = seller.companyName || "N/A";
 
         const sellerAddress = [
             seller.address,
@@ -132,10 +133,7 @@ doc.font(fontNormal)
    );
 
             // Subtitle Date
-            const nowFormatted = new Date().toLocaleString("en-US", {
-                month: "long", day: "numeric", year: "numeric",
-                hour: "numeric", minute: "2-digit", hour12: true
-            });
+            const nowFormatted = formatDisplayDateTime(new Date());
             doc.font(fontNormal).fontSize(8.5).fillColor("#475569");
             doc.text(`Generated on: ${nowFormatted}`, margin, titleY + 30, { align: "center", width: printWidth });
 

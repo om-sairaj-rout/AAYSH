@@ -40,8 +40,6 @@ const TemplatePage = () => {
     "Tax": 18,
     "HSN": "8518",
 
-    "Sub Total": 1499,
-
     "Shipping Charges": 50,
     "Giftwrap Charges": 0,
     "Transaction Charges": 0,

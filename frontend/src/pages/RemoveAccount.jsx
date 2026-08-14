@@ -56,13 +56,13 @@ const RemoveAccount = () => {
   const handleDelete = async (e) => {
     e.preventDefault();
 
-    if (confirmName !== selectedUser.username) {
-      setError("The username entered does not match.");
+    if (confirmName !== selectedUser.companyName) {
+      setError("The company name entered does not match.");
       return;
     }
 
     const secureConfirm = window.confirm(
-      `Are you absolutely sure you want to permanently delete ${selectedUser.username}'s account? This action cannot be undone.`
+      `Are you absolutely sure you want to permanently delete ${selectedUser.companyName}'s account? This action cannot be undone.`
     );
 
     if (!secureConfirm) return;
@@ -105,7 +105,7 @@ const RemoveAccount = () => {
                       </div>
                       <div>
                         <h3 className="font-bold text-slate-800 text-sm group-hover:text-rose-700 transition-colors">
-                          {user.username}
+                          {user.companyName}
                         </h3>
                         <p className="text-xs text-slate-400 font-medium">
                           {user.email}
@@ -172,7 +172,7 @@ const RemoveAccount = () => {
             <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Company Name</label>
             <div className="relative">
               <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input type="text" value={selectedUser.username || "-"} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-sm" disabled />
+              <input type="text" value={selectedUser.companyName || "-"} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-sm" disabled />
             </div>
           </div>
 
@@ -265,14 +265,14 @@ const RemoveAccount = () => {
         <form onSubmit={handleDelete} className="border-t border-slate-200 pt-6 space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              To confirm, type <span className="font-black text-rose-600 select-all font-mono">"{selectedUser.username}"</span> below:
+              To confirm, type <span className="font-black text-rose-600 select-all font-mono">"{selectedUser.companyName}"</span> below:
             </label>
             <input
               type="text"
               required
               value={confirmName}
               onChange={(e) => setConfirmName(e.target.value)}
-              placeholder="Type username exact match"
+              placeholder="Type company name exact match"
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-rose-500 text-sm font-semibold bg-white"
             />
           </div>
@@ -287,7 +287,7 @@ const RemoveAccount = () => {
             </button>
             <button 
               type="submit"
-              disabled={confirmName !== selectedUser.username}
+              disabled={confirmName !== selectedUser.companyName}
               className="w-2/3 py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all shadow-md uppercase tracking-wide text-sm disabled:opacity-40 disabled:cursor-not-allowed bg-rose-600 hover:bg-rose-700 shadow-rose-600/10"
             >
               <Trash2 className="w-4 h-4" /> Delete Account

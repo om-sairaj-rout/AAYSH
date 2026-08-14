@@ -1,5 +1,6 @@
 const Shipping = require("../../models/upload/shipping.model");
 const Order = require("../../models/upload/order.model");
+const { toISTDateTime, toISTDate } = require("../../utils/dateTime");
 
 const getShipmentDetails = async (req, res) => {
   try {
@@ -93,7 +94,7 @@ const getShipmentDetails = async (req, res) => {
           height: order.height,
         },
 
-        created_at: shipment.createdAt,
+        created_at: toISTDateTime(shipment.createdAt),
       },
     });
   } catch (err) {

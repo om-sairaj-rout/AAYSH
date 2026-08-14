@@ -1,13 +1,21 @@
+const mongoose = require("mongoose");
 const Shipping = require("../../models/upload/shipping.model");
-const Order = require("../../models/upload/order.model");
+const {
+  startOfDayIST,
+  endOfDayIST,
+  toISTDate,
+  toISTDateTime,
+} = require("../../utils/dateTime");
+const {
+  parsePagination,
+  buildPaginationMeta,
+} = require("../../utils/pagination");
 
 const getAllShipments = async (req, res) => {
   try {
     const isAdmin = req.user.role === "admin";
 
     const {
-      page = 1,
-      per_page = 25,
       status,
       search,
       sort = "DESC",
@@ -15,34 +23,26 @@ const getAllShipments = async (req, res) => {
       to,
     } = req.query;
 
-    const orderFilter = {};
+    const { page, perPage, skip } = parsePagination(req.query, 20);
+
     const shippingFilter = {};
 
-    if (!isAdmin) {
-      orderFilter.uploadedBy = req.user.id;
-    }
-
-    // Shipment Status
     if (status) {
       shippingFilter.shippingStatus = status;
     }
 
-    // Date Filter (Shipment Created Date)
     if (from || to) {
       shippingFilter.createdAt = {};
 
       if (from) {
-        shippingFilter.createdAt.$gte = new Date(from);
+        shippingFilter.createdAt.$gte = startOfDayIST(from);
       }
 
       if (to) {
-        const endDate = new Date(to);
-        endDate.setHours(23, 59, 59, 999);
-        shippingFilter.createdAt.$lte = endDate;
+        shippingFilter.createdAt.$lte = endOfDayIST(to);
       }
     }
 
-    // Search by AWB
     if (search) {
       shippingFilter.awbNumber = {
         $regex: search,
@@ -50,81 +50,77 @@ const getAllShipments = async (req, res) => {
       };
     }
 
-    const sortOption = {
-      createdAt: sort === "ASC" ? 1 : -1,
-    };
+    const sortOrder = sort === "ASC" ? 1 : -1;
 
-    const shipments = await Shipping.find(shippingFilter)
-      .sort(sortOption)
-      .lean();
+    const orderMatch = {};
 
-    const data = [];
-
-    for (const shipment of shipments) {
-      const order = await Order.findOne({
-        _id: shipment.orderId,
-        ...orderFilter,
-      }).lean();
-
-      // Skip shipments belonging to other users
-      if (!order) continue;
-
-      // Search by External Order ID
-      if (
-        search &&
-        shipment.awbNumber !== search &&
-        !order.externalOrderId
-          .toLowerCase()
-          .includes(search.toLowerCase())
-      ) {
-        continue;
-      }
-
-      data.push({
-        shipment_id: shipment.shipmentId,
-
-        order_id: order.externalOrderId,
-
-        products: order.orderItems.map((item) => ({
-          name: item.name,
-          sku: item.sku,
-          quantity: item.units,
-        })),
-
-        awb: shipment.awbNumber,
-
-        status: shipment.shippingStatus,
-
-        created_at: shipment.createdAt,
-
-        courier: shipment.courierName,
-
-        pickup_date: shipment.pickupDate,
-
-        pickup_location: shipment.pickupLocation,
-
-        payment_method: order.paymentMethod,
-      });
+    if (!isAdmin) {
+      orderMatch["order.uploadedBy"] = new mongoose.Types.ObjectId(req.user.id);
     }
 
-    const total = data.length;
+    if (search) {
+      orderMatch.$or = [
+        { awbNumber: { $regex: search, $options: "i" } },
+        { "order.externalOrderId": { $regex: search, $options: "i" } },
+      ];
+      delete shippingFilter.awbNumber;
+    }
 
-    const start = (Number(page) - 1) * Number(per_page);
-    const end = start + Number(per_page);
+    const pipeline = [
+      { $match: shippingFilter },
+      {
+        $lookup: {
+          from: "orders",
+          localField: "orderId",
+          foreignField: "_id",
+          as: "order",
+        },
+      },
+      { $unwind: "$order" },
+    ];
+
+    if (Object.keys(orderMatch).length > 0) {
+      pipeline.push({ $match: orderMatch });
+    }
+
+    pipeline.push({
+      $facet: {
+        metadata: [{ $count: "total" }],
+        data: [
+          { $sort: { createdAt: sortOrder } },
+          { $skip: skip },
+          { $limit: perPage },
+        ],
+      },
+    });
+
+    const [result] = await Shipping.aggregate(pipeline);
+
+    const total = result.metadata[0]?.total || 0;
+    const shipments = result.data || [];
+
+    const data = shipments.map((shipment) => ({
+      shipment_id: shipment.shipmentId,
+      order_id: shipment.order.externalOrderId,
+      products: (shipment.order.orderItems || []).map((item) => ({
+        name: item.name,
+        sku: item.sku,
+        quantity: item.units,
+      })),
+      awb: shipment.awbNumber,
+      status: shipment.shippingStatus,
+      created_at: toISTDateTime(shipment.createdAt),
+      courier: shipment.courierName,
+      pickup_date: toISTDate(shipment.pickupDate),
+      pickup_location: shipment.pickupLocation,
+      payment_method: shipment.order.paymentMethod,
+    }));
 
     return res.status(200).json({
       success: true,
-
-      data: data.slice(start, end),
-
+      data,
       meta: {
-        pagination: {
-          total,
-          count: data.slice(start, end).length,
-          per_page: Number(per_page),
-          current_page: Number(page),
-          total_pages: Math.ceil(total / Number(per_page)),
-        },
+        pagination: buildPaginationMeta(total, page, perPage, data.length),
       },
     });
   } catch (err) {

@@ -17,8 +17,37 @@ export const shipOrdersAPI  = async (payload) => {
   return data;
 };
 
-export const pickupOrdersAPI  = async () => {
-  const res = await fetch(`${BASE}/api/user/pickups`, {
+const buildPickupParams = ({
+  page = 1,
+  perPage = 20,
+  tab,
+  search,
+  userId,
+} = {}) => {
+  const params = new URLSearchParams({
+    page: String(page),
+    per_page: String(perPage),
+  });
+
+  if (tab) {
+    params.append("tab", tab);
+  }
+
+  if (search) {
+    params.append("search", search);
+  }
+
+  if (userId && userId !== "ALL") {
+    params.append("user_id", userId);
+  }
+
+  return params;
+};
+
+export const pickupOrdersAPI = async (options = {}) => {
+  const params = buildPickupParams(options);
+
+  const res = await fetch(`${BASE}/api/user/pickups?${params.toString()}`, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -71,8 +100,10 @@ export const cancelPickupAPI = async (pickupId) => {
   return data;
 };
 
-export const getAdminPickupsAPI = async () => {
-  const res = await fetch(`${BASE}/api/admin/pickups`, {
+export const getAdminPickupsAPI = async (options = {}) => {
+  const params = buildPickupParams(options);
+
+  const res = await fetch(`${BASE}/api/admin/pickups?${params.toString()}`, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
     credentials: "include",

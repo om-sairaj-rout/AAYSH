@@ -2,6 +2,11 @@ const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const getCategory = require("../../utils/categoryMapper");
 const getExpectedHours = require("../../utils/tatMapper");
+const {
+  calculateInvoiceValue,
+  calculateItemsSubTotal,
+} = require("../../utils/invoiceCalculations");
+const { parseISODateOnly, now } = require("../../utils/dateTime");
 
 
 // Generate random 8 digit id
@@ -36,46 +41,8 @@ const generateInvoiceNo = () => {
 };
 
 // =========================================
-// Calculate Invoice Value
+// Create Order
 // =========================================
-const calculateInvoiceValue = ({
-  orderItems = [],
-  shippingCharges = 0,
-  giftwrapCharges = 0,
-  transactionCharges = 0,
-}) => {
-
-  let itemsTotal = 0;
-
-  for (const item of orderItems) {
-
-    const qty = Number(item.units || 1);
-
-    const price = Number(
-      item.sellingPrice ?? item.selling_price ?? 0
-    );
-
-    const discount = Number(item.discount || 0);
-
-    const tax = Number(item.tax || 0);
-
-    const taxable = (price * qty) - discount;
-
-    const gst = taxable * (tax / 100);
-
-    itemsTotal += taxable + gst;
-  }
-
-  return Number(
-    (
-      itemsTotal +
-      Number(shippingCharges || 0) +
-      Number(giftwrapCharges || 0) +
-      Number(transactionCharges || 0)
-    ).toFixed(2)
-  );
-};
-
 
 const createCustomOrder = async (req, res) => {
 
@@ -157,13 +124,8 @@ const expectedHours =
 
       orderDate:
       body.order_date
-      ? new Date(body.order_date)
-      : new Date(),
-
-
-
-      pickupLocation:
-      body.pickup_location,
+      ? parseISODateOnly(body.order_date) || now()
+      : now(),
 
 
 
@@ -287,8 +249,14 @@ const expectedHours =
 
 
 
-      subTotal:
-Number(body.sub_total || 0),
+      subTotal: calculateItemsSubTotal(
+        body.order_items.map((item) => ({
+          units: item.units || 1,
+          sellingPrice: item.selling_price || 0,
+          discount: item.discount || 0,
+          tax: item.tax || 0,
+        }))
+      ),
 
 shippingCharges:
 Number(body.shipping_charges || 0),
@@ -304,7 +272,7 @@ generateInvoiceNo(),
 
 invoiceValue:
 calculateInvoiceValue({
-  orderItems: body.order_items.map(item => ({
+  orderItems: body.order_items.map((item) => ({
     units: item.units || 1,
     sellingPrice: item.selling_price || 0,
     discount: item.discount || 0,

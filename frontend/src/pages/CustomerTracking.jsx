@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { getPublicOrderByAwb } from '../api/ordersAPI'; 
 import OrderTracker from '../components/OrderTracker';
+import { formatDisplayDate } from '../utils/dateTime';
 
 const CustomerTracking = () => {
   const { awbNumber } = useParams(); 
@@ -223,17 +224,9 @@ const CustomerTracking = () => {
               <span className="font-semibold text-slate-800 text-sm mt-1 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-indigo-500" />
                 {currentStatus?.toLowerCase() === 'delivered' && order.deliveryDate
-  ? new Date(order.deliveryDate).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    })
+  ? formatDisplayDate(order.deliveryDate)
   : order.expectedDeliveryDate
-    ? new Date(order.expectedDeliveryDate).toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
-      })
+    ? formatDisplayDate(order.expectedDeliveryDate)
     : "Pending Update"}
               </span>
             </div>

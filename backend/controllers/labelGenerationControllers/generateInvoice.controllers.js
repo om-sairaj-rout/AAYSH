@@ -4,6 +4,7 @@ const fs = require("fs");
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const User = require("../../models/user.model");
+const { formatDisplayDate, formatDisplayDateTime, nowISTDateTime } = require("../../utils/dateTime");
 
 const generateInvoice = async (req, res) => {
     try {
@@ -45,7 +46,7 @@ const generateInvoice = async (req, res) => {
         const printWidth = doc.page.width - (margin * 2); // ~555 pt
 
         // Dynamic Seller Info fallback
-        const sellerName = seller?.username || "N/A";
+        const sellerName = seller?.companyName || "N/A";
         const sellerAddress = seller?.address 
             ? `${seller.address}, ${seller.city || ''}, ${seller.state || ''} - ${seller.zip_code || ''}`
             : "N/A";
@@ -78,7 +79,7 @@ if (logoPath && fs.existsSync(logoPath)) {
 
     y += 65;
 } else {
-    // User has no logo → show username
+    // User has no logo → show company name
     doc
         .font(fontBold)
         .fontSize(22)
@@ -158,10 +159,10 @@ if (logoPath && fs.existsSync(logoPath)) {
             doc.font(fontBold).fontSize(8).text("INVOICE DETAILS:", col3X, col3Y);
             col3Y += 14;
 
-            const nowFormatted = new Date().toLocaleDateString('en-GB'); // DD/MM/YYYY
+            const nowFormatted = formatDisplayDateTime(new Date());
             const invoiceNo = order.invoiceNo || "N/A";
             const orderNo = order.externalOrderId || "N/A";
-            const orderDate = order.orderDate ? new Date(order.orderDate).toLocaleDateString('en-GB') : "N/A";
+            const orderDate = order.orderDate ? formatDisplayDate(order.orderDate) : "N/A";
             const courier = order.shipping?.courierName || "N/A";
             const awbNo = order.shipping?.awbNumber || "N/A";
             const paymentMethod = (order.paymentMethod || "N/A").toLowerCase();

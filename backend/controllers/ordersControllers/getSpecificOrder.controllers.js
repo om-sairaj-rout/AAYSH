@@ -1,5 +1,6 @@
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
+const { toISTDateTime, toISTDate } = require("../../utils/dateTime");
 
 const getSpecificOrder = async (req, res) => {
   try {
@@ -52,9 +53,9 @@ const getSpecificOrder = async (req, res) => {
 
         payment_method: order.paymentMethod,
 
-        order_date: order.orderDate,
+        order_date: toISTDate(order.orderDate),
 
-        pickup_date: order.pickupDate,
+        pickup_date: toISTDate(shipping?.pickupDate),
 
         comment: order.comment,
 
@@ -87,7 +88,7 @@ const getSpecificOrder = async (req, res) => {
             shipping?.attemptFailureReason || "",
         },
 
-        created_at: order.createdAt,
+        created_at: toISTDateTime(order.createdAt),
       },
     });
   } catch (err) {

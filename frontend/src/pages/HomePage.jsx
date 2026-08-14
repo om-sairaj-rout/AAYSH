@@ -23,6 +23,7 @@ import WhatsAppBut from "../components/WhatsAppBut";
 import { submitContactForm } from "../api/contactAPI";
 import { getOrderByAwb } from '../api/ordersAPI';
 import { toast } from 'react-hot-toast';
+import { formatDisplayDate } from '../utils/dateTime';
 import OrderTracker from '../components/OrderTracker'; // Imported OrderTracker component
 
 const HomePage = () => {
@@ -246,7 +247,7 @@ const HomePage = () => {
                       <span className="text-slate-400 font-medium block">Pickup Reference</span>
                       <span className="font-semibold text-slate-700 flex items-center gap-1 mt-0.5">
                         <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        {orderData.pickupDate ? new Date(orderData.pickupDate).toLocaleDateString('en-GB') : "-"}
+                        {formatDisplayDate(orderData.shipping?.pickupDate)}
                       </span>
                     </div>
                     <div>
@@ -262,7 +263,7 @@ const HomePage = () => {
                         <span className="text-slate-400 font-medium block">Delivery Date</span>
                         <span className="font-semibold text-slate-700 flex items-center gap-1 mt-0.5">
                           <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                          {new Date(orderData.deliveryDate).toLocaleDateString("en-GB")}
+                          {formatDisplayDate(orderData.deliveryDate)}
                         </span>
                       </div>
                     )}
@@ -289,7 +290,7 @@ const HomePage = () => {
                     <div className="p-4 space-y-2 text-sm">
                       <p className="font-bold text-slate-800">{orderData.consignorName || "ABC Manufacturing Ltd."}</p>
                       <div className="text-slate-600 space-y-1 text-xs">
-                        <p>Pickup Location: {orderData.pickupLocation || "Default Warehouse"}</p>
+                        <p>Pickup Location: {orderData.shipping?.pickupLocation || "Default Warehouse"}</p>
                       </div>
                     </div>
                   </div>

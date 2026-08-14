@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
     getAdminPickupsAPI,
     completePickupAPI,
     failPickupAPI,
 } from "../api/shipingAPI";
+import { formatDisplayDate } from "../utils/dateTime";
 
 /* ================= SINGLE FAIL PICKUP REASON MODAL ================= */
 const FailPickupModal = ({ isOpen, onClose, pickup, onConfirmFail }) => {
@@ -194,61 +196,63 @@ const BulkFailPickupModal = ({ isOpen, onClose, selectedCount, onConfirmBulkFail
   );
 };
 
+const ADMIN_TAB_TO_QUERY = {
+  "Today's Pickups": "today",
+  "Future Pickups": "future",
+  "Failed Pickups": "failed",
+  "Completed Pickups": "completed",
+  "All Pickups": "all",
+};
+
 /* ================= MAIN ADMIN PICKUP PAGE COMPONENT ================= */
 const AdminPickupPage = () => {
   const [activeTab, setActiveTab] = useState("Today's Pickups");
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedUser, setSelectedUser] = useState('ALL'); // User filter state
+  const [selectedUser, setSelectedUser] = useState('ALL');
   const [usersList, setUsersList] = useState([]);
   const [pickups, setPickups] = useState([]);
+  const [counts, setCounts] = useState({
+    today: 0,
+    future: 0,
+    failed: 0,
+    completed: 0,
+    scheduled: 0,
+    all: 0,
+  });
   const [selectedPickupIds, setSelectedPickupIds] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
+  const [pagination, setPagination] = useState({ total: 0, total_pages: 1 });
 
   // Modal States
   const [selectedPickup, setSelectedPickup] = useState(null);
   const [isFailModalOpen, setIsFailModalOpen] = useState(false);
   const [isBulkFailModalOpen, setIsBulkFailModalOpen] = useState(false);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
   const isTodayTab = activeTab === "Today's Pickups";
 
-  // Helper to extract normalized pickup status from item
   const getStatus = (item) => item.pickupStatus || item.status;
-
-  // 1. First filter pickups by selected User
-  const userFilteredPickups = pickups.filter(p => {
-    if (selectedUser === 'ALL') return true;
-    return p.userId?._id === selectedUser;
-  });
 
   const fetchPickups = async () => {
     try {
         setLoading(true);
 
-        const res = await getAdminPickupsAPI();
-
-        setPickups(res.data);
-
-        // create dropdown users
-        const users = [];
-
-        res.data.forEach(p => {
-            if (
-                p.userId &&
-                !users.find(u => u.id === p.userId._id)
-            ) {
-                users.push({
-                    id: p.userId._id,
-                    name: p.userId.username,
-                    email: p.userId.email
-                });
-            }
+        const res = await getAdminPickupsAPI({
+          tab: ADMIN_TAB_TO_QUERY[activeTab] || "today",
+          search: searchQuery.trim() || undefined,
+          userId: selectedUser,
+          page: currentPage,
+          perPage,
         });
 
-        setUsersList(users);
+        setPickups(res.data || []);
+        setCounts(res.counts || {});
+        setPagination(res.meta?.pagination || { total: 0, total_pages: 1 });
 
+        if (res.users?.length) {
+          setUsersList(res.users);
+        }
     } catch (err) {
         toast.error(err.message);
     } finally {
@@ -258,92 +262,16 @@ const AdminPickupPage = () => {
 
   useEffect(() => {
     fetchPickups();
-  }, []);
+  }, [activeTab, searchQuery, selectedUser, currentPage, perPage]);
 
-  // Metrics computation strictly on the basis of pickupStatus
-  const counts = {
-    today: userFilteredPickups.filter((p) => {
-      if (!p.pickupDate) return false;
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedPickupIds([]);
+  }, [activeTab, searchQuery, selectedUser, perPage]);
 
-      const d = new Date(p.pickupDate);
-      d.setHours(0, 0, 0, 0);
-
-      return (
-        d.getTime() === today.getTime() &&
-        getStatus(p) !== "Failed"
-      );
-    }).length,
-
-    future: userFilteredPickups.filter((p) => {
-      if (!p.pickupDate) return false;
-
-      const d = new Date(p.pickupDate);
-      d.setHours(0, 0, 0, 0);
-
-      return (
-        d > today &&
-        getStatus(p) !== "Failed"
-      );
-    }).length,
-
-    failed: userFilteredPickups.filter(
-      (p) => getStatus(p) === "Failed"
-    ).length,
-
-    completed: userFilteredPickups.filter(
-      (p) => getStatus(p) === "Completed"
-    ).length,
-
-    scheduled: userFilteredPickups.filter(
-      (p) => getStatus(p) === "Scheduled"
-    ).length,
-  };
-
-  // 2. Further filter by Active Tab & Search Query
-  const filteredPickups = userFilteredPickups.filter((item) => {
-    let matchesTab = false;
-    const status = getStatus(item);
-
-    const pickupDay = item.pickupDate
-      ? new Date(item.pickupDate)
-      : null;
-
-    if (pickupDay) {
-      pickupDay.setHours(0, 0, 0, 0);
-    }
-
-    if (activeTab === "Today's Pickups") {
-      matchesTab =
-        pickupDay &&
-        pickupDay.getTime() === today.getTime() &&
-        status !== "Failed";
-    }
-    else if (activeTab === "Future Pickups") {
-      matchesTab =
-        pickupDay &&
-        pickupDay > today &&
-        status !== "Failed";
-    }
-    else if (activeTab === "Failed Pickups") {
-      matchesTab = status === "Failed";
-    }
-    else if (activeTab === "Completed Pickups") {
-      matchesTab = status === "Completed";
-    }
-    else if (activeTab === "All Pickups") {
-      matchesTab = true;
-    }
-
-    const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      !q ||
-      item.externalOrderId?.toLowerCase().includes(q) ||
-      item.awbNumber?.toLowerCase().includes(q) ||
-      item.consignorName?.toLowerCase().includes(q) ||
-      item.courierName?.toLowerCase().includes(q);
-
-    return matchesTab && matchesSearch;
-  });
+  const filteredPickups = pickups;
+  const totalPages = pagination.total_pages || 1;
+  const totalPickups = pagination.total || 0;
 
   const selectablePickups = filteredPickups.filter(
   p =>
@@ -551,7 +479,8 @@ const AdminPickupPage = () => {
                 tab === "Today's Pickups" ? counts.today :
                 tab === "Future Pickups" ? counts.future :
                 tab === "Failed Pickups" ? counts.failed :
-                tab === "Completed Pickups" ? counts.completed : userFilteredPickups.length;
+                tab === "Completed Pickups" ? counts.completed :
+                counts.all ?? totalPickups;
 
               return (
                 <button
@@ -668,14 +597,14 @@ const AdminPickupPage = () => {
 
                       {/* Seller & Location */}
                       <td className="p-3.5">
-                        <div className="font-bold text-slate-800">{pickup.userId?.username}</div>
+                        <div className="font-bold text-slate-800">{pickup.userId?.companyName}</div>
                         <div className="text-xs text-slate-500">{pickup.pickupLocation}</div>
                       </td>
 
                       {/* Date */}
                       <td className="p-3.5 font-mono text-slate-700 flex flex-col">
                         <span>
-                          {pickup.pickupDate ? new Date(pickup.pickupDate).toLocaleDateString() : 'N/A'}
+                          {formatDisplayDate(pickup.pickupDate)}
                         </span>
                         <span>
                           {pickup.pickupTime || 'N/A'}
@@ -728,6 +657,41 @@ const AdminPickupPage = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="flex flex-col sm:flex-row justify-between items-center bg-white border border-slate-100 p-4 rounded-xl gap-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-slate-500">Rows per page:</span>
+            <select
+              value={perPage}
+              onChange={(e) => setPerPage(Number(e.target.value))}
+              className="bg-slate-50 border border-gray-200 text-slate-700 font-bold text-xs rounded-lg py-1.5 px-2.5"
+            >
+              <option value={20}>20</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span className="text-xs text-slate-400">
+              Page {currentPage} of {totalPages} ({totalPickups} pickups)
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg border border-gray-200 text-slate-400 disabled:opacity-30"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages || totalPickups === 0}
+              className="p-2 rounded-lg border border-gray-200 text-slate-400 disabled:opacity-30"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
       </div>

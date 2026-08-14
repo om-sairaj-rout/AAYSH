@@ -1,6 +1,7 @@
 const Shipping = require("../../models/upload/shipping.model");
 const Order = require("../../models/upload/order.model");
 const Tracking = require("../../models/upload/tracking.model");
+const { toISTDateTime } = require("../../utils/dateTime");
 
 const getTrackingByAwbs = async (req, res) => {
   try {
@@ -50,7 +51,7 @@ const getTrackingByAwbs = async (req, res) => {
           tracking_url: `https://www.aayshexpress.com/track/${shipping.awbNumber}`,
 
           tracking_history: history.map((item) => ({
-            date: item.eventTime,
+            date: toISTDateTime(item.eventTime),
             status: item.status,
             location: item.location,
             remarks: item.remarks,

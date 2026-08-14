@@ -1,5 +1,10 @@
 const Shipping = require("../../models/upload/shipping.model");
-const Order = require("../../models/upload/order.model");
+const {
+  parseISODateOnly,
+  startOfTodayIST,
+  compareISODates,
+  toISTDate,
+} = require("../../utils/dateTime");
 
 const reschedulePickupExternal = async (req, res) => {
   try {
@@ -32,18 +37,17 @@ const reschedulePickupExternal = async (req, res) => {
 // Pickup Date Validation (IST)
 // ==========================
 
-const requestedDate = new Date(pickupDate);
+const requestedDate = parseISODateOnly(pickupDate);
+const todayIST = startOfTodayIST();
 
-const todayIST = new Date(
-  new Date().toLocaleString("en-US", {
-    timeZone: "Asia/Kolkata",
-  })
-);
+if (!requestedDate || !todayIST) {
+  return res.status(400).json({
+    success: false,
+    message: "Invalid pickupDate. Expected format YYYY-MM-DD.",
+  });
+}
 
-requestedDate.setHours(0, 0, 0, 0);
-todayIST.setHours(0, 0, 0, 0);
-
-if (requestedDate < todayIST) {
+if (compareISODates(requestedDate, todayIST) < 0) {
   return res.status(400).json({
     success: false,
     message:
@@ -91,7 +95,7 @@ if (pickupTime < "11:00" || pickupTime > "17:00") {
       });
     }
 
-    shipping.pickupDate = pickupDate;
+    shipping.pickupDate = requestedDate;
     shipping.pickupTime = pickupTime;
     shipping.pickupLocation = pickupLocation;
     shipping.pickupInstructions = notes || "";
@@ -101,23 +105,12 @@ if (pickupTime < "11:00" || pickupTime > "17:00") {
 
     await shipping.save();
 
-    // Keep Order pickup details in sync
-    await Order.findByIdAndUpdate(
-      shipping.orderId,
-      {
-        pickupDate,
-        pickupTime,
-        pickupLocation,
-        pickupInstructions: notes || "",
-      }
-    );
-
     return res.status(200).json({
       success: true,
       message: "Pickup rescheduled successfully.",
       data: {
         shipmentId: shipping.shipmentId,
-        pickupDate: shipping.pickupDate,
+        pickupDate: toISTDate(shipping.pickupDate),
         pickupTime: shipping.pickupTime,
         pickupLocation: shipping.pickupLocation,
         pickupStatus: shipping.pickupStatus,

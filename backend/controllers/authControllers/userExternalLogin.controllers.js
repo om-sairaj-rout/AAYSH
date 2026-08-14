@@ -24,7 +24,7 @@ const loginUserExternal = async (req, res) => {
     const token = jwt.sign(
   {
     id: foundUser._id,
-    username: foundUser.username,
+    companyName: foundUser.companyName,
     role: foundUser.role,
   },
   process.env.JWT_SECRET,

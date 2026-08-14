@@ -5,6 +5,7 @@ const fs = require("fs");
 const Order = require("../../models/upload/order.model"); 
 const Shipping = require("../../models/upload/shipping.model");
 const User = require("../../models/user.model");
+const { formatDisplayDate } = require("../../utils/dateTime");
 
 const generateLabel = async (req, res) => {
     try {
@@ -115,7 +116,7 @@ if (logoPath && fs.existsSync(logoPath)) {
         .fontSize(14)
         .fillColor("#1E293B")
         .text(
-            seller?.username || "AAYSH EXPRESS",
+            seller?.companyName || "AAYSH EXPRESS",
             margin + 6,
             y + 15,
             {
@@ -134,7 +135,7 @@ if (logoPath && fs.existsSync(logoPath)) {
                 align: "center"
             });
 
-            const formattedOrderDate = order.orderDate ? new Date(order.orderDate).toLocaleDateString('en-GB') : "N/A";
+            const formattedOrderDate = order.orderDate ? formatDisplayDate(order.orderDate) : "N/A";
             doc.font(fontBold).fontSize(9.5).fillColor("#000000").text(formattedOrderDate, rightHeaderX + 5, y + 22, {
                 width: 85,
                 align: "center"
@@ -228,7 +229,7 @@ if (logoPath && fs.existsSync(logoPath)) {
                 ellipsis: true
             });
 
-            const pickupLoc = order.pickupLocation ? `Hub: ${order.pickupLocation}` : "DEFAULT WAREHOUSE HUB, NOIDA, UP - 201301";
+            const pickupLoc = order.shipping?.pickupLocation ? `Hub: ${order.shipping.pickupLocation}` : "DEFAULT WAREHOUSE HUB, NOIDA, UP - 201301";
             doc.font(fontNormal).fontSize(7.5).text(pickupLoc, margin + 6, y + 25, {
                 width: printWidth - 12,
                 ellipsis: true

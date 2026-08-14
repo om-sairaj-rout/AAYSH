@@ -24,7 +24,7 @@ const loginUser = async (req, res) => {
     const token = jwt.sign(
   {
     id: foundUser._id,
-    username: foundUser.username,
+    companyName: foundUser.companyName,
     role: foundUser.role,
     showWeight: foundUser.showWeight
   },
@@ -47,7 +47,7 @@ const loginUser = async (req, res) => {
     // 4. Send response
     res.status(200).json({
       message: "Login successful",
-      user: { id: foundUser._id, username: foundUser.username, email: foundUser.email, role: foundUser.role, showWeight: foundUser.showWeight },
+      user: { id: foundUser._id, companyName: foundUser.companyName, email: foundUser.email, role: foundUser.role, showWeight: foundUser.showWeight },
     });
 
   } catch (error) {

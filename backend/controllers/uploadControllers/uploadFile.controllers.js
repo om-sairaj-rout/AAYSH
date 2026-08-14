@@ -7,37 +7,34 @@ const UploadHistory = require("../../models/upload/uploadHistory.model");
 
 const getCategory = require("../../utils/categoryMapper");
 const getExpectedHours = require("../../utils/tatMapper");
+const {
+  calculateInvoiceValue,
+  calculateItemsSubTotal,
+} = require("../../utils/invoiceCalculations");
+const {
+  parseISODateOnly,
+  parseISODateTime,
+} = require("../../utils/dateTime");
 
 // =========================================
 // Parse Excel Date
 // =========================================
 
 const parseExcelDate = (value) => {
-  // If Order Date is empty/missing, keep it blank
-  if (
-    value === undefined ||
-    value === null ||
-    value === ""
-  ) {
+  if (value === undefined || value === null || value === "") {
     return null;
   }
 
-  // If Excel returns a string
   if (typeof value === "string") {
-    const parsed = new Date(value);
-
-    if (!isNaN(parsed.getTime())) {
-      return parsed;
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return parseISODateOnly(trimmed);
     }
-
-    return null;
+    return parseISODateTime(trimmed);
   }
 
-  // If Excel returns an Excel serial number
   if (typeof value === "number") {
-    return new Date(
-      (value - 25569) * 86400 * 1000
-    );
+    return parseISODateTime(new Date((value - 25569) * 86400 * 1000));
   }
 
   return null;
@@ -90,47 +87,6 @@ const generateUniqueInvoiceNo = async () => {
     }
   }
 };
-// =========================================
-// Calculate Invoice Value
-// =========================================
-const calculateInvoiceValue = ({
-  orderItems = [],
-  shippingCharges = 0,
-  giftwrapCharges = 0,
-  transactionCharges = 0,
-}) => {
-
-  let itemsTotal = 0;
-
-  for (const item of orderItems) {
-
-    const qty = Number(item.units || 1);
-
-    const price = Number(
-      item.sellingPrice ?? item.selling_price ?? 0
-    );
-
-    const discount = Number(item.discount || 0);
-
-    const tax = Number(item.tax || 0);
-
-    const taxable = (price * qty) - discount;
-
-    const gst = taxable * (tax / 100);
-
-    itemsTotal += taxable + gst;
-  }
-
-  return Number(
-    (
-      itemsTotal +
-      Number(shippingCharges || 0) +
-      Number(giftwrapCharges || 0) +
-      Number(transactionCharges || 0)
-    ).toFixed(2)
-  );
-};
-
 // =========================================
 // Upload Controller
 // =========================================
@@ -241,11 +197,8 @@ const uploadFileController = async (req, res) => {
 
         orderDate,
 
-        pickupLocation:
-  row["Pickup Location"]?.toString().trim() || req.user.address || "",
-
 consignorName:
-  row["Consignor Name"]?.toString().trim() || req.user.username || "",
+  row["Consignor Name"]?.toString().trim() || req.user.companyName || "",
 
 consigneeName:
   row["Customer Name"]?.toString().trim() || "",
@@ -311,7 +264,14 @@ orderItems: [
 
 qty: Number(row["Units"]) || 0,
 
-subTotal: Number(row["Sub Total"]) || 0,
+subTotal: calculateItemsSubTotal([
+  {
+    units: Number(row["Units"]) || 1,
+    sellingPrice: Number(row["Selling Price"]) || 0,
+    discount: Number(row["Discount"]) || 0,
+    tax: Number(row["Tax"]) || 0,
+  },
+]),
 
 shippingCharges:
   Number(row["Shipping Charges"]) || 0,
@@ -375,7 +335,7 @@ invoiceValue: calculateInvoiceValue({
         shipmentId,
 
         pickupLocation:
-          orderDoc.pickupLocation,
+          row["Pickup Location"]?.toString().trim() || req.user.address || "",
 
         shippingStatus: "Pending",
 

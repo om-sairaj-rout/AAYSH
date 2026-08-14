@@ -137,7 +137,7 @@ const Header = ({ setIsSidebarOpen }) => {
                       Logged in as
                     </p>
                     <p className="text-sm font-bold text-gray-800 truncate">
-                      {user?.username || "User"}
+                      {user?.companyName || "User"}
                     </p>
                     <p className="text-[11px] text-gray-500 truncate">
                       {user?.email}

@@ -6,8 +6,12 @@ const ProtectedRoute = ({ children }) => {
     (state) => state.auth
   );
 
-  // Wait until auth check finishes
-  if (loading || isAuthenticated === null) {
+  // Only block the UI during the first auth check, not on later re-verifications
+  if (!loading && isAuthenticated === null) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (loading && isAuthenticated === null) {
     return (
       <div className="h-screen flex items-center justify-center">
         Loading...

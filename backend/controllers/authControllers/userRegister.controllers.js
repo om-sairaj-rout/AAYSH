@@ -4,7 +4,7 @@ const bcrypt = require("bcrypt");
 const RegisterController = async (req, res) => {
   try {
     const {
-      username,
+      companyName,
       email,
       password,
       mobile_number,
@@ -19,9 +19,9 @@ const RegisterController = async (req, res) => {
       showWeight,
     } = req.body;
 
-    if (!username || username.length < 3) {
+    if (!companyName || companyName.length < 3) {
       return res.status(400).json({
-        message: "Username must contain at least 3 letters.",
+        message: "Company name must contain at least 3 letters.",
       });
     }
 
@@ -38,12 +38,12 @@ const RegisterController = async (req, res) => {
     }
 
     const existingUser = await User.findOne({
-      $or: [{username}, { email }, { mobile_number }],
+      $or: [{ companyName }, { email }, { mobile_number }],
     });
 
     if (existingUser) {
       return res.status(400).json({
-        message: "User already exists with this username or email",
+        message: "User already exists with this company name or email",
       });
     }
 
@@ -51,7 +51,7 @@ const RegisterController = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const newUser = new User({
-      username,
+      companyName,
       email,
       password: hashedPassword,
       mobile_number,
@@ -72,7 +72,7 @@ const RegisterController = async (req, res) => {
       message: "User registered successfully",
       user: {
         id: newuser._id,
-        username: newuser.username,
+        companyName: newuser.companyName,
         email: newuser.email,
       },
     });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getDashboardData } from '../api/dashboardAPI';
 import {
   BarChart3,
@@ -7,7 +7,6 @@ import {
   AlertCircle,
   CheckCircle2,
   MapPin,
-  TrendingUp,
   CalendarDays,
   ChevronDown,
   ChevronLeft,
@@ -18,9 +17,274 @@ import {
   BookmarkCheck,
   Send,
   ShieldAlert,
-  Activity
+  Activity,
+  IndianRupee,
+  ArrowUpRight
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+const CHART_HEIGHT = 240;
+const CHART_WIDTH = 760;
+const CHART_PAD = { top: 16, right: 56, bottom: 36, left: 48 };
+
+const formatCurrency = (value) => {
+  const amount = Number(value) || 0;
+  if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(1)}Cr`;
+  if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
+  if (amount >= 1000) return `₹${(amount / 1000).toFixed(1)}K`;
+  return `₹${amount.toLocaleString('en-IN')}`;
+};
+
+const formatCompactNumber = (value) => {
+  const amount = Number(value) || 0;
+  if (amount >= 1000) return `${(amount / 1000).toFixed(1)}k`;
+  return amount.toLocaleString('en-IN');
+};
+
+const buildTicks = (maxValue, count = 4) => {
+  if (maxValue <= 0) return [0];
+
+  const rawStep = maxValue / count;
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+  const step = Math.ceil(rawStep / magnitude) * magnitude;
+  const ticks = [];
+
+  for (let tick = 0; tick <= maxValue + step * 0.01; tick += step) {
+    ticks.push(tick);
+    if (ticks.length > count + 1) break;
+  }
+
+  return ticks.length ? ticks : [0, maxValue];
+};
+
+const MonthlyPerformanceChart = ({ chartData, selectedYear }) => {
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+
+  const insights = useMemo(() => {
+    const totalOrders = chartData.reduce((sum, item) => sum + (item.orders || 0), 0);
+    const totalRevenue = chartData.reduce((sum, item) => sum + (item.cost || 0), 0);
+    const activeMonths = chartData.filter((item) => item.orders > 0).length || 1;
+    const peakMonth = chartData.reduce(
+      (best, item) => ((item.orders || 0) > (best.orders || 0) ? item : best),
+      chartData[0] || { name: '-', orders: 0 }
+    );
+
+    return {
+      totalOrders,
+      totalRevenue,
+      avgOrders: Math.round(totalOrders / activeMonths),
+      peakMonth,
+    };
+  }, [chartData]);
+
+  const plotWidth = CHART_WIDTH - CHART_PAD.left - CHART_PAD.right;
+  const plotHeight = CHART_HEIGHT - CHART_PAD.top - CHART_PAD.bottom;
+
+  const maxOrders = Math.max(...chartData.map((item) => item.orders || 0), 1);
+  const maxRevenue = Math.max(...chartData.map((item) => item.cost || 0), 1);
+  const orderTicks = buildTicks(maxOrders);
+  const revenueTicks = buildTicks(maxRevenue);
+  const orderScaleMax = orderTicks[orderTicks.length - 1] || 1;
+  const revenueScaleMax = revenueTicks[revenueTicks.length - 1] || 1;
+
+  const getX = (index) =>
+    CHART_PAD.left + ((index + 0.5) / chartData.length) * plotWidth;
+
+  const getOrderY = (value) =>
+    CHART_PAD.top + plotHeight - (value / orderScaleMax) * plotHeight;
+
+  const getRevenueY = (value) =>
+    CHART_PAD.top + plotHeight - (value / revenueScaleMax) * plotHeight;
+
+  const revenuePoints = chartData
+    .map((item, index) => `${getX(index)},${getRevenueY(item.cost || 0)}`)
+    .join(' ');
+
+  const areaPoints = [
+    `${getX(0)},${getOrderY(0)}`,
+    ...chartData.map((item, index) => `${getX(index)},${getOrderY(item.orders || 0)}`),
+    `${getX(chartData.length - 1)},${getOrderY(0)}`,
+  ].join(' ');
+
+  const hasData = insights.totalOrders > 0 || insights.totalRevenue > 0;
+  const hoveredItem = hoveredIndex !== null ? chartData[hoveredIndex] : null;
+
+  return (
+    <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 mb-8">
+      <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-6 mb-8">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <BarChart3 size={22} className="text-blue-500" />
+            Monthly Performance
+          </h2>
+          <p className="text-xs text-slate-400 font-medium mt-1">
+            Order volume and invoice value across {selectedYear}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full xl:w-auto">
+          {[
+            { label: 'YTD Orders', value: insights.totalOrders.toLocaleString('en-IN'), tone: 'text-blue-600' },
+            { label: 'YTD Revenue', value: formatCurrency(insights.totalRevenue), tone: 'text-orange-500' },
+            { label: 'Avg / Active Month', value: insights.avgOrders.toLocaleString('en-IN'), tone: 'text-indigo-600' },
+            { label: 'Peak Month', value: insights.peakMonth?.name || '-', tone: 'text-emerald-600' },
+          ].map((item) => (
+            <div key={item.label} className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{item.label}</p>
+              <p className={`text-lg font-black mt-1 ${item.tone}`}>{item.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {!hasData ? (
+        <div className="h-72 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 flex flex-col items-center justify-center text-center px-6">
+          <BarChart3 size={28} className="text-slate-300 mb-3" />
+          <p className="text-sm font-semibold text-slate-500">No order activity recorded for {selectedYear}</p>
+          <p className="text-xs text-slate-400 mt-1">Monthly trends will appear here once orders are created.</p>
+        </div>
+      ) : (
+        <div className="relative">
+          <div className="flex flex-wrap items-center justify-end gap-4 mb-4 text-[11px] font-bold uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-slate-500">
+              <span className="inline-block w-3 h-3 rounded-sm bg-blue-500/80" />
+              Orders
+            </div>
+            <div className="flex items-center gap-2 text-slate-500">
+              <span className="inline-block w-5 h-0.5 rounded-full bg-orange-500" />
+              Revenue
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <svg
+              viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+              className="w-full min-w-175 h-auto"
+              role="img"
+              aria-label={`Monthly performance chart for ${selectedYear}`}
+            >
+              <defs>
+                <linearGradient id="ordersAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.28" />
+                  <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.03" />
+                </linearGradient>
+              </defs>
+
+              {orderTicks.map((tick) => {
+                const y = getOrderY(tick);
+                return (
+                  <g key={`order-grid-${tick}`}>
+                    <line
+                      x1={CHART_PAD.left}
+                      y1={y}
+                      x2={CHART_WIDTH - CHART_PAD.right}
+                      y2={y}
+                      stroke="#E2E8F0"
+                      strokeDasharray="4 6"
+                    />
+                    <text x={CHART_PAD.left - 10} y={y + 4} textAnchor="end" className="fill-slate-400 text-[10px] font-semibold">
+                      {formatCompactNumber(tick)}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {revenueTicks.map((tick) => {
+                const y = getRevenueY(tick);
+                return (
+                  <text
+                    key={`revenue-tick-${tick}`}
+                    x={CHART_WIDTH - CHART_PAD.right + 10}
+                    y={y + 4}
+                    textAnchor="start"
+                    className="fill-orange-400 text-[10px] font-semibold"
+                  >
+                    {formatCurrency(tick)}
+                  </text>
+                );
+              })}
+
+              <line
+                x1={CHART_PAD.left}
+                y1={CHART_PAD.top + plotHeight}
+                x2={CHART_WIDTH - CHART_PAD.right}
+                y2={CHART_PAD.top + plotHeight}
+                stroke="#CBD5E1"
+              />
+
+              <polygon points={areaPoints} fill="url(#ordersAreaGradient)" />
+              <polyline
+                points={revenuePoints}
+                fill="none"
+                stroke="#F97316"
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+
+              {chartData.map((item, index) => {
+                const x = getX(index);
+                const barWidth = Math.min(plotWidth / chartData.length - 10, 22);
+                const barHeight = ((item.orders || 0) / orderScaleMax) * plotHeight;
+                const isHovered = hoveredIndex === index;
+
+                return (
+                  <g
+                    key={item.name}
+                    onMouseEnter={() => setHoveredIndex(index)}
+                    onMouseLeave={() => setHoveredIndex(null)}
+                  >
+                    <rect
+                      x={x - barWidth / 2}
+                      y={getOrderY(item.orders || 0)}
+                      width={barWidth}
+                      height={barHeight}
+                      rx="4"
+                      fill={isHovered ? '#2563EB' : '#3B82F6'}
+                      opacity={isHovered ? 1 : 0.88}
+                    />
+
+                    <circle
+                      cx={x}
+                      cy={getRevenueY(item.cost || 0)}
+                      r={isHovered ? 5 : 4}
+                      fill="#FFFFFF"
+                      stroke="#F97316"
+                      strokeWidth="2"
+                    />
+
+                    <text
+                      x={x}
+                      y={CHART_HEIGHT - 12}
+                      textAnchor="middle"
+                      className={`text-[10px] font-bold uppercase ${isHovered ? 'fill-slate-700' : 'fill-slate-400'}`}
+                    >
+                      {item.name}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+
+          {hoveredItem && (
+            <div className="mt-4 inline-flex items-center gap-4 rounded-2xl border border-slate-200 bg-slate-900 px-4 py-3 text-white shadow-lg">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400">{hoveredItem.name} {selectedYear}</p>
+                <p className="text-sm font-bold mt-0.5">{hoveredItem.orders || 0} orders</p>
+              </div>
+              <div className="h-8 w-px bg-slate-700" />
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400">Revenue</p>
+                <p className="text-sm font-bold mt-0.5">{formatCurrency(hoveredItem.cost || 0)}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Dashboard = () => {
   const [selectedYear, setSelectedYear] = useState("2026");
@@ -210,69 +474,10 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Annual Performance Histogram */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-8">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
-            <div>
-              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                <BarChart3 size={22} className="text-blue-500" />
-                Annual Performance
-              </h2>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">Data overview for the year {selectedYear}</p>
-            </div>
-
-            {/* Chart Legend Badges */}
-            <div className="flex gap-6 text-xs font-bold uppercase tracking-widest bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
-                Orders
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-orange-400 rounded-sm"></div>
-                Cost
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-end justify-between h-72 border-b border-slate-100 pb-2 gap-1 overflow-x-auto lg:overflow-visible">
-            {dashboardData.chartData.map((item, idx) => {
-              const maxOrdersVal = Math.max(...dashboardData.chartData.map(d => d.orders || 0), 1);
-              const maxCostVal = Math.max(...dashboardData.chartData.map(d => d.cost || 0), 1);
-
-              const orderBarHeight = Math.max((item.orders / maxOrdersVal) * 140, 16); 
-              const costBarHeight = Math.max((item.cost / maxCostVal) * 230, 16);
-
-              return (
-                <div key={idx} className="flex flex-col items-center group flex-1 min-w-11.25">
-                  <div className="flex items-end gap-0.5 mb-3">
-                    
-                    {/* Orders Bar */}
-                    <div
-                      style={{ height: `${orderBarHeight}px` }}
-                      className="w-3 md:w-4 bg-blue-500 rounded-t-sm transition-all group-hover:bg-blue-600 relative"
-                    >
-                      <span className="absolute -top-8 left-[20%] -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-slate-800 text-white text-[10px] py-1 px-2 rounded z-10 whitespace-nowrap">
-                        {item.orders}
-                      </span>
-                    </div>
-
-                    {/* Cost Bar */}
-                    <div
-                      style={{ height: `${costBarHeight}px` }}
-                      className="w-3 md:w-4 bg-orange-400 rounded-t-sm transition-all group-hover:bg-orange-500 relative"
-                    >
-                      <span className="absolute -top-8 left-[80%] -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-slate-800 text-white text-[10px] py-1 px-2 rounded z-10 whitespace-nowrap">
-                        ₹{item.cost}
-                      </span>
-                    </div>
-
-                  </div>
-                  <span className="text-xs font-bold text-slate-400 uppercase">{item.name}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <MonthlyPerformanceChart
+          chartData={dashboardData.chartData}
+          selectedYear={selectedYear}
+        />
 
         {/* Bottom Section */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
@@ -311,7 +516,7 @@ const Dashboard = () => {
                   <tr>
                     <th className="px-6 py-4">City</th>
                     <th className="px-6 py-4 text-center">Total Orders</th>
-                    <th className="px-6 py-4 text-right">Courier Cost</th>
+                    <th className="px-6 py-4 text-right">Invoice Value</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -341,13 +546,16 @@ const Dashboard = () => {
           {/* Summary Card */}
           <div className="lg:col-span-1 bg-[#0F172A] text-white rounded-3xl p-6 relative overflow-hidden flex flex-col justify-center min-h-50">
             <div className="absolute -right-4 -top-4 w-20 h-20 bg-blue-500/10 rounded-full blur-2xl"></div>
-            <TrendingUp size={22} className="text-orange-400 mb-4" />
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Summary {selectedYear}</h3>
-            <div className="text-3xl font-black mt-2 tracking-tight">
-              ₹{Number(dashboardData.totalCost || 0).toLocaleString()}
+            <div className="flex items-center gap-2 mb-4">
+              <IndianRupee size={22} className="text-orange-400" />
+              <ArrowUpRight size={16} className="text-emerald-400" />
             </div>
-            <p className="text-xs text-slate-400 mt-4 leading-relaxed italic">
-              Total shipping expenditure for the selected fiscal cycle.
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Revenue {selectedYear}</h3>
+            <div className="text-3xl font-black mt-2 tracking-tight">
+              {formatCurrency(dashboardData.totalCost || 0)}
+            </div>
+            <p className="text-xs text-slate-400 mt-4 leading-relaxed">
+              Total invoice value from orders placed in the selected fiscal year.
             </p>
           </div>
         </div>

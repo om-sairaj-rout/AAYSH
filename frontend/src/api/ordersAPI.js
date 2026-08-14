@@ -1,17 +1,30 @@
 const BASE = import.meta.env.VITE_API_URL;
 
-export const getOrdersByDate = async (fromDate, toDate) => {
+export const getOrdersByDate = async (
+  fromDate,
+  toDate,
+  { page = 1, perPage = 20, all = false } = {}
+) => {
+  const params = new URLSearchParams({
+    fromDate,
+    toDate,
+    page: String(page),
+    per_page: String(perPage),
+  });
+
+  if (all) {
+    params.append("all", "true");
+  }
 
   const res = await fetch(
-    `${BASE}/api/orders/filter?fromDate=${fromDate}&toDate=${toDate}`,
+    `${BASE}/api/orders/filter?${params.toString()}`,
     {
       method: "GET",
-      credentials: "include"
+      credentials: "include",
     }
   );
 
   if (!res.ok) {
-
     const errorData = await res.json();
 
     throw new Error(
@@ -22,19 +35,31 @@ export const getOrdersByDate = async (fromDate, toDate) => {
   return res.json();
 };
 
-export const getOrders = async (
+export const getOrders = async ({
   status,
+  statuses,
   from,
   to,
   search,
   paymentMethod,
   pickupLocation,
-  courierName
-) => {
-  const params = new URLSearchParams();
+  courierName,
+  forShipments,
+  bookedTab,
+  page = 1,
+  perPage = 20,
+} = {}) => {
+  const params = new URLSearchParams({
+    page: String(page),
+    per_page: String(perPage),
+  });
 
   if (status) {
     params.append("status", status);
+  }
+
+  if (statuses) {
+    params.append("statuses", statuses);
   }
 
   if (from) {
@@ -59,6 +84,14 @@ export const getOrders = async (
 
   if (courierName) {
     params.append("courier_name", courierName);
+  }
+
+  if (forShipments) {
+    params.append("for_shipments", "true");
+  }
+
+  if (bookedTab) {
+    params.append("booked_tab", bookedTab);
   }
 
   const res = await fetch(
@@ -110,4 +143,56 @@ export const getPublicOrderByAwb = async (awbNumber) => {
   }
 
   return data;
+};
+
+export const getOrdersByUser = async (userId) => {
+  try {
+    const response = await fetch(
+      `${BASE}/api/users/${userId}/orders`,
+      {
+        method: "GET",
+        credentials: "include",
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to fetch orders");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Get orders by user error:", error);
+    throw error;
+  }
+};
+
+export const updateOrder = async (formData) => {
+  try {
+    const response = await fetch(
+      `${BASE}/api/external/orders/update-order`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(formData),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Failed to update order"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Update order error:", error);
+    throw error;
+  }
 };

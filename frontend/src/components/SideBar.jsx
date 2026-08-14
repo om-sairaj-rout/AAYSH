@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { LayoutDashboard, FileChartColumn, MapPinCheck, SlidersHorizontal, ChevronDown, X, PackageCheck, ShoppingBag, Truck, Barcode, Users } from "lucide-react";
+import { LayoutDashboard, FileChartColumn, MapPinCheck, SlidersHorizontal, ChevronDown, X, PackageCheck, ShoppingBag, Truck, Barcode, Users, RefreshCw } from "lucide-react";
 import aayshlogo from "../assets/aaysh_logo.png";
 
 const SideBar = ({ isOpen, setIsOpen }) => {
@@ -77,6 +77,11 @@ const SideBar = ({ isOpen, setIsOpen }) => {
           name: "Courier Priority Management",
           icon: <SlidersHorizontal size={20} />,
           path: "/update/courier-priority",
+        },
+        {
+          name: "Order Update Management",
+          icon: <RefreshCw size={20} />,
+          path: "/update/order-updates",
         },
       ],
     },

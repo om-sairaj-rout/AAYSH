@@ -3,6 +3,7 @@ const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const PincodeServiceability = require("../../models/upload/serviceability.model");
 const CourierPriority = require("../../models/upload/courierPriority.model");
+const { parseISODateOnly, now } = require("../../utils/dateTime");
 
 // ================= CATEGORY LOGIC =================
 const getAwbCategory = (weight, service) => {
@@ -47,6 +48,14 @@ const generateAwbExternal = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Invalid service type.",
+      });
+    }
+
+    const parsedPickupDate = parseISODateOnly(pickupDate);
+    if (!parsedPickupDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid pickupDate. Expected format YYYY-MM-DD.",
       });
     }
 
@@ -121,7 +130,6 @@ const generateAwbExternal = async (req, res) => {
     // =========================================
 
     const shippingUpdates = [];
-    const orderUpdates = [];
 
     // =========================================
     // Assign AWB
@@ -286,30 +294,15 @@ shippingUpdates.push({
       courierName: selectedCourier.courierName,
       serviceType: service,
 
-      pickupDate,
+      pickupDate: parsedPickupDate,
       pickupTime,
       pickupInstructions: notes,
       pickupLocation,
 
       pickupStatus: "Scheduled",
       shippingStatus: "Booked",
-      bookedAt: new Date(),
+      bookedAt: now(),
       totalWeight: order.weight || 0,
-    },
-  },
-});
-
-// Order update
-orderUpdates.push({
-  updateOne: {
-    filter: {
-      _id: order._id,
-    },
-    update: {
-      pickupDate,
-      pickupTime,
-      pickupInstructions: notes,
-      pickupLocation,
     },
   },
 });
@@ -331,12 +324,6 @@ updatedShipments.push({
 if (shippingUpdates.length) {
   await Shipping.bulkWrite(
     shippingUpdates
-  );
-}
-
-if (orderUpdates.length) {
-  await Order.bulkWrite(
-    orderUpdates
   );
 }
 

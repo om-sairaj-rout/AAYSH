@@ -30,8 +30,8 @@ const orderCalculations = (order = {}, shipping = {}) => {
   // ==========================
   // DATE PARSING
   // ==========================
-  const pickupDate = order.pickupDate
-    ? new Date(order.pickupDate)
+  const pickupDate = shipping?.pickupDate
+    ? new Date(shipping.pickupDate)
     : null;
 
   const deliveryDate = order.deliveryDate

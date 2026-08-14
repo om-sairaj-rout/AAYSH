@@ -1,65 +1,200 @@
+const mongoose = require("mongoose");
 const Shipping = require("../../models/upload/shipping.model");
+const {
+  toISTDate,
+  startOfDayIST,
+  endOfDayIST,
+} = require("../../utils/dateTime");
+const {
+  parsePagination,
+  buildPaginationMeta,
+} = require("../../utils/pagination");
+
+const buildTabMatch = (tab) => {
+  const todayStart = startOfDayIST(new Date());
+  const todayEnd = endOfDayIST(new Date());
+
+  switch (tab) {
+    case "today":
+      return {
+        pickupDate: { $gte: todayStart, $lte: todayEnd },
+        pickupStatus: { $nin: ["Failed", "Cancelled"] },
+      };
+    case "future":
+      return {
+        pickupDate: { $gt: todayEnd },
+        pickupStatus: { $nin: ["Failed", "Cancelled"] },
+      };
+    case "failed":
+      return { pickupStatus: "Failed" };
+    case "cancelled":
+      return { pickupStatus: "Cancelled" };
+    case "completed":
+      return { pickupStatus: "Completed" };
+    case "all":
+      return {};
+    default:
+      return {};
+  }
+};
+
+const formatPickup = (item) => ({
+  _id: String(item._id),
+  orderId: item.order?._id ? String(item.order._id) : undefined,
+  externalOrderId: item.order?.externalOrderId || "",
+  awbNumber: item.awbNumber,
+  courierName: item.courierName,
+  pickupLocation: item.pickupLocation || "",
+  pickupDate: toISTDate(item.pickupDate),
+  pickupTime: item.pickupTime,
+  packagesCount:
+    item.order?.orderItems?.reduce(
+      (total, product) => total + product.units,
+      0
+    ) || 0,
+  pickupStatus: item.pickupStatus,
+  failureReason: item.pickupStatus === "Failed" ? item.failureReason : "",
+});
 
 const getUserPickups = async (req, res) => {
   try {
-    const pickups = await Shipping.find({
-  awbNumber: { $ne: "" },
-})
-  .populate({
-    path: "orderId",
-    match: {
-      uploadedBy: req.user.id,
-    },
-    select:
-      "externalOrderId pickupLocation orderItems",
-  })
-  .sort({
-    pickupDate: 1,
-    createdAt: -1,
-  });
+    const { tab = "today", search } = req.query;
+    const { page, perPage, skip } = parsePagination(req.query, 20);
+    const userId = new mongoose.Types.ObjectId(req.user.id);
 
-const userPickups = pickups.filter(
-  (pickup) => pickup.orderId !== null
-);
+    const baseMatch = {
+      awbNumber: { $ne: "" },
+      ...buildTabMatch(tab),
+    };
 
-    const data = userPickups.map((item) => ({
-      _id: item._id,
+    if (search) {
+      baseMatch.$or = [
+        { awbNumber: { $regex: search, $options: "i" } },
+        { pickupLocation: { $regex: search, $options: "i" } },
+      ];
+    }
 
-      orderId: item.orderId?._id,
+    const pipeline = [
+      { $match: baseMatch },
+      {
+        $lookup: {
+          from: "orders",
+          localField: "orderId",
+          foreignField: "_id",
+          as: "order",
+          pipeline: [
+            {
+              $match: {
+                uploadedBy: userId,
+              },
+            },
+            {
+              $project: {
+                externalOrderId: 1,
+                orderItems: 1,
+              },
+            },
+          ],
+        },
+      },
+      { $match: { order: { $ne: [] } } },
+      { $unwind: "$order" },
+      { $sort: { pickupDate: 1, createdAt: -1 } },
+      {
+        $facet: {
+          metadata: [{ $count: "total" }],
+          counts: [
+            {
+              $lookup: {
+                from: "orders",
+                localField: "orderId",
+                foreignField: "_id",
+                as: "orderForCount",
+                pipeline: [{ $match: { uploadedBy: userId } }],
+              },
+            },
+            { $match: { orderForCount: { $ne: [] } } },
+            {
+              $group: {
+                _id: "$pickupStatus",
+                count: { $sum: 1 },
+              },
+            },
+          ],
+          data: [{ $skip: skip }, { $limit: perPage }],
+        },
+      },
+    ];
 
-      externalOrderId: item.orderId?.externalOrderId || "",
+    const [result] = await Shipping.aggregate(pipeline);
+    const total = result.metadata[0]?.total || 0;
+    const data = (result.data || []).map(formatPickup);
 
-      awbNumber: item.awbNumber,
+    const todayStart = startOfDayIST(new Date());
+    const todayEnd = endOfDayIST(new Date());
 
-      courierName: item.courierName,
+    const countRows = await Shipping.aggregate([
+      { $match: { awbNumber: { $ne: "" } } },
+      {
+        $lookup: {
+          from: "orders",
+          localField: "orderId",
+          foreignField: "_id",
+          as: "order",
+          pipeline: [{ $match: { uploadedBy: userId } }],
+        },
+      },
+      { $match: { order: { $ne: [] } } },
+      {
+        $facet: {
+          today: [
+            {
+              $match: {
+                pickupDate: { $gte: todayStart, $lte: todayEnd },
+                pickupStatus: { $nin: ["Failed", "Cancelled"] },
+              },
+            },
+            { $count: "count" },
+          ],
+          future: [
+            {
+              $match: {
+                pickupDate: { $gt: todayEnd },
+                pickupStatus: { $nin: ["Failed", "Cancelled"] },
+              },
+            },
+            { $count: "count" },
+          ],
+          failed: [{ $match: { pickupStatus: "Failed" } }, { $count: "count" }],
+          cancelled: [
+            { $match: { pickupStatus: "Cancelled" } },
+            { $count: "count" },
+          ],
+          completed: [
+            { $match: { pickupStatus: "Completed" } },
+            { $count: "count" },
+          ],
+          all: [{ $count: "count" }],
+        },
+      },
+    ]);
 
-      pickupLocation:
-        item.pickupLocation ||
-        item.orderId?.pickupLocation ||
-        "",
-
-      pickupDate: item.pickupDate,
-
-      pickupTime: item.pickupTime,
-
-      packagesCount:
-  item.orderId?.orderItems?.reduce(
-    (total, product) => total + product.units,
-    0
-  ) || 0,
-
-      pickupStatus: item.pickupStatus,
-
-      failureReason:
-  item.pickupStatus === "Failed"
-    ? item.failureReason
-    : "",
-
-    }));
+    const countFacet = countRows[0] || {};
 
     return res.status(200).json({
       success: true,
       data,
+      counts: {
+        today: countFacet.today?.[0]?.count || 0,
+        future: countFacet.future?.[0]?.count || 0,
+        failed: countFacet.failed?.[0]?.count || 0,
+        cancelled: countFacet.cancelled?.[0]?.count || 0,
+        completed: countFacet.completed?.[0]?.count || 0,
+        all: countFacet.all?.[0]?.count || 0,
+      },
+      meta: {
+        pagination: buildPaginationMeta(total, page, perPage, data.length),
+      },
     });
   } catch (err) {
     console.error(err);

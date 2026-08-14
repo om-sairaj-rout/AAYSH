@@ -6,6 +6,10 @@ import OrderResponse from './OrderResponse';
 import { shipOrdersAPI } from '../api/shipingAPI';
 import { toast } from 'react-hot-toast';
 import OrderTracker from '../components/OrderTracker';
+import {
+  formatDisplayDate,
+  todayISODateOnly,
+} from '../utils/dateTime';
 
 
 /* ================= COPY BUTTON UI COMPONENT ================= */
@@ -52,7 +56,7 @@ const CopyButton = ({ text, label, e }) => {
 
 /* ================= SCHEDULE PICKUP MODAL ================= */
 const SchedulePickupModal = ({ isOpen, onClose, selectedCourier, ordersCount, onFinalSubmit, defaultPickupLocation }) => {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayISODateOnly();
   
   const [pickupDate, setPickupDate] = useState(todayStr);
   const [pickupLocation, setPickupLocation] = useState('');
@@ -261,7 +265,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Order Date: {order.orderDate ? new Date(order.orderDate).toLocaleDateString() : 'N/A'} | Pickup Date: {order.pickupDate ? new Date(order.pickupDate).toLocaleDateString() : 'N/A'}
+              Order Date: {formatDisplayDate(order.orderDate)} | Pickup Date: {formatDisplayDate(order.shipping?.pickupDate)}
             </p>
           </div>
           <button
@@ -284,7 +288,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
             <div className="border border-slate-100 bg-slate-50/50 p-4 rounded-xl space-y-2">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Consignor (Sender)</h4>
               <p className="text-sm font-semibold text-slate-800">{order.consignorName || 'N/A'}</p>
-              <p className="text-xs text-slate-500">Pickup Location: {order.pickupLocation || 'Default Warehouse'}</p>
+              <p className="text-xs text-slate-500">Pickup Location: {order.shipping?.pickupLocation || 'Default Warehouse'}</p>
             </div>
 
             <div className="border border-slate-100 bg-slate-50/50 p-4 rounded-xl space-y-2">
@@ -408,15 +412,27 @@ const OrdersPage = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [ordersPerPage, setOrdersPerPage] = useState(25);
+  const [ordersPerPage, setOrdersPerPage] = useState(20);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    total_pages: 1,
+  });
 
   const fetchOrders = async () => {
     try {
-      const res = await getOrders();
+      const res = await getOrders({
+        status: activeSegment !== "All Orders" ? activeSegment : undefined,
+        from: fromDate || undefined,
+        to: toDate || undefined,
+        search: searchQuery.trim() || undefined,
+        page: currentPage,
+        perPage: ordersPerPage,
+      });
 
       if (res.success) {
         setAllOrders(res.orders || []);
         setCounts(res.counts || {});
+        setPagination(res.meta?.pagination || { total: 0, total_pages: 1 });
       }
     } catch (err) {
       console.error(err);
@@ -425,7 +441,7 @@ const OrdersPage = () => {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [activeSegment, searchQuery, fromDate, toDate, currentPage, ordersPerPage]);
 
   useEffect(() => {
     setSelectedOrders([]);
@@ -444,63 +460,13 @@ const OrdersPage = () => {
     return map;
   }, [allOrders]);
 
-  const getTabCount = (tabName) => {
-    return counts[tabName] || 0;
-  };
+  const getTabCount = (tabName) => counts[tabName] || 0;
 
-  // Filter Orders by Active Tab, Search Query, and Order Date
-  const filteredOrders = allOrders.filter((order) => {
-    // 1. Status Segment Filter
-    if (activeSegment !== "All Orders" && order.shipping?.shippingStatus !== activeSegment) {
-      return false;
-    }
-
-    // 2. Search Query Filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      const externalId = (order.externalOrderId || order._id || '').toLowerCase();
-      const customerName = `${order.consigneeName || ''} ${order.consigneeLastName || ''}`.toLowerCase();
-      const phone = (order.billingPhone || order.contactNo || '').toLowerCase();
-      const consignor = (order.consignorName || '').toLowerCase();
-      const awb = (order.shipping?.awbNumber || '').toLowerCase();
-      const itemsMatch = order.orderItems?.some(item => 
-        (item.name || '').toLowerCase().includes(q) || (item.sku || '').toLowerCase().includes(q)
-      );
-
-      const matchesSearch = 
-        externalId.includes(q) ||
-        customerName.includes(q) ||
-        phone.includes(q) ||
-        consignor.includes(q) ||
-        awb.includes(q) ||
-        itemsMatch;
-
-      if (!matchesSearch) return false;
-    }
-
-    // 3. Order Date Range Filter
-    if (order.orderDate) {
-      const orderTime = new Date(order.orderDate).setHours(0, 0, 0, 0);
-
-      if (fromDate) {
-        const fromTime = new Date(fromDate).setHours(0, 0, 0, 0);
-        if (orderTime < fromTime) return false;
-      }
-
-      if (toDate) {
-        const toTime = new Date(toDate).setHours(23, 59, 59, 999);
-        if (orderTime > toTime) return false;
-      }
-    }
-
-    return true;
-  });
-
-  // Pagination Calculations
-  const indexOfLastOrder = currentPage * ordersPerPage;
-  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-  const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
-  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage) || 1;
+  const currentOrders = allOrders;
+  const totalPages = pagination.total_pages || 1;
+  const totalOrders = pagination.total || 0;
+  const indexOfFirstOrder = totalOrders === 0 ? 0 : (currentPage - 1) * ordersPerPage + 1;
+  const indexOfLastOrder = Math.min(currentPage * ordersPerPage, totalOrders);
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
@@ -732,11 +698,11 @@ const OrdersPage = () => {
                 const isChecked = selectedOrders.includes(order._id);
                 
                 const externalId = order.externalOrderId || order._id;
-                const orderDateFormatted = order.orderDate ? new Date(order.orderDate).toLocaleDateString() : '-';
+                const orderDateFormatted = formatDisplayDate(order.orderDate);
                 
                 // Pickup Date Resolution
-                const rawPickupDate = order.shipping?.pickupDate || order.pickupDate;
-                const pickupDateFormatted = rawPickupDate ? new Date(rawPickupDate).toLocaleDateString() : '-';
+                const rawPickupDate = order.shipping?.pickupDate;
+                const pickupDateFormatted = formatDisplayDate(rawPickupDate);
 
                 const fullName = `${order.consigneeName || ''} ${order.consigneeLastName || ''}`.trim() || '-';
                 const email = order.consigneeEmail || '';
@@ -939,12 +905,13 @@ const OrdersPage = () => {
               }}
               className="bg-slate-50 border border-gray-200 text-slate-700 font-bold text-xs rounded-lg py-1.5 px-2.5 focus:outline-none cursor-pointer"
             >
+              <option value={20}>20 Rows</option>
               <option value={25}>25 Rows</option>
               <option value={50}>50 Rows</option>
               <option value={100}>100 Rows</option>
             </select>
             <span className="text-xs text-slate-400">
-              Showing {filteredOrders.length > 0 ? indexOfFirstOrder + 1 : 0} - {Math.min(indexOfLastOrder, filteredOrders.length)} of {filteredOrders.length} orders
+              Showing {totalOrders > 0 ? indexOfFirstOrder : 0} - {indexOfLastOrder} of {totalOrders} orders
             </span>
           </div>
 
@@ -963,7 +930,7 @@ const OrdersPage = () => {
 
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages || filteredOrders.length === 0}
+              disabled={currentPage === totalPages || totalOrders === 0}
               className="p-2 rounded-lg border border-gray-200 text-slate-400 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-white transition-all cursor-pointer"
             >
               <ChevronRight className="w-4 h-4" />
@@ -987,7 +954,7 @@ const OrdersPage = () => {
         onClose={() => { setIsScheduleModalOpen(false); setSelectedCourierData(null); }}
         selectedCourier={selectedCourierData}
         ordersCount={ordersToShip.length}
-        defaultPickupLocation={ordersToShip[0]?.pickupLocation || ""}
+        defaultPickupLocation={ordersToShip[0]?.shipping?.pickupLocation || ""}
         onFinalSubmit={handleFinalBookingSubmit}
       />
 

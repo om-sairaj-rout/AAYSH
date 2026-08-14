@@ -20,7 +20,7 @@ const checkAuth = async (req, res, next) => {
 
         req.user = {
             id: decoded.id,
-            username: decoded.username,
+            companyName: decoded.companyName || decoded.username,
             role: decoded.role,
         };
 

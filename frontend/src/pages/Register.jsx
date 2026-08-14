@@ -57,7 +57,7 @@ const Register = () => {
     const newErrors = {};
 
     if (company.length < 3) {
-      newErrors.company = "company must contain at least 3 letters";
+      newErrors.company = "Company name must contain at least 3 letters";
     }
     if (!/\S+@\S+\.\S+/.test(email)) {
       newErrors.email = "Invalid email address"; 
@@ -75,7 +75,7 @@ const Register = () => {
 
     try {
       await registerUser({ 
-        username: company, 
+        companyName: company, 
         email, 
         password, 
         mobile_number: mobile,

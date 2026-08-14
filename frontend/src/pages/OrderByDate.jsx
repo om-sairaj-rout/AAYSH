@@ -1,10 +1,11 @@
 import { ChevronsUpDown } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getOrdersByDate } from "../api/ordersAPI";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useSelector } from "react-redux";
 import { toast } from "react-hot-toast";
+import { formatDisplayDate } from "../utils/dateTime";
 
 const OrderByDateInfo = () => {
   const [tableData, setTableData] = useState([]);
@@ -13,7 +14,8 @@ const OrderByDateInfo = () => {
   const [loading, setLoading] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [entriesPerPage, setEntriesPerPage] = useState(25);
+  const [entriesPerPage, setEntriesPerPage] = useState(20);
+  const [pagination, setPagination] = useState({ total: 0, total_pages: 1 });
 
   const { isAdmin, user } = useSelector((state) => state.auth);
   const canSeeWeight = isAdmin || user?.showWeight;
@@ -26,42 +28,43 @@ const OrderByDateInfo = () => {
     "ageing",
   ];
 
-  const handleSearch = async () => {
+  const [hasFetched, setHasFetched] = useState(false);
+
+  const loadOrders = async (page = currentPage) => {
+    if (!fromDate || !toDate) {
+      toast.error("Please select both dates");
+      return;
+    }
+
+    let formattedFrom = fromDate;
+    let formattedTo = toDate;
+
+    if (fromDate.includes("/")) {
+      const [fDay, fMonth, fYear] = fromDate.split("/");
+      formattedFrom = `${fYear}-${fMonth}-${fDay}`;
+    }
+    if (toDate.includes("/")) {
+      const [tDay, tMonth, tYear] = toDate.split("/");
+      formattedTo = `${tYear}-${tMonth}-${tDay}`;
+    }
+
+    if (new Date(formattedFrom) > new Date(formattedTo)) {
+      toast.error("From date cannot be greater than To date");
+      return;
+    }
+
     try {
-      if (!fromDate || !toDate) {
-        toast.error("Please select both dates");
-        return;
-      }
-
-      let formattedFrom = fromDate;
-      let formattedTo = toDate;
-
-      if (fromDate.includes("/")) {
-        const [fDay, fMonth, fYear] = fromDate.split("/");
-        formattedFrom = `${fYear}-${fMonth}-${fDay}`;
-      }
-      if (toDate.includes("/")) {
-        const [tDay, tMonth, tYear] = toDate.split("/");
-        formattedTo = `${tYear}-${tMonth}-${tDay}`;
-      }
-
-      if (new Date(formattedFrom) > new Date(formattedTo)) {
-        toast.error("From date cannot be greater than To date");
-        return;
-      }
-
       setLoading(true);
 
-      const result = await getOrdersByDate(fromDate, toDate);
+      const result = await getOrdersByDate(formattedFrom, formattedTo, {
+        page,
+        perPage: entriesPerPage,
+      });
 
       if (result.success) {
-        // ✅ SORT ASCENDING BY PICKUP DATE
-        const sortedData = (result.orders || []).sort((a, b) => {
-          return new Date(a.pickupDate) - new Date(b.pickupDate);
-        });
-
-        setTableData(sortedData);
-        setCurrentPage(1);
+        setTableData(result.orders || []);
+        setPagination(result.meta?.pagination || { total: 0, total_pages: 1 });
+        setHasFetched(true);
       }
     } catch (error) {
       console.error(error);
@@ -70,13 +73,34 @@ const OrderByDateInfo = () => {
     }
   };
 
-  const handleExport = () => {
-    if (tableData.length === 0) {
-      toast.error("No data to export");
+  const handleSearch = async () => {
+    setCurrentPage(1);
+    await loadOrders(1);
+  };
+
+  useEffect(() => {
+    if (hasFetched) {
+      loadOrders();
+    }
+  }, [currentPage, entriesPerPage]);
+
+  const handleExport = async () => {
+    if (!fromDate || !toDate) {
+      toast.error("Please select both dates");
       return;
     }
 
-    const cleanedData = tableData.map((row) => {
+    try {
+      setLoading(true);
+
+      const result = await getOrdersByDate(fromDate, toDate, { all: true });
+
+      if (!result.success || !result.orders?.length) {
+        toast.error("No data to export");
+        return;
+      }
+
+      const cleanedData = exportData.map((row) => {
       const newRow = {};
 
       Object.entries(row)
@@ -101,17 +125,15 @@ const OrderByDateInfo = () => {
         .forEach(([key, value]) => {
           if (
             typeof value === "string" &&
-            value.includes("T") &&
-            value.includes("Z")
+            (value.includes("T") || /^\d{4}-\d{2}-\d{2}/.test(value))
           ) {
-            const date = new Date(value);
-            const day = String(date.getDate()).padStart(2, "0");
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const year = date.getFullYear();
-            newRow[key] = `${day}-${month}-${year}`;
-          } else {
-            newRow[key] = value ?? "N/A";
+            const parsed = new Date(value);
+            if (!Number.isNaN(parsed.getTime())) {
+              newRow[key] = formatDisplayDate(parsed);
+              return;
+            }
           }
+          newRow[key] = value ?? "N/A";
         });
 
       return newRow;
@@ -164,12 +186,19 @@ const OrderByDateInfo = () => {
     });
 
     saveAs(fileData, `orders_${fromDate}_to_${toDate}.xlsx`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to export data");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const indexOfLastRow = currentPage * entriesPerPage;
-  const indexOfFirstRow = indexOfLastRow - entriesPerPage;
-  const currentRows = tableData.slice(indexOfFirstRow, indexOfLastRow);
-  const totalPages = Math.ceil(tableData.length / entriesPerPage);
+  const totalRows = pagination.total || 0;
+  const totalPages = pagination.total_pages || 1;
+  const indexOfFirstRow = totalRows === 0 ? 0 : (currentPage - 1) * entriesPerPage;
+  const indexOfLastRow = Math.min(currentPage * entriesPerPage, totalRows);
+  const currentRows = tableData;
 
   const getVisibleKeys = () => {
     if (tableData.length === 0) return [];
@@ -244,7 +273,7 @@ const OrderByDateInfo = () => {
             }}
             className="border border-gray-300 rounded px-2 py-1"
           >
-            <option value={10}>10</option>
+            <option value={20}>20</option>
             <option value={25}>25</option>
             <option value={50}>50</option>
             <option value={100}>100</option>
@@ -306,14 +335,12 @@ const OrderByDateInfo = () => {
 
                         if (
                           typeof value === "string" &&
-                          value.includes("T") &&
-                          value.includes("Z")
+                          (value.includes("T") || /^\d{4}-\d{2}-\d{2}/.test(value))
                         ) {
-                          const date = new Date(value);
-                          const day = String(date.getDate()).padStart(2, "0");
-                          const month = String(date.getMonth() + 1).padStart(2, "0");
-                          const year = date.getFullYear();
-                          return `${day}-${month}-${year}`;
+                          const parsed = new Date(value);
+                          if (!Number.isNaN(parsed.getTime())) {
+                            return formatDisplayDate(parsed);
+                          }
                         }
 
                         return String(value);
@@ -340,9 +367,8 @@ const OrderByDateInfo = () => {
       <div className="flex items-center justify-between mt-4">
 
         <p className="text-sm font-semibold text-gray-800">
-          Showing {indexOfFirstRow + 1} to{" "}
-          {Math.min(indexOfLastRow, tableData.length)} of{" "}
-          {tableData.length} entries
+          Showing {totalRows > 0 ? indexOfFirstRow + 1 : 0} to{" "}
+          {indexOfLastRow} of {totalRows} entries
         </p>
 
         <div className="flex items-center gap-2">
