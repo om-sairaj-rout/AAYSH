@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
@@ -206,10 +206,10 @@ const ADMIN_TAB_TO_QUERY = {
 
 /* ================= MAIN ADMIN PICKUP PAGE COMPONENT ================= */
 const AdminPickupPage = () => {
-  const [activeTab, setActiveTab] = useState("Today's Pickups");
+  const [activeTab, setActiveTab] = useState("All Pickups");
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedUser, setSelectedUser] = useState('ALL');
-  const [usersList, setUsersList] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState('ALL');
+  const [companiesList, setCompaniesList] = useState([]);
   const [pickups, setPickups] = useState([]);
   const [counts, setCounts] = useState({
     today: 0,
@@ -230,54 +230,75 @@ const AdminPickupPage = () => {
   const [isFailModalOpen, setIsFailModalOpen] = useState(false);
   const [isBulkFailModalOpen, setIsBulkFailModalOpen] = useState(false);
 
+  const [refreshToken, setRefreshToken] = useState(0);
+
   const isTodayTab = activeTab === "Today's Pickups";
 
-  const getStatus = (item) => item.pickupStatus || item.status;
+  useEffect(() => {
+    getAdminPickupsAPI({ tab: "all", userId: "ALL", page: 1, perPage: 1 })
+      .then((res) => {
+        if (Array.isArray(res.users) && res.users.length > 0) {
+          setCompaniesList(res.users);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
-  const fetchPickups = async () => {
-    try {
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPickups = async () => {
+      try {
         setLoading(true);
 
         const res = await getAdminPickupsAPI({
-          tab: ADMIN_TAB_TO_QUERY[activeTab] || "today",
+          tab: ADMIN_TAB_TO_QUERY[activeTab] || "all",
           search: searchQuery.trim() || undefined,
-          userId: selectedUser,
+          userId: selectedCompany,
           page: currentPage,
           perPage,
         });
+
+        if (cancelled) return;
 
         setPickups(res.data || []);
         setCounts(res.counts || {});
         setPagination(res.meta?.pagination || { total: 0, total_pages: 1 });
 
-        if (res.users?.length) {
-          setUsersList(res.users);
+        if (Array.isArray(res.users) && res.users.length > 0) {
+          setCompaniesList(res.users);
         }
-    } catch (err) {
-        toast.error(err.message);
-    } finally {
-        setLoading(false);
-    }
-  };
+      } catch (err) {
+        if (!cancelled) {
+          toast.error(err.message);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
 
-  useEffect(() => {
-    fetchPickups();
-  }, [activeTab, searchQuery, selectedUser, currentPage, perPage]);
+    loadPickups();
 
-  useEffect(() => {
-    setCurrentPage(1);
-    setSelectedPickupIds([]);
-  }, [activeTab, searchQuery, selectedUser, perPage]);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, searchQuery, selectedCompany, currentPage, perPage, refreshToken]);
+
+  const refreshPickups = () => setRefreshToken((token) => token + 1);
+
+  const getStatus = (item) => item.pickupStatus || item.status;
 
   const filteredPickups = pickups;
   const totalPages = pagination.total_pages || 1;
   const totalPickups = pagination.total || 0;
 
   const selectablePickups = filteredPickups.filter(
-  p =>
-    p.pickupStatus !== "Completed" &&
-    p.pickupStatus !== "Failed"
-);
+    (p) =>
+      p.pickupStatus !== "Completed" &&
+      p.pickupStatus !== "Failed"
+  );
 
   // Bulk Selection Handlers
   const handleSelectAll = (e) => {
@@ -303,7 +324,7 @@ const AdminPickupPage = () => {
 
         toast.success("Pickup completed");
 
-        fetchPickups();
+        refreshPickups();
 
     } catch (err) {
         toast.error(err.message);
@@ -325,7 +346,7 @@ const AdminPickupPage = () => {
 
         toast.success("Pickup marked failed");
 
-        fetchPickups();
+        refreshPickups();
 
         setIsFailModalOpen(false);
         setSelectedPickup(null);
@@ -346,7 +367,7 @@ const AdminPickupPage = () => {
 
       setSelectedPickupIds([]);
 
-      fetchPickups();
+      refreshPickups();
     } catch (err) {
       toast.error(err.message);
     }
@@ -365,7 +386,7 @@ const AdminPickupPage = () => {
 
       setSelectedPickupIds([]);
 
-      fetchPickups();
+      refreshPickups();
     } catch (err) {
       toast.error(err.message);
     }
@@ -385,23 +406,31 @@ const AdminPickupPage = () => {
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Select a user to view their specific pickups, or manage all seller dispatches
+              Select a company to view their pickups, or manage all seller dispatches
             </p>
           </div>
 
           {/* User Selection Dropdown & Bulk Action Buttons */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
-              <span className="text-xs font-bold text-slate-500 pl-2">Filter User:</span>
+              <span className="text-xs font-bold text-slate-500 pl-2">Company:</span>
               <select
-                value={selectedUser}
-                onChange={(e) => { setSelectedUser(e.target.value); setSelectedPickupIds([]); }}
-                className="bg-white text-xs font-bold text-slate-800 py-1.5 px-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
+                value={selectedCompany}
+                onChange={(e) => {
+                  const companyId = e.target.value;
+                  setSelectedCompany(companyId);
+                  setCurrentPage(1);
+                  setSelectedPickupIds([]);
+                  if (companyId !== "ALL") {
+                    setActiveTab("All Pickups");
+                  }
+                }}
+                className="bg-white text-xs font-bold text-slate-800 py-1.5 px-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer min-w-[200px]"
               >
-                <option value="ALL">All Users / Sellers</option>
-                {usersList.map(u => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.email})
+                <option value="ALL">All Companies</option>
+                {companiesList.map((company) => (
+                  <option key={String(company.id)} value={String(company.id)}>
+                    {company.name || company.email}
                   </option>
                 ))}
               </select>
@@ -485,7 +514,11 @@ const AdminPickupPage = () => {
               return (
                 <button
                   key={tab}
-                  onClick={() => { setActiveTab(tab); setSelectedPickupIds([]); }}
+                  onClick={() => {
+                    setActiveTab(tab);
+                    setCurrentPage(1);
+                    setSelectedPickupIds([]);
+                  }}
                   className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all flex items-center gap-2 ${
                     isActive
                       ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
@@ -506,9 +539,12 @@ const AdminPickupPage = () => {
           <div className="w-full sm:w-64">
             <input
               type="text"
-              placeholder="Search Order, AWB, Seller..."
+              placeholder="Search by Order ID, AWB, Company, or Courier..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             />
           </div>
@@ -555,7 +591,9 @@ const AdminPickupPage = () => {
               ) : filteredPickups.length === 0 ? (
                 <tr>
                   <td colSpan={isTodayTab ? 7 : 5} className="p-8 text-center text-slate-400 font-medium">
-                    No matching pickup records found.
+                    {selectedCompany !== "ALL"
+                      ? `No pickups found for this company in "${activeTab}". Try the "All Pickups" or "Completed Pickups" tab.`
+                      : "No matching pickup records found."}
                   </td>
                 </tr>
               ) : (
@@ -664,7 +702,10 @@ const AdminPickupPage = () => {
             <span className="text-xs font-semibold text-slate-500">Rows per page:</span>
             <select
               value={perPage}
-              onChange={(e) => setPerPage(Number(e.target.value))}
+              onChange={(e) => {
+                setPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
               className="bg-slate-50 border border-gray-200 text-slate-700 font-bold text-xs rounded-lg py-1.5 px-2.5"
             >
               <option value={20}>20</option>

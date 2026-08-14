@@ -10,6 +10,7 @@ const {
   parsePagination,
   buildPaginationMeta,
 } = require("../../utils/pagination");
+const { applyCompanyOrderFilter } = require("../../utils/companyScope");
 
 const orderCalculations = require("../../utils/orderCalculations");
 
@@ -68,16 +69,12 @@ const getOrdersByDate = async (req, res) => {
     const startDate = startOfDayIST(fromDate);
     const endDate = endOfDayIST(toDate);
 
-    const filter = {
+    const filter = applyCompanyOrderFilter(req, {
       orderDate: {
         $gte: startDate,
         $lte: endDate,
       },
-    };
-
-    if (req.user.role !== "admin") {
-      filter.uploadedBy = new mongoose.Types.ObjectId(req.user.id);
-    }
+    });
 
     const fetchAll = all === "true";
     const { page, perPage, skip } = parsePagination(req.query, 20);

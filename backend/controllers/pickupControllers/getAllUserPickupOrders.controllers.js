@@ -9,6 +9,7 @@ const {
   parsePagination,
   buildPaginationMeta,
 } = require("../../utils/pagination");
+const { buildOrderScopeForUser } = require("../../utils/companyScope");
 
 const buildTabMatch = (tab) => {
   const todayStart = startOfDayIST(new Date());
@@ -61,18 +62,14 @@ const getUserPickups = async (req, res) => {
     const { tab = "today", search } = req.query;
     const { page, perPage, skip } = parsePagination(req.query, 20);
     const userId = new mongoose.Types.ObjectId(req.user.id);
+    const orderScope = buildOrderScopeForUser(req.user);
 
     const baseMatch = {
       awbNumber: { $ne: "" },
       ...buildTabMatch(tab),
     };
 
-    if (search) {
-      baseMatch.$or = [
-        { awbNumber: { $regex: search, $options: "i" } },
-        { pickupLocation: { $regex: search, $options: "i" } },
-      ];
-    }
+    const searchTerm = search ? String(search).trim() : "";
 
     const pipeline = [
       { $match: baseMatch },
@@ -84,9 +81,7 @@ const getUserPickups = async (req, res) => {
           as: "order",
           pipeline: [
             {
-              $match: {
-                uploadedBy: userId,
-              },
+              $match: orderScope,
             },
             {
               $project: {
@@ -99,6 +94,24 @@ const getUserPickups = async (req, res) => {
       },
       { $match: { order: { $ne: [] } } },
       { $unwind: "$order" },
+    ];
+
+    if (searchTerm) {
+      const searchRegex = { $regex: searchTerm, $options: "i" };
+      const searchOr = [
+        { awbNumber: searchRegex },
+        { courierName: searchRegex },
+        { "order.externalOrderId": searchRegex },
+      ];
+
+      if (mongoose.Types.ObjectId.isValid(searchTerm)) {
+        searchOr.push({ orderId: new mongoose.Types.ObjectId(searchTerm) });
+      }
+
+      pipeline.push({ $match: { $or: searchOr } });
+    }
+
+    pipeline.push(
       { $sort: { pickupDate: 1, createdAt: -1 } },
       {
         $facet: {
@@ -110,7 +123,7 @@ const getUserPickups = async (req, res) => {
                 localField: "orderId",
                 foreignField: "_id",
                 as: "orderForCount",
-                pipeline: [{ $match: { uploadedBy: userId } }],
+                pipeline: [{ $match: orderScope }],
               },
             },
             { $match: { orderForCount: { $ne: [] } } },
@@ -123,8 +136,8 @@ const getUserPickups = async (req, res) => {
           ],
           data: [{ $skip: skip }, { $limit: perPage }],
         },
-      },
-    ];
+      }
+    );
 
     const [result] = await Shipping.aggregate(pipeline);
     const total = result.metadata[0]?.total || 0;
@@ -141,7 +154,7 @@ const getUserPickups = async (req, res) => {
           localField: "orderId",
           foreignField: "_id",
           as: "order",
-          pipeline: [{ $match: { uploadedBy: userId } }],
+          pipeline: [{ $match: orderScope }],
         },
       },
       { $match: { order: { $ne: [] } } },

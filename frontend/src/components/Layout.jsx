@@ -8,7 +8,7 @@ const Layout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="flex w-full h-screen bg-slate-50 font-sans antialiased overflow-hidden relative">
+    <div className="flex w-full h-screen font-sans antialiased overflow-hidden relative" style={{ backgroundColor: '#EFF2F6' }}>
       {/* Sidebar with state controls */}
       <SideBar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       
@@ -26,7 +26,7 @@ const Layout = () => {
         
         {/* Adjusted bottom padding to account for fixed/sticky footer positioning safely */}
         <main className="flex-1 p-4 md:p-6 pb-16 overflow-y-auto no-scrollbar">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 min-h-125 p-4 md:p-6">
+          <div className="bg-transparent min-h-125 p-0 md:p-0">
             <Outlet />
           </div>
         </main>

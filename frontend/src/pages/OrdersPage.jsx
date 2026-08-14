@@ -1,16 +1,61 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useSelector } from 'react-redux';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getOrders } from '../api/ordersAPI';
+import { getCompanies } from '../api/companyAPI';
+import { getDashboardData } from '../api/dashboardAPI';
 import SelectCourier from './SelectCourier'; 
 import OrderResponse from './OrderResponse';
 import { shipOrdersAPI } from '../api/shipingAPI';
 import { toast } from 'react-hot-toast';
 import OrderTracker from '../components/OrderTracker';
+import OrdersAnalyticsPanel from '../components/OrdersAnalyticsPanel';
 import {
   formatDisplayDate,
   todayISODateOnly,
 } from '../utils/dateTime';
 import { useLatestRequestId } from '../utils/useLatestRequestId';
+
+const SEARCH_TYPES = {
+  orderId: {
+    label: 'Order ID',
+    apiType: 'order_id',
+    placeholder: 'Enter order ID',
+    prefix: '#',
+  },
+  phone: {
+    label: 'Phone',
+    apiType: 'phone',
+    placeholder: '10-digit mobile number',
+  },
+  customer: {
+    label: 'Customer',
+    apiType: 'customer',
+    placeholder: 'Customer name',
+  },
+  awb: {
+    label: 'AWB',
+    apiType: 'awb',
+    placeholder: 'AWB number',
+  },
+};
+
+const buildOrderSearchParams = (searchType, searchQuery) => {
+  const term = String(searchQuery || '').trim();
+  if (!term) {
+    return { search: undefined, searchType: undefined };
+  }
+
+  const config = SEARCH_TYPES[searchType] || SEARCH_TYPES.orderId;
+
+  return {
+    search: config.prefix ? `${config.prefix}${term.replace(/^#+/, '')}` : term,
+    searchType: config.apiType,
+  };
+};
+
+const isSearchActive = (searchType, searchQuery) =>
+  Boolean(String(searchQuery || '').trim());
 
 
 /* ================= COPY BUTTON UI COMPONENT ================= */
@@ -389,6 +434,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
 
 /* ================= MAIN ORDERS PAGE COMPONENT ================= */
 const OrdersPage = () => {
+  const { isAdmin, user } = useSelector((state) => state.auth);
   const [activeSegment, setActiveSegment] = useState('All Orders');
   const [counts, setCounts] = useState({});
   const [allOrders, setAllOrders] = useState([]);
@@ -398,8 +444,15 @@ const OrdersPage = () => {
 
   // Search & Order Date Filter States
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchType, setSearchType] = useState('orderId');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [selectedCompany, setSelectedCompany] = useState('ALL');
+  const [companiesList, setCompaniesList] = useState([]);
+  const [analyticsYear, setAnalyticsYear] = useState(String(new Date().getFullYear()));
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [salesAnalytics, setSalesAnalytics] = useState(null);
+  const [shipmentAnalytics, setShipmentAnalytics] = useState(null);
 
   const [isCourierModalOpen, setIsCourierModalOpen] = useState(false);
   const [ordersToShip, setOrdersToShip] = useState([]);
@@ -420,15 +473,53 @@ const OrdersPage = () => {
   });
   const { startRequest, isLatestRequest } = useLatestRequestId();
 
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    getCompanies()
+      .then((res) => {
+        if (res.success && Array.isArray(res.companies)) {
+          setCompaniesList(res.companies);
+        }
+      })
+      .catch(() => {});
+  }, [isAdmin]);
+
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      try {
+        setAnalyticsLoading(true);
+        const data = await getDashboardData({
+          year: analyticsYear,
+          companyId: isAdmin ? selectedCompany : undefined,
+          from: fromDate || undefined,
+          to: toDate || undefined,
+        });
+        setSalesAnalytics(data.salesAnalytics || null);
+        setShipmentAnalytics(data.shipmentAnalytics || null);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setAnalyticsLoading(false);
+      }
+    };
+
+    loadAnalytics();
+  }, [isAdmin, selectedCompany, analyticsYear, fromDate, toDate]);
+
   const fetchOrders = useCallback(async () => {
     const requestId = startRequest();
 
     try {
+      const searchParams = buildOrderSearchParams(searchType, searchQuery);
+
       const res = await getOrders({
         status: activeSegment !== "All Orders" ? activeSegment : undefined,
         from: fromDate || undefined,
         to: toDate || undefined,
-        search: searchQuery.trim() || undefined,
+        search: searchParams.search,
+        searchType: searchParams.searchType,
+        companyId: isAdmin ? selectedCompany : undefined,
         page: currentPage,
         perPage: ordersPerPage,
       });
@@ -449,6 +540,9 @@ const OrdersPage = () => {
     fromDate,
     toDate,
     searchQuery,
+    searchType,
+    selectedCompany,
+    isAdmin,
     currentPage,
     ordersPerPage,
     startRequest,
@@ -462,7 +556,7 @@ const OrdersPage = () => {
   useEffect(() => {
     setSelectedOrders([]);
     setCurrentPage(1);
-  }, [activeSegment, searchQuery, fromDate, toDate]);
+  }, [activeSegment, searchQuery, searchType, fromDate, toDate, selectedCompany]);
 
   // Compute Phone Number Frequencies across ALL loaded orders to identify repeat customers
   const phoneCounts = useMemo(() => {
@@ -572,9 +666,34 @@ const OrdersPage = () => {
 
   const clearFilters = () => {
     setSearchQuery('');
+    setSearchType('orderId');
     setFromDate('');
     setToDate('');
+    setSelectedCompany('ALL');
   };
+
+  const handleSearchTypeChange = (nextType) => {
+    setSearchType(nextType);
+    setSearchQuery((prev) => prev.replace(/^#+/, '').trim());
+    setCurrentPage(1);
+  };
+
+  const activeSearchConfig = SEARCH_TYPES[searchType] || SEARCH_TYPES.orderId;
+
+  const analyticsScopeLabel = useMemo(() => {
+    if (isAdmin) {
+      if (selectedCompany === 'ALL') {
+        return 'All companies';
+      }
+      const company = companiesList.find((item) => item.companyID === selectedCompany);
+      return company
+        ? `${company.companyName} (${company.companyID})`
+        : selectedCompany;
+    }
+    return user?.companyName
+      ? `${user.companyName}${user.companyID ? ` (${user.companyID})` : ''}`
+      : 'Your company';
+  }, [isAdmin, selectedCompany, companiesList, user]);
 
   const headers = [
     'Order ID & Info', 
@@ -587,6 +706,17 @@ const OrdersPage = () => {
   return (
     <div className="w-full min-h-screen bg-[#F8FAFC] p-4 font-sans text-[#1E293B]">
       <div className="max-w-400 mx-auto space-y-4">
+
+        <OrdersAnalyticsPanel
+          loading={analyticsLoading}
+          salesAnalytics={salesAnalytics}
+          shipmentAnalytics={shipmentAnalytics}
+          scopeLabel={`${analyticsScopeLabel} · FY ${analyticsYear}${
+            fromDate || toDate ? ' · filtered by order date' : ''
+          }`}
+          analyticsYear={analyticsYear}
+          onYearChange={setAnalyticsYear}
+        />
 
         {/* ================= SEGMENT TABS & BULK ACTIONS BAR ================= */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 bg-white p-3 rounded-xl shadow-sm">
@@ -632,35 +762,88 @@ const OrdersPage = () => {
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-3.5 rounded-xl shadow-sm border border-gray-100">
           
           {/* Search Input */}
-          <div className="relative flex-1 min-w-[260px]">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
-              🔍
-            </span>
-            <input
-              type="text"
-              placeholder="Search by Order ID, Customer, Phone, SKU, AWB..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-            />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 text-xs font-bold"
+          <div className="relative flex-1 min-w-[300px]">
+            <div className="flex items-stretch w-full rounded-lg border border-slate-200 bg-slate-50 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all overflow-hidden">
+              <select
+                value={searchType}
+                onChange={(e) => handleSearchTypeChange(e.target.value)}
+                className="shrink-0 max-w-[118px] pl-3 pr-7 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-600 bg-slate-100/90 border-r border-slate-200 outline-none cursor-pointer appearance-none"
+                aria-label="Search type"
               >
-                ✕
-              </button>
-            )}
+                {Object.entries(SEARCH_TYPES).map(([key, config]) => (
+                  <option key={key} value={key}>
+                    {config.label}
+                  </option>
+                ))}
+              </select>
+
+              <div className="relative flex flex-1 items-center min-w-0">
+                {activeSearchConfig.prefix && (
+                  <span className="pl-3 text-sm font-bold text-indigo-500 select-none">
+                    {activeSearchConfig.prefix}
+                  </span>
+                )}
+                <input
+                  type="text"
+                  placeholder={activeSearchConfig.placeholder}
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value.replace(/^#+/, ''));
+                    setCurrentPage(1);
+                  }}
+                  className={`flex-1 min-w-0 text-xs font-medium bg-transparent py-2.5 pr-8 text-slate-700 outline-none ${
+                    activeSearchConfig.prefix ? 'pl-1' : 'pl-3'
+                  }`}
+                />
+                {isSearchActive(searchType, searchQuery) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setCurrentPage(1);
+                    }}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Order Date Range Controls */}
           <div className="flex flex-wrap items-center gap-2">
+            {isAdmin && (
+              <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 min-w-[200px]">
+                <span className="text-xs font-bold text-slate-500 whitespace-nowrap">Company:</span>
+                <select
+                  value={selectedCompany}
+                  onChange={(e) => {
+                    setSelectedCompany(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-transparent text-xs font-semibold text-slate-700 outline-none cursor-pointer w-full max-w-[240px]"
+                  aria-label="Filter by company"
+                >
+                  <option value="ALL">All Companies</option>
+                  {companiesList.map((company) => (
+                    <option key={company.companyID} value={company.companyID}>
+                      {company.companyName} ({company.companyID})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
               <span className="text-xs font-bold text-slate-500">From:</span>
               <input
                 type="date"
                 value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
+                onChange={(e) => {
+                  setFromDate(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="bg-transparent text-xs font-medium text-slate-700 outline-none cursor-pointer"
               />
             </div>
@@ -670,12 +853,15 @@ const OrdersPage = () => {
               <input
                 type="date"
                 value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
+                onChange={(e) => {
+                  setToDate(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="bg-transparent text-xs font-medium text-slate-700 outline-none cursor-pointer"
               />
             </div>
 
-            {(searchQuery || fromDate || toDate) && (
+            {(isSearchActive(searchType, searchQuery) || fromDate || toDate || (isAdmin && selectedCompany !== 'ALL')) && (
               <button
                 onClick={clearFilters}
                 className="text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-2 rounded-lg transition-colors"

@@ -46,11 +46,13 @@ export const getOrders = async ({
   from,
   to,
   search,
+  searchType,
   paymentMethod,
   pickupLocation,
   courierName,
   forShipments,
   bookedTab,
+  companyId,
   page = 1,
   perPage = 20,
 } = {}) => {
@@ -79,6 +81,10 @@ export const getOrders = async ({
     params.append("search", search);
   }
 
+  if (searchType) {
+    params.append("search_type", searchType);
+  }
+
   if (paymentMethod) {
     params.append("payment_method", paymentMethod);
   }
@@ -97,6 +103,10 @@ export const getOrders = async ({
 
   if (bookedTab) {
     params.append("booked_tab", bookedTab);
+  }
+
+  if (companyId && companyId !== "ALL") {
+    params.append("company_id", companyId);
   }
 
   const res = await fetch(

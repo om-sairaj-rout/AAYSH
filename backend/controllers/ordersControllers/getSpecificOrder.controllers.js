@@ -1,6 +1,7 @@
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const { toISTDateTime, toISTDate } = require("../../utils/dateTime");
+const { applyCompanyOrderFilter } = require("../../utils/companyScope");
 
 const getSpecificOrder = async (req, res) => {
   try {
@@ -8,13 +9,9 @@ const getSpecificOrder = async (req, res) => {
 
     const isAdmin = req.user.role === "admin";
 
-    const filter = {
+    const filter = applyCompanyOrderFilter(req, {
       externalOrderId: orderId,
-    };
-
-    if (!isAdmin) {
-      filter.uploadedBy = req.user.id;
-    }
+    });
 
     const order = await Order.findOne(filter).lean();
 

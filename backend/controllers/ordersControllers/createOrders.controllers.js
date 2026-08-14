@@ -112,6 +112,7 @@ const expectedHours =
     const order = await Order.create({
 
       uploadedBy:req.user.id,
+      companyID: req.user.companyID || "",
 
 
 

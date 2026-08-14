@@ -418,7 +418,7 @@ const UserPickupPage = () => {
           <div className="w-full sm:w-64">
             <input
               type="text"
-              placeholder="Search Order, AWB, Courier..."
+              placeholder="Search by Order ID, AWB, or Courier..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
@@ -519,24 +519,28 @@ const UserPickupPage = () => {
 
                     {/* Actions */}
                     <td className="p-3.5 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleOpenReschedule(pickup)}
-                          className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-lg transition-colors"
-                        >
-                          Reschedule
-                        </button>
-                        
-                        {/* Hide Cancel button if viewing 'Cancelled Pickups' tab or if pickup status is 'Cancelled' */}
-                        {activeTab !== "Cancelled Pickups" && pickup.pickupStatus !== "Cancelled" && (
+                      {pickup.pickupStatus === "Completed" ? (
+                        <span className="text-xs text-slate-400">—</span>
+                      ) : (
+                        <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => handleCancelPickup(pickup._id)}
-                            className="px-2.5 py-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors text-xs font-semibold"
+                            onClick={() => handleOpenReschedule(pickup)}
+                            className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-lg transition-colors"
                           >
-                            Cancel
+                            Reschedule
                           </button>
-                        )}
-                      </div>
+
+                          {activeTab !== "Cancelled Pickups" &&
+                            pickup.pickupStatus !== "Cancelled" && (
+                              <button
+                                onClick={() => handleCancelPickup(pickup._id)}
+                                className="px-2.5 py-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors text-xs font-semibold"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))

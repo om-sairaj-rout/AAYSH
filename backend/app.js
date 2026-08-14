@@ -7,6 +7,7 @@ dotenv.config();
 
 const connectToDB = require("./config/db");
 const authRouter = require('./routes/auth.routes');
+const companyRouter = require('./routes/company.routes');
 const uploadRouter = require('./routes/upload.routes');
 const orderRouter = require('./routes/order.routes');
 const dashboardRouter = require('./routes/dashboard.routes');
@@ -42,6 +43,7 @@ app.use(express.urlencoded({ extended: true }));
 require("./cron/pickupCron");
 
 app.use('/api', authRouter);
+app.use('/api', companyRouter);
 app.use('/api', shipmentRouter);
 app.use('/api', trackingRouter);
 app.use('/api', pickupRouter);

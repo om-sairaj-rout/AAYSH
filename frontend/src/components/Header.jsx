@@ -1,11 +1,58 @@
-import { Search, Calculator, UserCircle, LogOut, Menu } from "lucide-react";
+import { Search, UserCircle, LogOut, Menu } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { logoutUser } from "../api/authAPI";
 import { logout } from "../store/slice/checkAuth";
 import { getOrderByAwb } from "../api/ordersAPI";
 import { toast } from "react-hot-toast";
+
+const TIMEZONE = "Asia/Kolkata";
+
+const getGreeting = () => {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: TIMEZONE,
+      hour: "numeric",
+      hour12: false,
+    }).format(new Date())
+  );
+
+  if (hour < 12) return "Good Morning";
+  if (hour < 17) return "Good Afternoon";
+  return "Good Evening";
+};
+
+const useLiveISTClock = () => {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const time = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TIMEZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(now);
+
+  const dayName = new Intl.DateTimeFormat("en-IN", {
+    timeZone: TIMEZONE,
+    weekday: "long",
+  }).format(now);
+
+  const dateLabel = new Intl.DateTimeFormat("en-IN", {
+    timeZone: TIMEZONE,
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(now);
+
+  return { time, dayName, dateLabel };
+};
 
 const Header = ({ setIsSidebarOpen }) => {
   const navigate = useNavigate();
@@ -16,6 +63,10 @@ const Header = ({ setIsSidebarOpen }) => {
 
   const [showLogout, setShowLogout] = useState(false);
   const [search, setSearch] = useState("");
+  const { time, dayName, dateLabel } = useLiveISTClock();
+
+  const isDashboard = location.pathname === "/dashboard";
+  const displayName = user?.companyName || user?.email?.split("@")[0] || "User";
 
   const titles = {
     "/dashboard": "Dashboard",
@@ -24,6 +75,8 @@ const Header = ({ setIsSidebarOpen }) => {
     "/upload/template": "Excel Template",
     "/reports/all-orders": "Orders",
     "/user/create-account": "Create User Account",
+    "/user/registrations": "Registration Overview",
+    "/company/team": "Team Management",
     "/rate-calculator": "Rate Calculator",
     "/reports/shipments": "Shipments",
     "/user/edit-account": "Edit User Profile",
@@ -34,7 +87,11 @@ const Header = ({ setIsSidebarOpen }) => {
     "/upload/excel-reports": "Excel Reports",
   };
 
-  const currentTitle = titles[location.pathname] || "Aaysh Express";
+  const currentTitle =
+    titles[location.pathname] ||
+    (location.pathname.startsWith("/user/companies/")
+      ? "Company Details"
+      : "Aaysh Express");
 
   const handleLogout = async () => {
     try {
@@ -66,23 +123,52 @@ const Header = ({ setIsSidebarOpen }) => {
   };
 
   return (
-    <header className="sticky top-0 w-full h-20 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-8 z-30">
-      <div className="flex items-center gap-3">
-        {/* Hamburger Menu trigger button (visible only on mobile/tablet) */}
-        <button 
+    <header className="sticky top-0 w-full min-h-20 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-8 py-3 z-30 relative">
+      <div className="flex items-center gap-3 min-w-0 z-10 flex-1">
+        <button
+          type="button"
           onClick={() => setIsSidebarOpen(true)}
-          className="lg:hidden p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"
+          className="lg:hidden p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors shrink-0"
         >
           <Menu size={24} />
         </button>
-        <h1 className="text-xl md:text-2xl font-semibold text-gray-800 truncate max-w-[180px] sm:max-w-none">
-          {currentTitle}
-        </h1>
+        {isDashboard ? (
+          <div className="min-w-0">
+            <h1 className="text-lg md:text-2xl font-bold text-[#1B2B4B] truncate">
+              {getGreeting()}, {displayName}
+            </h1>
+            <p className="text-[11px] text-slate-400 font-medium md:hidden mt-0.5">
+              {dayName} · {dateLabel}
+            </p>
+          </div>
+        ) : (
+          <h1 className="text-xl md:text-2xl font-semibold text-gray-800 truncate max-w-[180px] sm:max-w-none">
+            {currentTitle}
+          </h1>
+        )}
       </div>
 
-      <div className="flex items-center gap-2 md:gap-4 flex-1 justify-end sm:flex-initial">
+      {isDashboard && (
+        <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex-col items-center text-center pointer-events-none">
+          <p className="text-2xl font-black text-[#1B2B4B] tracking-[0.12em] tabular-nums font-mono">
+            {time}
+          </p>
+          <p className="text-xs font-semibold text-slate-500 mt-0.5">
+            {dayName}, {dateLabel}
+          </p>
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 md:gap-4 justify-end z-10 flex-1">
+        {isDashboard && (
+          <div className="md:hidden flex flex-col items-end text-right mr-1">
+            <p className="text-sm font-black text-[#1B2B4B] tabular-nums font-mono leading-none">
+              {time}
+            </p>
+          </div>
+        )}
         {/* Responsive Search Bar container */}
-        <div className="relative w-full max-w-[160px] sm:max-w-[240px] md:max-w-xs">
+        {/* <div className="relative w-full max-w-[160px] sm:max-w-[240px] md:max-w-xs">
           <input
             type="text"
             value={search}
@@ -100,7 +186,7 @@ const Header = ({ setIsSidebarOpen }) => {
             size={16}
             onClick={handleSearch}
           />
-        </div>
+        </div> */}
 
         {/* Action Icons Panel */}
         <div className="flex items-center gap-1 md:gap-2 border-l pl-2 md:pl-4 border-gray-200 relative">

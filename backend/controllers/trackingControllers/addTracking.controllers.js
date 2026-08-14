@@ -1,6 +1,7 @@
 const Tracking = require("../../models/upload/tracking.model");
 const Shipping = require("../../models/upload/shipping.model");
 const Order = require("../../models/upload/order.model");
+const notifyShippingStatusWhatsApp = require("../../utils/notifyShippingStatusWhatsApp");
 
 const addTracking = async (req, res) => {
   try {
@@ -54,6 +55,7 @@ const addTracking = async (req, res) => {
     });
 
     // Update shipment status
+    const previousStatus = shipping.shippingStatus;
     shipping.shippingStatus = status;
 
     switch (status) {
@@ -85,6 +87,14 @@ const addTracking = async (req, res) => {
     }
 
     await shipping.save();
+
+    notifyShippingStatusWhatsApp({
+      shipping,
+      previousStatus,
+      newStatus: status,
+    }).catch((err) => {
+      console.error("WhatsApp notification failed:", err.message);
+    });
 
     // Update dashboard status
     await Order.findByIdAndUpdate(

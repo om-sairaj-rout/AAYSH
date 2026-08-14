@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const Tracking = require("../../models/upload/tracking.model");
+const User = require("../../models/user.model");
 const {
   startOfDayIST,
   endOfDayIST,
@@ -11,6 +12,8 @@ const {
   parsePagination,
   buildPaginationMeta,
 } = require("../../utils/pagination");
+const { applyOrderSearchFilter } = require("../../utils/orderSearch");
+const { applyCompanyOrderFilter } = require("../../utils/companyScope");
 
 const SHIPMENT_STATUSES = [
   "Booked",
@@ -36,19 +39,35 @@ const getOrdersController = async (req, res) => {
       from,
       to,
       search,
+      search_type,
       payment_method,
       pickup_location,
       courier_name,
       for_shipments,
       booked_tab,
+      company_id,
     } = req.query;
 
     const { page, perPage, skip } = parsePagination(req.query, 20);
 
-    const orderFilter = {};
+    const orderFilter = applyCompanyOrderFilter(req, {});
 
-    if (!isAdmin) {
-      orderFilter.uploadedBy = new mongoose.Types.ObjectId(req.user.id);
+    if (isAdmin && company_id && company_id !== "ALL") {
+      const companyKey = String(company_id).trim();
+
+      if (companyKey.toUpperCase().startsWith("AAYSH-")) {
+        orderFilter.companyID = companyKey.toUpperCase();
+      } else {
+        const companyUser = await User.findById(companyKey)
+          .select("companyID")
+          .lean();
+
+        if (companyUser?.companyID) {
+          orderFilter.companyID = companyUser.companyID;
+        } else {
+          orderFilter.uploadedBy = new mongoose.Types.ObjectId(companyKey);
+        }
+      }
     }
 
     if (from || to) {
@@ -68,44 +87,7 @@ const getOrdersController = async (req, res) => {
     }
 
     if (search) {
-      const shippingOrders = await Shipping.find({
-        awbNumber: {
-          $regex: search,
-          $options: "i",
-        },
-      }).select("orderId");
-
-      orderFilter.$or = [
-        {
-          externalOrderId: {
-            $regex: search,
-            $options: "i",
-          },
-        },
-        {
-          consigneeName: {
-            $regex: search,
-            $options: "i",
-          },
-        },
-        {
-          consigneeLastName: {
-            $regex: search,
-            $options: "i",
-          },
-        },
-        {
-          billingPhone: {
-            $regex: search,
-            $options: "i",
-          },
-        },
-        {
-          _id: {
-            $in: shippingOrders.map((x) => x.orderId),
-          },
-        },
-      ];
+      await applyOrderSearchFilter(orderFilter, search, search_type);
     }
 
     const shippingMatch = {};

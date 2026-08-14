@@ -2,15 +2,23 @@ const XLSX = require("xlsx");
 
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
+const User = require("../../models/user.model");
+const { buildOrderScopeForUser } = require("../../utils/companyScope");
 
 const downloadUserOrdersExcel = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // Get all user's orders
-    const orders = await Order.find({
-      uploadedBy: userId,
-    });
+    const user = await User.findById(userId).select("companyID").lean();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const orders = await Order.find(buildOrderScopeForUser(user));
 
     const excelData = [];
 

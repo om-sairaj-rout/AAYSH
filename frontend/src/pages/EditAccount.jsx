@@ -252,6 +252,23 @@ const EditAccount = () => {
   )}
 </div>
 
+{selectedUser?.companyID && (
+  <div className="col-span-2">
+    <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">
+      Company ID
+    </label>
+    <div className="relative">
+      <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+      <input
+        type="text"
+        value={selectedUser.companyID}
+        readOnly
+        className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-100 text-sm font-mono font-semibold text-slate-700 cursor-default"
+      />
+    </div>
+  </div>
+)}
+
 <div className="col-span-2">
   <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">
     Website

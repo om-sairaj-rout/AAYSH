@@ -63,6 +63,12 @@ const OrderSchema = new mongoose.Schema(
       index: true,
     },
 
+    companyID: {
+      type: String,
+      index: true,
+      default: "",
+    },
+
     externalOrderId: {
       type: String,
       required: true,

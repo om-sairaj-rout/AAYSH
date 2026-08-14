@@ -1,6 +1,7 @@
 const Shipping = require("../../models/upload/shipping.model");
 const Order = require("../../models/upload/order.model");
 const Awb = require("../../models/awb/awb.model");
+const { userOwnsOrder } = require("../../utils/companyScope");
 
 const cancelShipments = async (req, res) => {
   try {
@@ -42,10 +43,7 @@ const cancelShipments = async (req, res) => {
           continue;
         }
 
-        if (
-          !isAdmin &&
-          order.uploadedBy.toString() !== req.user.id
-        ) {
+        if (!userOwnsOrder(order, req)) {
           failed.push({
             awb: awbNumber,
             reason: "Unauthorized",

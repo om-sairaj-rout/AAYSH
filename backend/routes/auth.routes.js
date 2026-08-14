@@ -11,6 +11,10 @@ const { checkAuth, authRoles } = require("../middlewares/auth.middleware.js");
 const forgotPassword = require("../controllers/authControllers/forgotPassword.controllers.js");
 const resetPassword = require("../controllers/authControllers/resetPassword.controllers.js");
 const getAllUsers = require("../controllers/authControllers/getAllUsers.controllers");
+const getRegistrationStats = require("../controllers/authControllers/getRegistrationStats.controllers");
+const {
+  migrateLegacyCompaniesController,
+} = require("../controllers/authControllers/migrateLegacyCompanies.controllers");
 
 const updateUserController = require("../controllers/authControllers/updateUser.controllers");
 const deleteUserController = require("../controllers/authControllers/deleteUser.controllers");
@@ -24,6 +28,18 @@ authRouter.get("/auth/check", checkAuth, authCheckController);
 authRouter.post("/forgot-password", forgotPassword);
 authRouter.post("/reset-password/:token", resetPassword);
 authRouter.get("/users", checkAuth, authRoles("admin"), getAllUsers);
+authRouter.get(
+  "/users/registration-stats",
+  checkAuth,
+  authRoles("admin"),
+  getRegistrationStats
+);
+authRouter.post(
+  "/users/migrate-legacy-companies",
+  checkAuth,
+  authRoles("admin"),
+  migrateLegacyCompaniesController
+);
 
 authRouter.put(
   "/update-user/:id",

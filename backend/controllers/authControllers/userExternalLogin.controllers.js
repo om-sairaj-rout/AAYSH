@@ -25,6 +25,7 @@ const loginUserExternal = async (req, res) => {
   {
     id: foundUser._id,
     companyName: foundUser.companyName,
+    companyID: foundUser.companyID,
     role: foundUser.role,
   },
   process.env.JWT_SECRET,

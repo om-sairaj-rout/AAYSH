@@ -55,7 +55,11 @@ const getAllShipments = async (req, res) => {
     const orderMatch = {};
 
     if (!isAdmin) {
-      orderMatch["order.uploadedBy"] = new mongoose.Types.ObjectId(req.user.id);
+      if (req.user.companyID) {
+        orderMatch["order.companyID"] = req.user.companyID;
+      } else {
+        orderMatch["order.uploadedBy"] = new mongoose.Types.ObjectId(req.user.id);
+      }
     }
 
     if (search) {

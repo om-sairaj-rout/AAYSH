@@ -1,3 +1,6 @@
+const getCategory = require("./categoryMapper");
+const getExpectedHours = require("./tatMapper");
+
 const orderCalculations = (order = {}, shipping = {}) => {
   // ==========================
   // NORMALIZE VALUES

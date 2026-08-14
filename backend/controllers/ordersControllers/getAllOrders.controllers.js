@@ -11,6 +11,7 @@ const {
   parsePagination,
   buildPaginationMeta,
 } = require("../../utils/pagination");
+const { applyCompanyOrderFilter } = require("../../utils/companyScope");
 
 const SHIPPING_FIELDS = {
   shipmentId: 1,
@@ -121,11 +122,7 @@ const getAllOrders = async (req, res) => {
 
     const { page, perPage, skip } = parsePagination(req.query, 20);
 
-    const orderFilter = {};
-
-    if (!isAdmin) {
-      orderFilter.uploadedBy = new mongoose.Types.ObjectId(req.user.id);
-    }
+    const orderFilter = applyCompanyOrderFilter(req, {});
 
     if (from || to) {
       orderFilter.orderDate = {};

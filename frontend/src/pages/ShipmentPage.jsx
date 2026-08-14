@@ -118,6 +118,10 @@ const ShipmentPage = () => {
   const [pagination, setPagination] = useState({ total: 0, total_pages: 1 });
   const { startRequest, isLatestRequest } = useLatestRequestId();
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+
   const getBookedTab = () => {
     if (activeTab === "Today's Shipments") return "today";
     if (activeTab === "Previous Shipments") return "previous";
@@ -131,6 +135,9 @@ const ShipmentPage = () => {
       const res = await getOrders({
         forShipments: true,
         bookedTab: getBookedTab(),
+        from: fromDate || undefined,
+        to: toDate || undefined,
+        search: searchQuery.trim() || undefined,
         page: currentPage,
         perPage: ordersPerPage,
       });
@@ -148,6 +155,9 @@ const ShipmentPage = () => {
     }
   }, [
     activeTab,
+    fromDate,
+    toDate,
+    searchQuery,
     currentPage,
     ordersPerPage,
     startRequest,
@@ -161,7 +171,13 @@ const ShipmentPage = () => {
   useEffect(() => {
     setSelectedOrders([]);
     setCurrentPage(1);
-  }, [activeTab, ordersPerPage]);
+  }, [activeTab, ordersPerPage, searchQuery, fromDate, toDate]);
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setFromDate('');
+    setToDate('');
+  };
 
   const getTabCount = (tabName) => counts[tabName] || 0;
 
@@ -304,6 +320,70 @@ const ShipmentPage = () => {
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        {/* ================= SEARCH & ORDER DATE FILTER BAR ================= */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-3.5 rounded-xl shadow-sm border border-gray-100">
+          <div className="relative flex-1 min-w-[260px]">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+              🔍
+            </span>
+            <input
+              type="text"
+              placeholder="Search by Order ID, Customer, Phone, SKU, AWB, or date (DD/MM/YYYY)..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 text-xs font-bold"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
+              <span className="text-xs font-bold text-slate-500">From:</span>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => {
+                  setFromDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="bg-transparent text-xs font-medium text-slate-700 outline-none cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
+              <span className="text-xs font-bold text-slate-500">To:</span>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => {
+                  setToDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="bg-transparent text-xs font-medium text-slate-700 outline-none cursor-pointer"
+              />
+            </div>
+
+            {(searchQuery || fromDate || toDate) && (
+              <button
+                onClick={clearFilters}
+                className="text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-2 rounded-lg transition-colors"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         </div>
 

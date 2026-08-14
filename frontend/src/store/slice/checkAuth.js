@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { canManageTeam } from '../../utils/permissions';
 const BASE = import.meta.env.VITE_API_URL;
 
 // Thunk to verify authentication
@@ -27,12 +28,14 @@ const checkAuthSlice = createSlice({
     initialized: false,
     error: null,
     isAdmin: false,
+    canManageTeam: false,
   },
   reducers: {
     logout: (state) => {
       state.isAuthenticated = false;
       state.user = null;
       state.isAdmin = false;
+      state.canManageTeam = false;
     },
     updateUser: (state, action) => {
       state.user = { ...state.user, ...action.payload };
@@ -50,6 +53,7 @@ const checkAuthSlice = createSlice({
         state.isAuthenticated = true;
         state.user = action.payload.userDets;
         state.isAdmin = action.payload.userDets.role === "admin";
+        state.canManageTeam = canManageTeam(action.payload.userDets);
         state.loading = false;
         state.initialized = true;
       })
@@ -59,6 +63,7 @@ const checkAuthSlice = createSlice({
         state.initialized = true;
         state.user = null;
         state.isAdmin = false;
+        state.canManageTeam = false;
         state.error = action.payload || action.error.message;
       });
   },

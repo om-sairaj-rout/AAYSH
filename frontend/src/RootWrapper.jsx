@@ -28,6 +28,9 @@ import CustomerTracking from "./pages/CustomerTracking.jsx";
 import ServiceabilityPage from "./pages/ServiceabilityPage.jsx";
 import CourierPriorityPage from "./pages/CourierPriorityPage.jsx";
 import UpdateOrdersPage from "./pages/UpdateOrdersPage.jsx";
+import RegistrationOverviewPage from "./pages/RegistrationOverviewPage.jsx";
+import CompanyDetailPage from "./pages/CompanyDetailPage.jsx";
+import CompanyTeamPage from "./pages/CompanyTeamPage.jsx";
 
 const router = createBrowserRouter([
   { path: "/", element: <HomePage /> },
@@ -50,6 +53,9 @@ const router = createBrowserRouter([
       { path: "/upload/excel-reports", element: <ExcelReportsPage /> },
       { path: "/reports/all-orders", element: <OrdersPage /> },
       { path: "/user/create-account", element: <Register /> },
+      { path: "/user/registrations", element: <RegistrationOverviewPage /> },
+      { path: "/user/companies/:companyID", element: <CompanyDetailPage /> },
+      { path: "/company/team", element: <CompanyTeamPage /> },
       { path: "/user/edit-account", element: <EditAccount /> },
       { path: "/user/remove-account", element: <RemoveAccount /> },
       { path: "/reports/shipments", element: <ShipmentPage /> },

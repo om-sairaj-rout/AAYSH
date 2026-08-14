@@ -37,8 +37,64 @@ const buildTabMatch = (tab) => {
   }
 };
 
+const buildOrderLookupPipeline = () => [
+  {
+    $lookup: {
+      from: "users",
+      localField: "uploadedBy",
+      foreignField: "_id",
+      as: "uploadedBy",
+    },
+  },
+  {
+    $unwind: {
+      path: "$uploadedBy",
+      preserveNullAndEmptyArrays: true,
+    },
+  },
+  {
+    $project: {
+      externalOrderId: 1,
+      uploadedBy: {
+        _id: 1,
+        companyName: 1,
+        email: 1,
+      },
+    },
+  },
+];
+
+const buildCompanyMatch = (userFilterId) => {
+  if (!userFilterId) return null;
+
+  return {
+    $expr: {
+      $eq: [{ $toString: "$order.uploadedBy._id" }, userFilterId],
+    },
+  };
+};
+
+const buildSearchMatch = (searchTerm) => {
+  if (!searchTerm) return null;
+
+  const searchRegex = { $regex: searchTerm, $options: "i" };
+  const searchOr = [
+    { awbNumber: searchRegex },
+    { courierName: searchRegex },
+    { "order.externalOrderId": searchRegex },
+    { "order.uploadedBy.companyName": searchRegex },
+    { "courier.name": searchRegex },
+  ];
+
+  if (mongoose.Types.ObjectId.isValid(searchTerm)) {
+    searchOr.push({ orderId: new mongoose.Types.ObjectId(searchTerm) });
+  }
+
+  return { $match: { $or: searchOr } };
+};
+
 const formatPickup = (pickup) => ({
-  _id: pickup._id,
+  _id: String(pickup._id),
   orderId: pickup.order?._id,
   externalOrderId: pickup.order?.externalOrderId,
   awbNumber: pickup.awbNumber,
@@ -53,7 +109,7 @@ const formatPickup = (pickup) => ({
   packagesCount: 1,
   userId: pickup.order?.uploadedBy
     ? {
-        _id: pickup.order.uploadedBy._id,
+        _id: String(pickup.order.uploadedBy._id),
         companyName: pickup.order.uploadedBy.companyName,
         email: pickup.order.uploadedBy.email,
       }
@@ -71,17 +127,16 @@ const getAdminPickups = async (req, res) => {
       ...buildTabMatch(tab),
     };
 
-    if (search) {
-      baseMatch.$or = [
-        { awbNumber: { $regex: search, $options: "i" } },
-        { pickupLocation: { $regex: search, $options: "i" } },
-      ];
-    }
+    const searchTerm = search ? String(search).trim() : "";
 
-    const orderMatch = {};
+    const userFilterId =
+      user_id && user_id !== "ALL" ? String(user_id).trim() : null;
 
-    if (user_id && user_id !== "ALL") {
-      orderMatch["order.uploadedBy"] = new mongoose.Types.ObjectId(user_id);
+    if (userFilterId && !mongoose.Types.ObjectId.isValid(userFilterId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid company id",
+      });
     }
 
     const pipeline = [
@@ -92,52 +147,16 @@ const getAdminPickups = async (req, res) => {
           localField: "orderId",
           foreignField: "_id",
           as: "order",
-          pipeline: [
-            {
-              $lookup: {
-                from: "users",
-                localField: "uploadedBy",
-                foreignField: "_id",
-                as: "uploadedBy",
-              },
-            },
-            {
-              $unwind: {
-                path: "$uploadedBy",
-                preserveNullAndEmptyArrays: true,
-              },
-            },
-            {
-              $project: {
-                externalOrderId: 1,
-                uploadedBy: {
-                  _id: 1,
-                  companyName: 1,
-                  email: 1,
-                },
-              },
-            },
-          ],
+          pipeline: buildOrderLookupPipeline(),
         },
       },
+      { $match: { order: { $ne: [] } } },
       { $unwind: "$order" },
     ];
 
-    if (Object.keys(orderMatch).length > 0) {
-      pipeline.push({ $match: orderMatch });
-    }
-
-    if (search) {
-      pipeline.push({
-        $match: {
-          $or: [
-            { awbNumber: { $regex: search, $options: "i" } },
-            { pickupLocation: { $regex: search, $options: "i" } },
-            { "order.externalOrderId": { $regex: search, $options: "i" } },
-            { "order.uploadedBy.companyName": { $regex: search, $options: "i" } },
-          ],
-        },
-      });
+    const companyMatch = buildCompanyMatch(userFilterId);
+    if (companyMatch) {
+      pipeline.push({ $match: companyMatch });
     }
 
     pipeline.push(
@@ -154,7 +173,15 @@ const getAdminPickups = async (req, res) => {
           path: "$courier",
           preserveNullAndEmptyArrays: true,
         },
-      },
+      }
+    );
+
+    const searchMatch = buildSearchMatch(searchTerm);
+    if (searchMatch) {
+      pipeline.push(searchMatch);
+    }
+
+    pipeline.push(
       { $sort: { pickupDate: 1 } },
       {
         $facet: {
@@ -184,17 +211,15 @@ const getAdminPickups = async (req, res) => {
           localField: "orderId",
           foreignField: "_id",
           as: "order",
+          pipeline: buildOrderLookupPipeline(),
         },
       },
+      { $match: { order: { $ne: [] } } },
       { $unwind: "$order" },
     ];
 
-    if (user_id && user_id !== "ALL") {
-      countPipeline.push({
-        $match: {
-          "order.uploadedBy": new mongoose.Types.ObjectId(user_id),
-        },
-      });
+    if (companyMatch) {
+      countPipeline.push({ $match: companyMatch });
     }
 
     countPipeline.push({
@@ -245,28 +270,10 @@ const getAdminPickups = async (req, res) => {
           localField: "orderId",
           foreignField: "_id",
           as: "order",
-          pipeline: [
-            {
-              $lookup: {
-                from: "users",
-                localField: "uploadedBy",
-                foreignField: "_id",
-                as: "uploadedBy",
-              },
-            },
-            { $unwind: "$uploadedBy" },
-            {
-              $project: {
-                uploadedBy: {
-                  _id: 1,
-                  companyName: 1,
-                  email: 1,
-                },
-              },
-            },
-          ],
+          pipeline: buildOrderLookupPipeline(),
         },
       },
+      { $match: { order: { $ne: [] } } },
       { $unwind: "$order" },
       {
         $group: {
@@ -281,11 +288,13 @@ const getAdminPickups = async (req, res) => {
     return res.json({
       success: true,
       data: formatted,
-      users: users.map((u) => ({
-        id: u._id,
-        name: u.companyName,
-        email: u.email,
-      })),
+      users: users
+        .filter((u) => u._id)
+        .map((u) => ({
+          id: String(u._id),
+          name: u.companyName || u.email || "Unknown",
+          email: u.email || "",
+        })),
       counts: {
         today: countResult?.today?.[0]?.count || 0,
         future: countResult?.future?.[0]?.count || 0,

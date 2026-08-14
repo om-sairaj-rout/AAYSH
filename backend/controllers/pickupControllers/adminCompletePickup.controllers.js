@@ -1,4 +1,5 @@
 const Shipping = require("../../models/upload/shipping.model");
+const notifyShippingStatusWhatsApp = require("../../utils/notifyShippingStatusWhatsApp");
 
 const completePickup = async (req, res) => {
   try {
@@ -14,12 +15,21 @@ const completePickup = async (req, res) => {
     }
 
     pickup.pickupStatus = "Completed";
-pickup.failureReason = "";
-pickup.pickedUpAt = new Date();
+    pickup.failureReason = "";
+    pickup.pickedUpAt = new Date();
 
-pickup.shippingStatus = "Shipped";
-pickup.shippedAt = new Date();
+    const previousStatus = pickup.shippingStatus;
+    pickup.shippingStatus = "Shipped";
+    pickup.shippedAt = new Date();
     await pickup.save();
+
+    notifyShippingStatusWhatsApp({
+      shipping: pickup,
+      previousStatus,
+      newStatus: pickup.shippingStatus,
+    }).catch((err) => {
+      console.error("WhatsApp notification failed:", err.message);
+    });
 
     return res.json({
       success: true,

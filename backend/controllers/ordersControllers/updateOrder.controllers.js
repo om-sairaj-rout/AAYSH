@@ -1,4 +1,5 @@
 const Order = require("../../models/upload/order.model");
+const { userOwnsOrder } = require("../../utils/companyScope");
 const Shipping = require("../../models/upload/shipping.model");
 
 const getCategory = require("../../utils/categoryMapper");
@@ -257,7 +258,7 @@ const updateOrder = async (req, res) => {
 
     const isAdmin = req.user?.role === "admin";
 
-    if (!isAdmin && String(order.uploadedBy) !== String(req.user?.id)) {
+    if (!userOwnsOrder(order, req)) {
       return res.status(403).json({
         success: false,
         message: "You are not allowed to update this order.",

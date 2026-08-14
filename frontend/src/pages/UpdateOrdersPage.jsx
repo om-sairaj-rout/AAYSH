@@ -45,6 +45,77 @@ const calculateInvoiceValue = (formData) =>
     ).toFixed(2)
   );
 
+const parseSearchDateRange = (term) => {
+  const trimmed = String(term || "").trim();
+  if (!trimmed) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const start = startOfDayIST(trimmed);
+    const end = endOfDayIST(trimmed);
+    if (start && end) {
+      return { start: start.getTime(), end: end.getTime() };
+    }
+  }
+
+  const ddmmyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(trimmed);
+  if (ddmmyyyy) {
+    const [, day, month, year] = ddmmyyyy;
+    const start = startOfDayIST(`${year}-${month}-${day}`);
+    const end = endOfDayIST(`${year}-${month}-${day}`);
+    if (start && end) {
+      return { start: start.getTime(), end: end.getTime() };
+    }
+  }
+
+  return null;
+};
+
+const orderMatchesSearch = (order, query) => {
+  const q = String(query || "").trim();
+  if (!q) return true;
+
+  const dateRange = parseSearchDateRange(q);
+  if (dateRange) {
+    if (!order.orderDate) return false;
+    const orderTime = new Date(order.orderDate).getTime();
+    return orderTime >= dateRange.start && orderTime <= dateRange.end;
+  }
+
+  const lowerQ = q.toLowerCase();
+  const skuMatch = (order.orderItems || []).some((item) =>
+    item.sku?.toLowerCase().includes(lowerQ)
+  );
+
+  return (
+    order.externalOrderId?.toLowerCase().includes(lowerQ) ||
+    String(order._id || "").toLowerCase().includes(lowerQ) ||
+    order.consigneeName?.toLowerCase().includes(lowerQ) ||
+    order.consigneeLastName?.toLowerCase().includes(lowerQ) ||
+    order.billingPhone?.includes(q) ||
+    order.billingAlternatePhone?.includes(q) ||
+    order.shipping?.awbNumber?.toLowerCase().includes(lowerQ) ||
+    skuMatch
+  );
+};
+
+const orderMatchesDateRange = (order, from, to) => {
+  if (!from && !to) return true;
+  if (!order.orderDate) return false;
+
+  const orderTime = startOfDayIST(order.orderDate)?.getTime();
+  if (from) {
+    const fromTime = startOfDayIST(from)?.getTime();
+    if (orderTime < fromTime) return false;
+  }
+  if (to) {
+    const toTime = endOfDayIST(to)?.getTime();
+    const orderEndTime = new Date(order.orderDate).getTime();
+    if (orderEndTime > toTime) return false;
+  }
+
+  return true;
+};
+
 const buildUpdatePayload = (formData) => ({
   order_id: formData.order_id,
   order_date: formData.order_date || undefined,
@@ -142,6 +213,9 @@ const UpdateOrdersPage = () => {
   const handleSelectUser = async (user) => {
     setSelectedUser(user);
     setOrders([]);
+    setSearchQuery("");
+    setFromDate("");
+    setToDate("");
     setLoading(true);
     setMessage({ type: "", text: "" });
   
@@ -370,34 +444,21 @@ const UpdateOrdersPage = () => {
     navigator.clipboard.writeText(text);
   };
 
-  // Filtered Orders
-  const filteredOrders = orders.filter((o) => {
-    const q = searchQuery.toLowerCase();
+  const clearFilters = () => {
+    setSearchQuery("");
+    setFromDate("");
+    setToDate("");
+  };
 
-    const matchesSearch =
-      o.externalOrderId?.toLowerCase().includes(q) ||
-      o.consigneeName?.toLowerCase().includes(q) ||
-      o.billingPhone?.includes(q) ||
-      o.shipping?.awbNumber?.toLowerCase().includes(q);
-
-    if (!matchesSearch) return false;
-
-    if (fromDate || toDate) {
-      if (!o.orderDate) return false;
-
-      const orderTime = startOfDayIST(o.orderDate)?.getTime();
-      if (fromDate) {
-        const fromTime = startOfDayIST(fromDate)?.getTime();
-        if (orderTime < fromTime) return false;
-      }
-      if (toDate) {
-        const toTime = endOfDayIST(toDate)?.getTime();
-        if (orderTime > toTime) return false;
-      }
-    }
-
-    return true;
-  });
+  const filteredOrders = useMemo(
+    () =>
+      orders.filter(
+        (order) =>
+          orderMatchesSearch(order, searchQuery) &&
+          orderMatchesDateRange(order, fromDate, toDate)
+      ),
+    [orders, searchQuery, fromDate, toDate]
+  );
 
   return (
     <div className="min-h-screen bg-slate-50/50 p-6 text-slate-800">
@@ -481,6 +542,15 @@ const UpdateOrdersPage = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200/60 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                >
+                  ✕
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-3 text-xs text-slate-500">
@@ -502,6 +572,16 @@ const UpdateOrdersPage = () => {
                   className="bg-transparent focus:outline-none text-slate-700"
                 />
               </div>
+
+              {(searchQuery || fromDate || toDate) && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-2 rounded-xl transition-colors"
+                >
+                  Clear Filters
+                </button>
+              )}
             </div>
           </div>
 

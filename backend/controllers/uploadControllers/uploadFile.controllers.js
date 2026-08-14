@@ -184,6 +184,7 @@ const uploadFileController = async (req, res) => {
 
         historyId,
         uploadedBy: req.user.id,
+        companyID: req.user.companyID || "",
 
         // ==========================
         // IDs
@@ -431,6 +432,7 @@ try {
   fileName: req.file.originalname,
   totalRows: rawData.length,
   uploadedBy: req.user.id,
+  companyID: req.user.companyID || "",
   isVisible: true,
 });
 

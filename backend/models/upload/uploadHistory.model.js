@@ -19,6 +19,12 @@ const UploadHistorySchema = new mongoose.Schema({
         index: true,
     },
 
+    companyID: {
+        type: String,
+        index: true,
+        default: "",
+    },
+
     uploadDate: {
         type: Date,
         default: Date.now,

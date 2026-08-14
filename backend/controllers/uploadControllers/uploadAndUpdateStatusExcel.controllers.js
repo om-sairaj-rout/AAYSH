@@ -2,7 +2,10 @@ const XLSX = require("xlsx");
 
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
+const User = require("../../models/user.model");
+const { buildOrderScopeForUser } = require("../../utils/companyScope");
 const Tracking = require("../../models/upload/tracking.model");
+const notifyShippingStatusWhatsApp = require("../../utils/notifyShippingStatusWhatsApp");
 
 const parseExcelDate = (value) => {
   if (!value) return new Date();
@@ -39,6 +42,17 @@ const uploadAndUpdateStatusExcel = async (req, res) => {
   try {
     const { userId } = req.params;
     const file = req.file;
+
+    const user = await User.findById(userId).select("companyID").lean();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const orderScope = buildOrderScopeForUser(user);
 
     if (!file) {
       return res.status(400).json({
@@ -171,7 +185,7 @@ console.log(typeof row["Tracking Date & Time"]);
       const order =
         await Order.findOne({
           _id: shipping.orderId,
-          uploadedBy: userId,
+          ...orderScope,
         });
 
       if (!order) {
@@ -189,6 +203,7 @@ console.log(typeof row["Tracking Date & Time"]);
       // Update Shipping
       // ==========================
 
+      const previousStatus = shipping.shippingStatus;
       shipping.shippingStatus = status;
 
      switch (status) {
@@ -245,6 +260,14 @@ console.log(typeof row["Tracking Date & Time"]);
 }
 
       await shipping.save();
+
+      notifyShippingStatusWhatsApp({
+        shipping,
+        previousStatus,
+        newStatus: status,
+      }).catch((err) => {
+        console.error("WhatsApp notification failed:", err.message);
+      });
 
       // ==========================
       // Update Order Dashboard

@@ -112,6 +112,37 @@ export const getAllUsers = async () => {
   return data;
 };
 
+export const getRegistrationStats = async () => {
+  const res = await fetch(`${BASE}/api/users/registration-stats`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to fetch registration stats");
+  }
+
+  return data;
+};
+
+export const migrateLegacyCompanies = async () => {
+  const res = await fetch(`${BASE}/api/users/migrate-legacy-companies`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.message || "Migration failed");
+  }
+
+  return data;
+};
+
 // ================= UPDATE USER =================
 export const updateUserAccount = async (
   id,
