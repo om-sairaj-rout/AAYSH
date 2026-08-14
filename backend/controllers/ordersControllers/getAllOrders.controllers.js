@@ -7,6 +7,39 @@ const {
   startOfDayIST,
   endOfDayIST,
 } = require("../../utils/dateTime");
+const {
+  parsePagination,
+  buildPaginationMeta,
+} = require("../../utils/pagination");
+
+const SHIPPING_FIELDS = {
+  shipmentId: 1,
+  awbNumber: 1,
+  courierName: 1,
+  pickupLocation: 1,
+  shippingStatus: 1,
+  shippingCharges: 1,
+  deliveryAttempts: 1,
+  attemptFailureReason: 1,
+  pickupDate: 1,
+};
+
+const shippingLookup = {
+  $lookup: {
+    from: "shippings",
+    localField: "_id",
+    foreignField: "orderId",
+    as: "shipping",
+    pipeline: [{ $project: SHIPPING_FIELDS }],
+  },
+};
+
+const shippingUnwind = {
+  $unwind: {
+    path: "$shipping",
+    preserveNullAndEmptyArrays: true,
+  },
+};
 
 const formatOrder = (order) => {
   const shipping = order.shipping || null;
@@ -75,8 +108,6 @@ const getAllOrders = async (req, res) => {
     const isAdmin = req.user.role === "admin";
 
     const {
-      page = 1,
-      per_page = 20,
       sort = "DESC",
       sort_by = "createdAt",
       search,
@@ -88,9 +119,7 @@ const getAllOrders = async (req, res) => {
       to,
     } = req.query;
 
-    const pageNum = Math.max(1, Number(page) || 1);
-    const perPageNum = Math.min(100, Math.max(1, Number(per_page) || 20));
-    const skip = (pageNum - 1) * perPageNum;
+    const { page, perPage, skip } = parsePagination(req.query, 20);
 
     const orderFilter = {};
 
@@ -116,7 +145,9 @@ const getAllOrders = async (req, res) => {
           $regex: search,
           $options: "i",
         },
-      }).select("orderId");
+      })
+        .select("orderId")
+        .lean();
 
       orderFilter.$or = [
         {
@@ -160,14 +191,13 @@ const getAllOrders = async (req, res) => {
     const allowedSortFields = {
       createdAt: "createdAt",
       orderDate: "orderDate",
-      pickupDate: "pickupDate",
       invoiceValue: "invoiceValue",
     };
 
-    const sortField =
-      sort_by === "pickupDate"
-        ? "shipping.pickupDate"
-        : allowedSortFields[sort_by] || "createdAt";
+    const sortByPickup = sort_by === "pickupDate";
+    const sortField = sortByPickup
+      ? "shipping.pickupDate"
+      : allowedSortFields[sort_by] || "createdAt";
 
     const shippingMatch = {};
 
@@ -188,54 +218,59 @@ const getAllOrders = async (req, res) => {
       };
     }
 
-    const pipeline = [
-      { $match: orderFilter },
-      {
-        $lookup: {
-          from: "shippings",
-          localField: "_id",
-          foreignField: "orderId",
-          as: "shipping",
-        },
-      },
-      {
-        $unwind: {
-          path: "$shipping",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-    ];
+    const needsShippingJoin =
+      Object.keys(shippingMatch).length > 0 || sortByPickup;
 
-    if (Object.keys(shippingMatch).length > 0) {
-      pipeline.push({ $match: shippingMatch });
+    let total = 0;
+    let pageOrders = [];
+
+    if (!needsShippingJoin) {
+      const [count, orders] = await Promise.all([
+        Order.countDocuments(orderFilter),
+        Order.aggregate([
+          { $match: orderFilter },
+          { $sort: { [sortField]: sortOrder } },
+          { $skip: skip },
+          { $limit: perPage },
+          shippingLookup,
+          shippingUnwind,
+        ]),
+      ]);
+
+      total = count;
+      pageOrders = orders;
+    } else {
+      const basePipeline = [
+        { $match: orderFilter },
+        shippingLookup,
+        shippingUnwind,
+      ];
+
+      if (Object.keys(shippingMatch).length > 0) {
+        basePipeline.push({ $match: shippingMatch });
+      }
+
+      const [countResult, orders] = await Promise.all([
+        Order.aggregate([...basePipeline, { $count: "total" }]),
+        Order.aggregate([
+          ...basePipeline,
+          { $sort: { [sortField]: sortOrder } },
+          { $skip: skip },
+          { $limit: perPage },
+        ]),
+      ]);
+
+      total = countResult[0]?.total || 0;
+      pageOrders = orders;
     }
 
-    pipeline.push(
-      { $sort: { [sortField]: sortOrder } },
-      {
-        $facet: {
-          metadata: [{ $count: "total" }],
-          data: [{ $skip: skip }, { $limit: perPageNum }],
-        },
-      }
-    );
-
-    const [result] = await Order.aggregate(pipeline);
-
-    const total = result.metadata[0]?.total || 0;
-    const data = (result.data || []).map(formatOrder);
+    const data = pageOrders.map(formatOrder);
 
     return res.status(200).json({
       success: true,
       data,
       meta: {
-        pagination: {
-          total,
-          count: data.length,
-          per_page: perPageNum,
-          current_page: pageNum,
-          total_pages: Math.ceil(total / perPageNum) || 1,
-        },
+        pagination: buildPaginationMeta(total, page, perPage, data.length),
       },
     });
   } catch (err) {
