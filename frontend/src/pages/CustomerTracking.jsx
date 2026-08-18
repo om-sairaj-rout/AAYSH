@@ -219,7 +219,7 @@ const CustomerTracking = () => {
 
             <div>
               <span className="text-xs font-medium text-slate-400 block">
-                {currentStatus === 'Delivered' ? 'Delivered On' : 'Estimated Delivery / Pickup'}
+                {currentStatus === 'Delivered' ? 'Delivered On' : 'Estimated Delivery'}
               </span>
               <span className="font-semibold text-slate-800 text-sm mt-1 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-indigo-500" />

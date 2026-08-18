@@ -1,18 +1,15 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getOrders } from '../api/ordersAPI';
 import { getCompanies } from '../api/companyAPI';
 import { getDashboardData } from '../api/dashboardAPI';
-import SelectCourier from './SelectCourier'; 
-import OrderResponse from './OrderResponse';
-import { shipOrdersAPI } from '../api/shipingAPI';
 import { toast } from 'react-hot-toast';
 import OrderTracker from '../components/OrderTracker';
 import OrdersAnalyticsPanel from '../components/OrdersAnalyticsPanel';
 import {
   formatDisplayDate,
-  todayISODateOnly,
 } from '../utils/dateTime';
 import { useLatestRequestId } from '../utils/useLatestRequestId';
 
@@ -100,185 +97,6 @@ const CopyButton = ({ text, label, e }) => {
   );
 };
 
-/* ================= SCHEDULE PICKUP MODAL ================= */
-const SchedulePickupModal = ({ isOpen, onClose, selectedCourier, ordersCount, onFinalSubmit, defaultPickupLocation }) => {
-  const todayStr = todayISODateOnly();
-  
-  const [pickupDate, setPickupDate] = useState(todayStr);
-  const [pickupLocation, setPickupLocation] = useState('');
-  const [pickupTime, setPickupTime] = useState('11:00');
-  const [notes, setNotes] = useState('');
-
-  // Helper to format Date object into HH:mm format
-  const getFormattedTime = (dateObj) => {
-    const hours = String(dateObj.getHours()).padStart(2, '0');
-    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
-  };
-
-  // Compute dynamic min time for native <input type="time" />
-  const getMinTime = () => {
-    if (pickupDate === todayStr) {
-      const now = new Date();
-      const nowFormatted = getFormattedTime(now);
-      // If current time is past 11:00 AM, use current time; otherwise fallback to 11:00
-      return nowFormatted > '11:00' ? nowFormatted : '11:00';
-    }
-    return '11:00';
-  };
-
-  useEffect(() => {
-    if (isOpen) {
-      setPickupLocation(defaultPickupLocation || '');
-    }
-  }, [isOpen, defaultPickupLocation]);
-
-  if (!isOpen) return null;
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    const now = new Date();
-    const isToday = pickupDate === todayStr;
-
-    const [hours, minutes] = pickupTime.split(':').map(Number);
-    const selectedMinutes = hours * 60 + minutes;
-
-    const startLimit = 11 * 60; // 11:00 AM
-    const endLimit = 17 * 60;   // 5:00 PM
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-    // 1. Check if same-day scheduling is attempted after 5:00 PM
-    if (isToday && currentMinutes >= endLimit) {
-      toast.error('Pickups for today are closed as it is past 5:00 PM. Please select a future date.');
-      return;
-    }
-
-    // 2. Check general 11:00 AM to 5:00 PM boundary
-    if (selectedMinutes < startLimit || selectedMinutes > endLimit) {
-      toast.error('Pickup time must be between 11:00 AM and 5:00 PM.');
-      return;
-    }
-
-    // 3. Check if time is in the past for today
-    if (isToday && selectedMinutes <= currentMinutes) {
-      toast.error('Pickup time must be later than the current time.');
-      return;
-    }
-
-    onFinalSubmit({
-      pickupDate,
-      pickupLocation,
-      pickupTime,
-      notes,
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 my-8">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-          <div>
-            <h3 className="text-base font-bold text-slate-800">Schedule Pickup</h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Courier: <span className="font-semibold text-indigo-600">{selectedCourier?.courierName || 'Selected Courier'}</span> ({ordersCount} order{ordersCount > 1 ? 's' : ''})
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            ✕
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-              Pickup Date <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="date"
-              required
-              value={pickupDate}
-              min={todayStr}
-              onChange={(e) => setPickupDate(e.target.value)}
-              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-              Pickup Location <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={pickupLocation}
-              onChange={(e) => setPickupLocation(e.target.value)}
-              placeholder="Enter pickup location"
-              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-bold text-slate-600 uppercase">
-                Pickup Time <span className="text-rose-500">*</span>
-              </label>
-              <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-                11:00 AM - 5:00 PM
-              </span>
-            </div>
-            <input
-              type="time"
-              required
-              min={getMinTime()}
-              max="17:00"
-              value={pickupTime}
-              onChange={(e) => setPickupTime(e.target.value)}
-              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
-            />
-            <p className="text-[11px] text-slate-400 mt-1">
-              Select a future time window between 11:00 AM and 5:00 PM today or on a future date.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-              Notes / Special Instructions
-            </label>
-            <textarea
-              rows={3}
-              value={notes}
-              placeholder="e.g. Handle with care, pick up near gate #2..."
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
-            />
-          </div>
-
-          <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold text-xs rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg transition-colors shadow-sm"
-            >
-              Confirm & Schedule
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-
 /* ================= ORDER DETAILS & TRACKING MODAL ================= */
 const OrderDetailsModal = ({ isOpen, onClose, order }) => {
   if (!isOpen || !order) return null;
@@ -335,6 +153,9 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Consignor (Sender)</h4>
               <p className="text-sm font-semibold text-slate-800">{order.consignorName || 'N/A'}</p>
               <p className="text-xs text-slate-500">Pickup Location: {order.shipping?.pickupLocation || 'Default Warehouse'}</p>
+              <p className="text-xs font-medium text-slate-700">
+                📞 {order.consignorPhone || 'N/A'}
+              </p>
             </div>
 
             <div className="border border-slate-100 bg-slate-50/50 p-4 rounded-xl space-y-2">
@@ -439,8 +260,6 @@ const OrdersPage = () => {
   const [counts, setCounts] = useState({});
   const [allOrders, setAllOrders] = useState([]);
   const [selectedOrders, setSelectedOrders] = useState([]);
-  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
-  const [assignmentResponse, setAssignmentResponse] = useState(null);
 
   // Search & Order Date Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -454,12 +273,7 @@ const OrdersPage = () => {
   const [salesAnalytics, setSalesAnalytics] = useState(null);
   const [shipmentAnalytics, setShipmentAnalytics] = useState(null);
 
-  const [isCourierModalOpen, setIsCourierModalOpen] = useState(false);
-  const [ordersToShip, setOrdersToShip] = useState([]);
-
-  // States for Schedule Pickup Modal Step
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [selectedCourierData, setSelectedCourierData] = useState(null);
+  const navigate = useNavigate();
 
   // Modal State for Order Details & Tracking
   const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
@@ -597,71 +411,20 @@ const OrdersPage = () => {
   };
 
   const handleSingleShipClick = (order) => {
-    setOrdersToShip([order]); 
-    setIsCourierModalOpen(true);
+    navigate('/select-courier', { state: { orders: [order] } });
   };
 
   const handleBulkShipClick = () => {
-    const matchingSelectedDetails = allOrders.filter(o =>
+    const matchingSelectedDetails = allOrders.filter((o) =>
       selectedOrders.includes(o._id)
     );
 
-    setOrdersToShip(matchingSelectedDetails);
-    setIsCourierModalOpen(true);
+    navigate('/select-courier', { state: { orders: matchingSelectedDetails } });
   };
 
   const handleRowClick = (order) => {
     setSelectedOrderDetails(order);
     setIsDetailsModalOpen(true);
-  };
-
-  // STEP 1: Courier Selected -> Open Schedule Modal
-  const handleCourierSelectionConfirm = (modalData) => {
-    setSelectedCourierData(modalData);
-    setIsCourierModalOpen(false);
-    setIsScheduleModalOpen(true);
-  };
-
-  // STEP 2: Final Submit -> Send Complete Payload to Backend
-  const handleFinalBookingSubmit = async (scheduleData) => {
-    try {
-      const orderPayloads = ordersToShip.map(order => ({
-        orderId: order._id,
-        weight: order.weight
-      }));
-
-      const payload = {
-  serviceType: selectedCourierData.serviceType,
-  pickupDate: scheduleData.pickupDate,
-  pickupLocation: scheduleData.pickupLocation,
-  pickupTime: scheduleData.pickupTime,
-  notes: scheduleData.notes,
-  orders: orderPayloads
-};
-
-      const res = await shipOrdersAPI(payload);
-
-      if (res.success) {
-  toast.success("Shipment & Pickup Scheduled Successfully");
-
-  // Close previous modals
-  setIsScheduleModalOpen(false);
-  setSelectedCourierData(null);
-  setSelectedOrders([]);
-  setOrdersToShip([]);
-
-  // Save API response and open assignment modal
-  setAssignmentResponse(res); // or res, depending on your API
-  setIsAssignmentModalOpen(true);
-
-  fetchOrders();
-} else {
-        toast.error(res.message || "Failed to schedule pickup");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Error while assigning AWB");
-    }
   };
 
   const clearFilters = () => {
@@ -1144,24 +907,6 @@ const OrdersPage = () => {
 
       </div>
 
-      {/* ================= STEP 1: ATTACHED COURIER OVERLAY MODAL ================= */}
-      <SelectCourier 
-        isOpen={isCourierModalOpen}
-        selectedOrdersCount={ordersToShip.length}
-        onClose={() => { setIsCourierModalOpen(false); setOrdersToShip([]); }}
-        onConfirm={handleCourierSelectionConfirm}
-      />
-
-      {/* ================= STEP 2: SCHEDULE PICKUP MODAL ================= */}
-      <SchedulePickupModal 
-        isOpen={isScheduleModalOpen}
-        onClose={() => { setIsScheduleModalOpen(false); setSelectedCourierData(null); }}
-        selectedCourier={selectedCourierData}
-        ordersCount={ordersToShip.length}
-        defaultPickupLocation={ordersToShip[0]?.shipping?.pickupLocation || ""}
-        onFinalSubmit={handleFinalBookingSubmit}
-      />
-
       {/* ================= ORDER DETAILS & TRACKING MODAL ================= */}
       <OrderDetailsModal 
         isOpen={isDetailsModalOpen}
@@ -1169,14 +914,6 @@ const OrdersPage = () => {
         order={selectedOrderDetails}
       />
 
-      <OrderResponse
-  isOpen={isAssignmentModalOpen}
-  onClose={() => {
-    setIsAssignmentModalOpen(false);
-    setAssignmentResponse(null);
-  }}
-  responseData={assignmentResponse}
-/>
     </div>
   );
 };

@@ -201,6 +201,10 @@ const uploadFileController = async (req, res) => {
 consignorName:
   row["Consignor Name"]?.toString().trim() || req.user.companyName || "",
 
+consignorPhone:
+  row["Consignor Phone"]?.toString().trim() ||
+  String(req.user.mobile_number || "").trim(),
+
 consigneeName:
   row["Customer Name"]?.toString().trim() || "",
 

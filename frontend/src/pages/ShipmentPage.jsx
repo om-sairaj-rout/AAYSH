@@ -1,9 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSelector } from "react-redux";
-import { ChevronLeft, ChevronRight, MoreHorizontal, FileText, ClipboardList, Tag } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileText, ClipboardList, Tag, Paperclip, Eye } from 'lucide-react';
+import { getReversePickupDocumentByOrderId } from '../api/reversePickupAPI';
 import { getOrders } from '../api/ordersAPI';
 import { generateLabelAPI, generateInvoiceAPI, generateManifestAPI } from "../api/labelAPI";
 import { useLatestRequestId } from '../utils/useLatestRequestId';
+import useDocumentPreview from '../utils/useDocumentPreview';
+import DocumentPreviewDialog from '../components/DocumentPreviewDialog';
 import { toast } from 'react-hot-toast';
 import { formatDisplayDate } from '../utils/dateTime';
 
@@ -49,10 +52,21 @@ const CopyButton = ({ text, label, e }) => {
   );
 };
 
-/* ================= ROW DOWNLOAD DROPDOWN COMPONENT ================= */
-const ActionDropdown = ({ order, onPrintLabel, onPrintInvoice, onPrintManifest }) => {
+/* ================= ROW VIEW DROPDOWN COMPONENT ================= */
+const ViewDropdown = ({
+  order,
+  onViewLabel,
+  onViewInvoice,
+  onViewManifest,
+  onViewReversePickupDoc,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const hasAwb = Boolean(order.shipping?.awbNumber?.trim());
+  const showReversePickupDoc = Boolean(order.reversePickup?.documentDownloadable);
+
+  const hasAnyView =
+    hasAwb || showReversePickupDoc;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -64,40 +78,61 @@ const ActionDropdown = ({ order, onPrintLabel, onPrintInvoice, onPrintManifest }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  if (!hasAnyView) {
+    return <span className="text-[11px] text-slate-300 font-medium">—</span>;
+  }
+
   return (
     <div className="relative inline-block text-left" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors focus:outline-none"
-        title="Download Options"
+        className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors focus:outline-none"
+        title="View Documents"
       >
-        <MoreHorizontal className="w-4 h-4" />
+        <Eye className="w-3.5 h-3.5" />
+        <span>View</span>
       </button>
 
       {isOpen && (
-        <div className="origin-top-right absolute right-0 mt-1 w-40 rounded-xl shadow-lg bg-white ring-1 ring-black/5 divide-y divide-slate-100 z-50 animate-in fade-in zoom-in-95 duration-100">
+        <div className="origin-top-right absolute right-0 mt-1 w-52 rounded-xl shadow-lg bg-white ring-1 ring-black/5 divide-y divide-slate-100 z-50 animate-in fade-in zoom-in-95 duration-100">
           <div className="py-1">
-            <button
-              onClick={() => { setIsOpen(false); onPrintLabel(order._id); }}
-              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-2 transition-colors"
-            >
-              <Tag className="w-3.5 h-3.5 text-indigo-500" />
-              <span>Print Label</span>
-            </button>
-            <button
-              onClick={() => { setIsOpen(false); onPrintInvoice(order._id); }}
-              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-            >
-              <FileText className="w-3.5 h-3.5 text-blue-500" />
-              <span>Print Invoice</span>
-            </button>
-            <button
-              onClick={() => { setIsOpen(false); onPrintManifest(order._id); }}
-              className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-teal-50 hover:text-teal-600 flex items-center gap-2 transition-colors"
-            >
-              <ClipboardList className="w-3.5 h-3.5 text-teal-500" />
-              <span>Print Manifest</span>
-            </button>
+            {hasAwb && (
+              <>
+                <button
+                  onClick={() => { setIsOpen(false); onViewLabel(order._id); }}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-2 transition-colors"
+                >
+                  <Tag className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>View Shipping Label</span>
+                </button>
+                <button
+                  onClick={() => { setIsOpen(false); onViewInvoice(order._id); }}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5 text-blue-500" />
+                  <span>View Invoice</span>
+                </button>
+                <button
+                  onClick={() => { setIsOpen(false); onViewManifest(order._id); }}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-teal-50 hover:text-teal-600 flex items-center gap-2 transition-colors"
+                >
+                  <ClipboardList className="w-3.5 h-3.5 text-teal-500" />
+                  <span>View Manifest</span>
+                </button>
+              </>
+            )}
+            {showReversePickupDoc && (
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  onViewReversePickupDoc(order);
+                }}
+                className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-2 transition-colors"
+              >
+                <Paperclip className="w-3.5 h-3.5 text-amber-600" />
+                <span>View Reverse Pickup Doc</span>
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -117,6 +152,7 @@ const ShipmentPage = () => {
   const [ordersPerPage, setOrdersPerPage] = useState(20);
   const [pagination, setPagination] = useState({ total: 0, total_pages: 1 });
   const { startRequest, isLatestRequest } = useLatestRequestId();
+  const { preview, openPreviewWithLoader, closePreview } = useDocumentPreview();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -217,35 +253,55 @@ const ShipmentPage = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  // Single Actions
-  const handlePrintLabel = async (orderId) => {
-    try {
-      const blob = await generateLabelAPI({ orderIds: [orderId] });
-      downloadPdf(blob, `shipping-label-${orderId}.pdf`);
-    } catch (err) {
-      console.error(err);
-      toast.error("Label generation failed");
-    }
+  // View & bulk download actions
+  const handleViewLabel = (orderId) => {
+    openPreviewWithLoader(
+      async () => {
+        const blob = await generateLabelAPI({ orderIds: [orderId] });
+        const url = window.URL.createObjectURL(
+          new Blob([blob], { type: "application/pdf" })
+        );
+        return { url, fileName: `shipping-label-${orderId}.pdf` };
+      },
+      { title: "Shipping Label", fileName: `shipping-label-${orderId}.pdf` }
+    );
   };
 
-  const handlePrintInvoice = async (orderId) => {
-    try {
-      const blob = await generateInvoiceAPI({ orderIds: [orderId] });
-      downloadPdf(blob, `tax-invoice-${orderId}.pdf`);
-    } catch (err) {
-      console.error(err);
-      toast.error("Invoice generation failed");
-    }
+  const handleViewInvoice = (orderId) => {
+    openPreviewWithLoader(
+      async () => {
+        const blob = await generateInvoiceAPI({ orderIds: [orderId] });
+        const url = window.URL.createObjectURL(
+          new Blob([blob], { type: "application/pdf" })
+        );
+        return { url, fileName: `tax-invoice-${orderId}.pdf` };
+      },
+      { title: "Tax Invoice", fileName: `tax-invoice-${orderId}.pdf` }
+    );
   };
 
-  const handlePrintManifest = async (orderId) => {
-    try {
-      const blob = await generateManifestAPI({ orderIds: [orderId] });
-      downloadPdf(blob, `dispatch-manifest-${orderId}.pdf`);
-    } catch (err) {
-      console.error(err);
-      toast.error("Manifest generation failed");
-    }
+  const handleViewManifest = (orderId) => {
+    openPreviewWithLoader(
+      async () => {
+        const blob = await generateManifestAPI({ orderIds: [orderId] });
+        const url = window.URL.createObjectURL(
+          new Blob([blob], { type: "application/pdf" })
+        );
+        return { url, fileName: `dispatch-manifest-${orderId}.pdf` };
+      },
+      { title: "Dispatch Manifest", fileName: `dispatch-manifest-${orderId}.pdf` }
+    );
+  };
+
+  const handleViewReversePickupDoc = async (order) => {
+    openPreviewWithLoader(
+      () => getReversePickupDocumentByOrderId(order._id),
+      {
+        title: `${order.externalOrderId || order._id} — Reverse Pickup Document`,
+        fileName:
+          order.reversePickup?.documentName || "reverse-pickup-document.pdf",
+      }
+    );
   };
 
   // Bulk Actions
@@ -285,7 +341,7 @@ const ShipmentPage = () => {
     'Customer Details', 
     'AWB No.',
     'Status',
-    'Download'
+    'Actions'
   ];
 
   return (
@@ -445,7 +501,7 @@ const ShipmentPage = () => {
                   >
                     <div className="flex items-center gap-1.5">
                       {header}
-                      {header !== 'Download' && (
+                      {header !== 'Actions' && (
                         <span className="text-xs text-gray-300 select-none">⇅</span>
                       )}
                     </div>
@@ -668,13 +724,14 @@ const ShipmentPage = () => {
                       </div>
                     </td>
 
-                    {/* SECTION 6: DOWNLOAD DROPDOWN MENU */}
+                    {/* SECTION 6: VIEW ACTIONS */}
                     <td className="p-4 sm:p-5 align-top whitespace-nowrap text-center">
-                      <ActionDropdown 
+                      <ViewDropdown
                         order={order}
-                        onPrintLabel={handlePrintLabel}
-                        onPrintInvoice={handlePrintInvoice}
-                        onPrintManifest={handlePrintManifest}
+                        onViewLabel={handleViewLabel}
+                        onViewInvoice={handleViewInvoice}
+                        onViewManifest={handleViewManifest}
+                        onViewReversePickupDoc={handleViewReversePickupDoc}
                       />
                     </td>
 
@@ -742,6 +799,16 @@ const ShipmentPage = () => {
         </div>
 
       </div>
+
+      <DocumentPreviewDialog
+        open={preview.open}
+        onClose={closePreview}
+        title={preview.title}
+        fileName={preview.fileName}
+        url={preview.url}
+        loading={preview.loading}
+        error={preview.error}
+      />
     </div>
   );
 };

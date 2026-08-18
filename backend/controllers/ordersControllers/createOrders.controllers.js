@@ -1,5 +1,6 @@
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
+const Company = require("../../models/company.model");
 const getCategory = require("../../utils/categoryMapper");
 const getExpectedHours = require("../../utils/tatMapper");
 const {
@@ -109,10 +110,35 @@ const serviceType = "surface";
 const expectedHours =
   getExpectedHours(category,serviceType);
 
+    const companyID = String(
+      body.company_id ||
+      body.companyID ||
+      req.user.companyID ||
+      ""
+    )
+      .trim()
+      .toUpperCase();
+
+    let consignorName = String(body.consignor_name || "").trim();
+
+    if (!consignorName) {
+      consignorName = String(req.user.companyName || "").trim();
+    }
+
+    if (!consignorName && companyID) {
+      const company = await Company.findOne({ companyID })
+        .select("companyName")
+        .lean();
+
+      if (company?.companyName) {
+        consignorName = String(company.companyName).trim();
+      }
+    }
+
     const order = await Order.create({
 
       uploadedBy:req.user.id,
-      companyID: req.user.companyID || "",
+      companyID,
 
 
 
@@ -135,9 +161,10 @@ const expectedHours =
       // ===============================
 
 
-      consignorName:
-      body.consignor_name || "",
+      consignorName,
 
+      consignorPhone:
+        String(body.consignor_phone || req.user.mobile_number || "").trim(),
 
       consigneeName:
       body.billing_customer_name || "",

@@ -74,6 +74,7 @@ const Header = ({ setIsSidebarOpen }) => {
     "/upload/order-reports": "Upload Report",
     "/upload/template": "Excel Template",
     "/reports/all-orders": "Orders",
+    "/catalog/products": "Product Catalog",
     "/user/create-account": "Create User Account",
     "/user/registrations": "Registration Overview",
     "/company/team": "Team Management",
@@ -82,9 +83,12 @@ const Header = ({ setIsSidebarOpen }) => {
     "/user/edit-account": "Edit User Profile",
     "/user/remove-account": "Remove User Account",
     "/update/AWB": "AWB Management",
-    "/update/status": "Status Management",
+    "/update/status": "Update Status",
+    "/pickup": "Pickup Management",
+    "/pickup/reverse": "Reverse Pickup",
+    "/contact": "Support & Complaints",
+    "/admin/tickets": "Ticket Management",
     "/awb/:awbNumber": "AWB Information",
-    "/upload/excel-reports": "Excel Reports",
   };
 
   const currentTitle =

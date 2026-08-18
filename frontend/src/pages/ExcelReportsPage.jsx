@@ -125,8 +125,8 @@ const ExcelReportsPage = () => {
         {/* Navigation & Search Header */}
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-white border border-gray-100 p-4 rounded-xl shadow-sm">
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Excel Reports Directory</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Direct spreadsheet download records assigned per user</p>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Update Status</h1>
+            <p className="text-xs text-slate-500 mt-0.5">Download order sheets and bulk-update shipment status per user</p>
           </div>
           
           <div className="relative w-full sm:w-72">

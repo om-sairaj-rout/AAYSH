@@ -46,9 +46,9 @@ orderRouter.get(
   getSpecificOrderController
 );
 
+// Public — anyone with an AWB can track (homepage, /track/:awb, customer portal)
 orderRouter.get(
   "/orders/awb/:awbNumber",
-  checkAuth,
   getOrderByAwbController
 );
 

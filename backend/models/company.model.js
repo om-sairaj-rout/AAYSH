@@ -14,6 +14,7 @@ const companySchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      unique: true,
     },
     address: { type: String, default: "" },
     zip_code: { type: String, default: "" },

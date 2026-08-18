@@ -96,6 +96,12 @@ const OrderSchema = new mongoose.Schema(
       default: "",
     },
 
+    consignorPhone: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     consigneeName: {
       type: String,
       default: "",
@@ -249,6 +255,25 @@ const OrderSchema = new mongoose.Schema(
     expectedHours: {
       type: Number,
       default: 144,
+    },
+
+    isReversePickup: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    reversePickupId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ReversePickup",
+      default: null,
+      index: true,
+    },
+
+  pickupPincode: {
+      type: String,
+      default: "",
+      trim: true,
     },
   },
   {

@@ -14,6 +14,8 @@ import {
   Truck,
   Barcode,
   Users,
+  ArrowLeftRight,
+  Headphones,
   RefreshCw,
 } from "lucide-react";
 import aayshlogo from "../assets/aaysh_logo.png";
@@ -42,6 +44,25 @@ const SideBar = ({ isOpen, setIsOpen }) => {
       ],
     },
     {
+      section: "Reports",
+      items: [
+        {
+          name: "Orders",
+          icon: <ShoppingBag size={20} />,
+          subItems: [
+            { name: "All Orders", path: "/reports/all-orders" },
+            { name: "Order Report", path: "/reports/orders" },
+            { name: "Product Catalog", path: "/catalog/products" },
+          ],
+        },
+        {
+          name: "Shipment",
+          icon: <Truck size={20} />,
+          subItems: [{ name: "Shipment Report", path: "/reports/shipments" }],
+        },
+      ],
+    },
+    {
       section: "Upload Management",
       items: [
         {
@@ -50,30 +71,7 @@ const SideBar = ({ isOpen, setIsOpen }) => {
           subItems: [
             { name: "Upload Report", path: "/upload/order-reports" },
             { name: "Excel Template", path: "/upload/template" },
-            {
-              adminOnly: true,
-              name: "Excel Reports",
-              path: "/upload/excel-reports",
-            },
           ],
-        },
-      ],
-    },
-    {
-      section: "Reports",
-      items: [
-        {
-          name: "Orders",
-          icon: <ShoppingBag size={20} />,
-          subItems: [
-            { name: "Order Report", path: "/reports/orders" },
-            { name: "All Orders", path: "/reports/all-orders" },
-          ],
-        },
-        {
-          name: "Shipment",
-          icon: <Truck size={20} />,
-          subItems: [{ name: "Shipment Report", path: "/reports/shipments" }],
         },
       ],
     },
@@ -101,6 +99,11 @@ const SideBar = ({ isOpen, setIsOpen }) => {
           icon: <RefreshCw size={20} />,
           path: "/update/order-updates",
         },
+        {
+          name: "Update Status",
+          icon: <FileChartColumn size={20} />,
+          path: "/update/status",
+        },
       ],
     },
     {
@@ -111,12 +114,32 @@ const SideBar = ({ isOpen, setIsOpen }) => {
           icon: <PackageCheck size={20} />,
           path: "/pickup",
         },
+        {
+          name: "Reverse Pickup",
+          icon: <ArrowLeftRight size={20} />,
+          path: "/pickup/reverse",
+        },
+      ],
+    },
+    {
+      section: "Support",
+      items: [
+        {
+          name: "Support & Complaints",
+          icon: <Headphones size={20} />,
+          path: "/contact",
+        },
       ],
     },
     {
       section: "Settings",
       adminOnly: true,
       items: [
+        {
+          name: "Ticket Management",
+          icon: <Headphones size={20} />,
+          path: "/admin/tickets",
+        },
         {
           name: "Users",
           icon: <Users size={20} />,
@@ -285,13 +308,18 @@ const SideBar = ({ isOpen, setIsOpen }) => {
                     ) : (
                       <NavLink
                         to={item.path}
+                        end={item.path === "/pickup"}
                         onClick={() => setIsOpen(false)}
                         className={({ isActive }) => parentLinkClass(isActive, false)}
                       >
-                        <span className={location.pathname === item.path ? "text-[#1B2B4B]" : "text-white/70"}>
-                          {item.icon}
-                        </span>
-                        <span className="text-[14px] font-medium truncate">{item.name}</span>
+                        {({ isActive }) => (
+                          <>
+                            <span className={isActive ? "text-[#1B2B4B]" : "text-white/70"}>
+                              {item.icon}
+                            </span>
+                            <span className="text-[14px] font-medium truncate">{item.name}</span>
+                          </>
+                        )}
                       </NavLink>
                     )}
                   </li>

@@ -63,6 +63,7 @@ const Register = () => {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
+    fullName: "",
     mobile: "",
     email: "",
     password: "",
@@ -96,6 +97,9 @@ const Register = () => {
 
     if (!formData.mobile.trim()) {
       newErrors.mobile = "Mobile number is required";
+    }
+    if (!formData.fullName.trim()) {
+      newErrors.fullName = "Full name is required";
     }
     if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Invalid email address";
@@ -132,6 +136,7 @@ const Register = () => {
 
     try {
       const response = await registerUser({
+        fullName: formData.fullName.trim(),
         companyName: formData.companyName.trim(),
         email: formData.email.trim(),
         password: formData.password.trim(),
@@ -190,6 +195,22 @@ const Register = () => {
               iconColor: "text-indigo-600",
             }}
           >
+            <Field label="Full Name" required error={errors.fullName}>
+              <div className="relative">
+                <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <input
+                  type="text"
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleChange}
+                  placeholder="Customer full name"
+                  autoComplete="name"
+                  className={inputClass}
+                  required
+                />
+              </div>
+            </Field>
+
             <Field label="Mobile Number" required error={errors.mobile}>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />

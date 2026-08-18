@@ -1,3 +1,4 @@
+const path = require("path");
 const express = require('express');
 const dotenv = require("dotenv");
 const cors = require("cors");
@@ -18,6 +19,9 @@ const contactRouter = require('./routes/contact.routes');
 const shipmentRouter = require('./routes/shipment.routes');
 const trackingRouter = require('./routes/tracking.routes');
 const pickupRouter = require('./routes/pickupRoute.controllers');
+const productRouter = require('./routes/product.routes');
+const reversePickupRouter = require('./routes/reversePickup.routes');
+const ticketRouter = require('./routes/ticket.routes');
 
 connectToDB();
 
@@ -39,8 +43,14 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 require("./cron/pickupCron");
+
+// Public AWB tracking (no login) — registered before authenticated routers
+const getOrderByAwbController = require("./controllers/ordersControllers/getOrdersByAwb.controllers");
+app.get("/api/public/orders/awb/:awbNumber", getOrderByAwbController);
+app.get("/api/orders/awb/:awbNumber", getOrderByAwbController);
 
 app.use('/api', authRouter);
 app.use('/api', companyRouter);
@@ -49,6 +59,9 @@ app.use('/api', trackingRouter);
 app.use('/api', pickupRouter);
 app.use('/api', uploadRouter);
 app.use('/api', orderRouter);
+app.use('/api', productRouter);
+app.use('/api', reversePickupRouter);
+app.use('/api', ticketRouter);
 app.use('/api', dashboardRouter);
 app.use('/api', courierRouter);
 app.use('/api', assignAwbRouter);

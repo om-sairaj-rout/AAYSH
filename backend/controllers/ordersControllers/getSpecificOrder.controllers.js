@@ -39,6 +39,8 @@ const getSpecificOrder = async (req, res) => {
           alternate_phone: order.billingAlternatePhone,
         },
 
+        consignor_name: order.consignorName || "",
+
         shipping_address: {
           address: order.address,
           address2: order.address2,

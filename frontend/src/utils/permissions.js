@@ -18,12 +18,14 @@ const PATH_SECTION_MAP = {
   "/dashboard": "dashboard",
   "/upload/order-reports": "upload",
   "/upload/template": "upload",
-  "/upload/excel-reports": "upload",
+  "/update/status": "upload",
   "/reports/orders": "orders",
   "/reports/all-orders": "orders",
+  "/catalog/products": "orders",
   "/rate-calculator": "orders",
   "/reports/shipments": "shipments",
   "/pickup": "pickup",
+  "/pickup/reverse": "pickup",
   "/company/team": "team",
 };
 

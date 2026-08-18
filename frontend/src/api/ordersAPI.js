@@ -129,11 +129,13 @@ export const getOrders = async ({
 };
 
 export const getOrderByAwb = async (awbNumber) => {
+  const encoded = encodeURIComponent(String(awbNumber).trim());
   const res = await fetch(
-    `${BASE}/api/orders/awb/${awbNumber}`,
+    `${BASE}/api/orders/awb/${encoded}`,
     {
       method: "GET",
       credentials: "include",
+      cache: "no-store",
     }
   );
 
@@ -147,14 +149,16 @@ export const getOrderByAwb = async (awbNumber) => {
 };
 
 export const getPublicOrderByAwb = async (awbNumber) => {
+  const encoded = encodeURIComponent(String(awbNumber).trim());
   const res = await fetch(
-    `${BASE}/api/public/orders/awb/${awbNumber}`
+    `${BASE}/api/public/orders/awb/${encoded}`,
+    { cache: "no-store" }
   );
 
   const data = await res.json();
 
   if (!res.ok) {
-    throw new Error(data.message);
+    throw new Error(data.message || "Failed to fetch AWB");
   }
 
   return data;
@@ -210,4 +214,21 @@ export const updateOrder = async (formData) => {
     console.error("Update order error:", error);
     throw error;
   }
+};
+
+export const createOrder = async (payload) => {
+  const res = await fetch(`${BASE}/api/external/orders/create-order`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || data.message || "Failed to create order");
+  }
+
+  return data;
 };

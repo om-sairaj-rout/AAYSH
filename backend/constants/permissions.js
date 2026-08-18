@@ -2,14 +2,14 @@ const PERMISSION_SECTIONS = {
   dashboard: { label: "Dashboard", paths: ["/dashboard"] },
   upload: {
     label: "Upload Management",
-    paths: ["/upload/order-reports", "/upload/template", "/upload/excel-reports"],
+    paths: ["/upload/order-reports", "/upload/template"],
   },
   orders: {
     label: "Orders & Reports",
     paths: ["/reports/orders", "/reports/all-orders", "/rate-calculator"],
   },
   shipments: { label: "Shipments", paths: ["/reports/shipments"] },
-  pickup: { label: "Pickup Management", paths: ["/pickup"] },
+  pickup: { label: "Pickup Management", paths: ["/pickup", "/pickup/reverse"] },
   team: { label: "Team Management", paths: ["/company/team"] },
 };
 

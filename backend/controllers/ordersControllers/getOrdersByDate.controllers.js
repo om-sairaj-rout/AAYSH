@@ -58,6 +58,9 @@ const mapOrderItemRow = (order, shipping, item) => {
     delivery_attempts: shipping?.deliveryAttempts || 0,
     attempt_failure_reason: shipping?.attemptFailureReason || "",
     expected_hours: calculations.expectedHours,
+    actual_hours: calculations.actualHours,
+    ageing: calculations.ageing,
+    category: calculations.category,
     sla_status: calculations.slaStatus,
   };
 };

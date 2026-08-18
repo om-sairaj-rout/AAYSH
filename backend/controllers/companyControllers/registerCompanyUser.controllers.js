@@ -8,6 +8,7 @@ const {
   sanitizePermissionsInput,
 } = require("../../utils/permissions");
 const { mapUserResponse } = require("../../utils/companyUsers");
+const { respondWithError } = require("../../utils/mongoErrors");
 
 const assertCanManageTargetCompany = (req, companyID) => {
   if (req.user.role === "admin") return true;
@@ -107,7 +108,7 @@ const registerCompanyUser = async (req, res) => {
     const newUser = await User.create({
       companyID: company.companyID,
       companyName: company.companyName,
-      fullName: fullName || "",
+      fullName: String(fullName || "").trim(),
       email,
       password: hashedPassword,
       mobile_number,
@@ -135,7 +136,10 @@ const registerCompanyUser = async (req, res) => {
       user: mapUserResponse(newUser.toObject()),
     });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    console.error("REGISTER COMPANY USER ERROR:", error);
+    return respondWithError(res, error, {
+      fallback: "Failed to register company user. Please try again.",
+    });
   }
 };
 

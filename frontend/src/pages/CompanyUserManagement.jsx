@@ -399,8 +399,9 @@ const CompanyUserManagement = ({ companyID, backPath, backLabel }) => {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-400 bg-[#FAFBFC] border-b border-slate-100">
-                <th className="px-6 py-4">Name</th>
+                <th className="px-6 py-4">Full Name</th>
                 <th className="px-6 py-4">Email</th>
+                <th className="px-6 py-4">Phone</th>
                 <th className="px-6 py-4">Role</th>
                 <th className="px-6 py-4">Registered</th>
                 {canManageUsers && <th className="px-6 py-4 text-right">Actions</th>}
@@ -413,6 +414,9 @@ const CompanyUserManagement = ({ companyID, backPath, backLabel }) => {
                     {user.fullName || "-"}
                   </td>
                   <td className="px-6 py-4 text-slate-600">{user.email}</td>
+                  <td className="px-6 py-4 text-slate-600">
+                    {user.mobile_number || "-"}
+                  </td>
                   <td className="px-6 py-4">
                     <RoleBadge role={user.companyRole} />
                   </td>

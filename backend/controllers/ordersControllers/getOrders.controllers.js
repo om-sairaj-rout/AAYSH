@@ -14,6 +14,8 @@ const {
 } = require("../../utils/pagination");
 const { applyOrderSearchFilter } = require("../../utils/orderSearch");
 const { applyCompanyOrderFilter } = require("../../utils/companyScope");
+const ReversePickup = require("../../models/reversePickup.model");
+const { buildReversePickupSummary } = require("../../utils/reversePickupDocument");
 
 const SHIPMENT_STATUSES = [
   "Booked",
@@ -275,6 +277,42 @@ const getOrdersController = async (req, res) => {
       trackingMap.get(key).push(track);
     });
 
+    const reversePickupOrderIds = pageOrders
+      .filter((order) => order.isReversePickup)
+      .map((order) => order._id);
+
+    const reversePickupRows = reversePickupOrderIds.length
+      ? await ReversePickup.find({
+          orderId: { $in: reversePickupOrderIds },
+        })
+          .select(
+            "orderId requestId status awbNumber supportingDocumentName supportingDocumentS3Key supportingDocumentPath"
+          )
+          .lean()
+      : [];
+
+    const reversePickupMap = new Map(
+      reversePickupRows.map((row) => [String(row.orderId), row])
+    );
+
+    const uploaderIds = [
+      ...new Set(
+        pageOrders
+          .filter((order) => order.uploadedBy && !order.consignorPhone)
+          .map((order) => order.uploadedBy)
+      ),
+    ];
+
+    const uploaderRows = uploaderIds.length
+      ? await User.find({ _id: { $in: uploaderIds } })
+          .select("mobile_number")
+          .lean()
+      : [];
+
+    const uploaderPhoneMap = new Map(
+      uploaderRows.map((row) => [String(row._id), row.mobile_number || ""])
+    );
+
     const finalOrders = pageOrders.map((order) => {
       const shipping = order.shipping || null;
       const shippingData = shipping || { shippingStatus: "Pending" };
@@ -283,9 +321,15 @@ const getOrdersController = async (req, res) => {
         : [];
 
       const { shipping: _shipping, ...orderFields } = order;
+      const reversePickupRequest = reversePickupMap.get(String(order._id));
 
       return formatDatesInObject({
         ...orderFields,
+        consignorPhone:
+          order.consignorPhone ||
+          uploaderPhoneMap.get(String(order.uploadedBy)) ||
+          "",
+        reversePickup: buildReversePickupSummary(reversePickupRequest),
         shipping: {
           ...shippingData,
           trackingHistory,

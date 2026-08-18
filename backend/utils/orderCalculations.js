@@ -1,5 +1,9 @@
 const getCategory = require("./categoryMapper");
 const getExpectedHours = require("./tatMapper");
+const {
+  countWorkingHoursBetween,
+  addWorkingHours,
+} = require("./workingCalendar");
 
 const orderCalculations = (order = {}, shipping = {}) => {
   // ==========================
@@ -23,7 +27,7 @@ const orderCalculations = (order = {}, shipping = {}) => {
 
 
   // ==========================
-  // EXPECTED SLA HOURS
+  // EXPECTED SLA HOURS (24h/day budget; Sundays & gov holidays excluded)
   // ==========================
   const expectedHours =
     order.expectedHours ||
@@ -70,12 +74,9 @@ const orderCalculations = (order = {}, shipping = {}) => {
 
 
   // ==========================
-  // ACTUAL HOURS
+  // ACTUAL HOURS (same calendar rules as addWorkingHours / expected delivery)
   // ==========================
-  let actualHours = Math.floor(
-    (referenceDate.getTime() - pickupDate.getTime()) /
-    (1000 * 60 * 60)
-  );
+  let actualHours = countWorkingHoursBetween(pickupDate, referenceDate);
 
 
   // Prevent negative SLA
@@ -83,7 +84,7 @@ const orderCalculations = (order = {}, shipping = {}) => {
 
 
   // ==========================
-  // AGEING
+  // AGEING (full 24h working-day equivalents elapsed while in transit)
   // ==========================
   const ageing =
     deliveryDate
@@ -125,4 +126,25 @@ const orderCalculations = (order = {}, shipping = {}) => {
 };
 
 
+/**
+ * Expected delivery instant from pickup + SLA working hours.
+ * Returns null when pickup/SLA is missing or order is already delivered.
+ */
+const getExpectedDeliveryDate = (order = {}, shipping = {}) => {
+  const status = shipping?.shippingStatus?.toLowerCase() || "";
+  if (status === "delivered") return null;
+
+  const pickupDate = shipping?.pickupDate
+    ? new Date(shipping.pickupDate)
+    : null;
+
+  if (!pickupDate || Number.isNaN(pickupDate.getTime())) return null;
+
+  const { expectedHours } = orderCalculations(order, shipping);
+  if (!expectedHours) return null;
+
+  return addWorkingHours(pickupDate, expectedHours);
+};
+
 module.exports = orderCalculations;
+module.exports.getExpectedDeliveryDate = getExpectedDeliveryDate;

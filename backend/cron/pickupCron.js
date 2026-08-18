@@ -29,10 +29,6 @@ cron.schedule(
           },
         }
       );
-
-      console.log(
-        `[Pickup Cron] ${result.modifiedCount} pickup(s) marked as Failed.`
-      );
     } catch (err) {
       console.error("[Pickup Cron]", err);
     }

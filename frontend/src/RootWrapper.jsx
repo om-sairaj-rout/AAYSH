@@ -31,6 +31,10 @@ import UpdateOrdersPage from "./pages/UpdateOrdersPage.jsx";
 import RegistrationOverviewPage from "./pages/RegistrationOverviewPage.jsx";
 import CompanyDetailPage from "./pages/CompanyDetailPage.jsx";
 import CompanyTeamPage from "./pages/CompanyTeamPage.jsx";
+import ProductCatalogPage from "./pages/ProductCatalogPage.jsx";
+import ReversePickupRoute from "./ReversePickupRoute.jsx";
+import SupportTicketsPage from "./pages/SupportTicketsPage.jsx";
+import AdminTicketsRoute from "./AdminTicketsRoute.jsx";
 
 const router = createBrowserRouter([
   { path: "/", element: <HomePage /> },
@@ -50,8 +54,10 @@ const router = createBrowserRouter([
       { path: "/rate-calculator", element: <RateCalculator /> },
       { path: "/upload/order-reports", element: <UploadPage /> },
       { path: "/upload/template", element: <TemplatePage /> },
-      { path: "/upload/excel-reports", element: <ExcelReportsPage /> },
+      { path: "/update/status", element: <ExcelReportsPage /> },
       { path: "/reports/all-orders", element: <OrdersPage /> },
+      { path: "/select-courier", element: <SelectCourier /> },
+      { path: "/catalog/products", element: <ProductCatalogPage /> },
       { path: "/user/create-account", element: <Register /> },
       { path: "/user/registrations", element: <RegistrationOverviewPage /> },
       { path: "/user/companies/:companyID", element: <CompanyDetailPage /> },
@@ -63,9 +69,11 @@ const router = createBrowserRouter([
       { path: "/update/serviceability", element: <ServiceabilityPage /> },
       { path: "/update/courier-priority", element: <CourierPriorityPage /> },
       { path: "/update/order-updates", element: <UpdateOrdersPage /> },
-      { path: "/select-courier", element: <SelectCourier /> },
       { path: "/awb/:awbNumber", element: <AwbPage /> },
       { path: "/pickup", element: <PickupRoute /> },
+      { path: "/pickup/reverse", element: <ReversePickupRoute /> },
+      { path: "/contact", element: <SupportTicketsPage /> },
+      { path: "/admin/tickets", element: <AdminTicketsRoute /> },
     ],
   },
 ]);

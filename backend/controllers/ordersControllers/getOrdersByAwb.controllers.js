@@ -47,27 +47,14 @@ const getOrderByAwb = async (req, res) => {
       .lean();
       
       // =========================
-// SLA + EXPECTED DELIVERY DATE
-// =========================
-const sla = orderCalculations(order, shipping);
+      // SLA + EXPECTED DELIVERY DATE
+      // =========================
+      const expectedDeliveryDate = orderCalculations.getExpectedDeliveryDate(
+        order,
+        shipping
+      );
 
-let expectedDeliveryDate = null;
-
-if (
-  shipping?.pickupDate &&
-  sla.expectedHours &&
-  shipping.shippingStatus?.toLowerCase() !== "delivered"
-) {
-  const pickupDate = new Date(shipping.pickupDate);
-
-  if (!isNaN(pickupDate.getTime())) {
-    expectedDeliveryDate = new Date(
-      pickupDate.getTime() +
-      sla.expectedHours * 60 * 60 * 1000
-    );
-  }
-}
-    return res.status(200).json({
+      return res.status(200).json({
       success: true,
       order: formatDatesInObject(order),
       shipping: formatDatesInObject(shipping),
