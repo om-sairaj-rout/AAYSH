@@ -72,7 +72,6 @@ const OrderSchema = new mongoose.Schema(
     externalOrderId: {
       type: String,
       required: true,
-      unique: true,
       index: true,
     },
 
@@ -281,5 +280,6 @@ const OrderSchema = new mongoose.Schema(
   }
 );
 
+OrderSchema.index({ companyID: 1, externalOrderId: 1 }, { unique: true });
 
 module.exports = mongoose.model("Order", OrderSchema);

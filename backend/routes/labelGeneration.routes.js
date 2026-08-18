@@ -1,5 +1,6 @@
 const express = require('express');
 const generateLabelRouter = express.Router();
+const { checkAuth, checkPermission } = require("../middlewares/auth.middleware");
 
 const generateLabelController = require("../controllers/labelGenerationControllers/generateLabel.controllers.js");
 const generateInvoiceController = require("../controllers/labelGenerationControllers/generateInvoice.controllers.js");
@@ -8,11 +9,41 @@ const generateLabelExternalController = require("../controllers/labelGenerationC
 const generateInvoiceExternalController = require("../controllers/labelGenerationControllers/generateInvoiceExternal.controllers.js");
 const generateManifestExternalController = require("../controllers/labelGenerationControllers/generateManifestExternal.controllers.js");
 
-generateLabelRouter.post("/pdf/labels", generateLabelController);
-generateLabelRouter.post("/pdf/invoices", generateInvoiceController);
-generateLabelRouter.post("/pdf/manifests", generateManifestController);
-generateLabelRouter.post("/external/pdf/labels", generateLabelExternalController);
-generateLabelRouter.post("/external/pdf/invoices", generateInvoiceExternalController);
-generateLabelRouter.post("/external/pdf/manifests", generateManifestExternalController);
+generateLabelRouter.post(
+  "/pdf/labels",
+  checkAuth,
+  checkPermission("shipments", "read"),
+  generateLabelController
+);
+generateLabelRouter.post(
+  "/pdf/invoices",
+  checkAuth,
+  checkPermission("shipments", "read"),
+  generateInvoiceController
+);
+generateLabelRouter.post(
+  "/pdf/manifests",
+  checkAuth,
+  checkPermission("shipments", "read"),
+  generateManifestController
+);
+generateLabelRouter.post(
+  "/external/pdf/labels",
+  checkAuth,
+  checkPermission("shipments", "read"),
+  generateLabelExternalController
+);
+generateLabelRouter.post(
+  "/external/pdf/invoices",
+  checkAuth,
+  checkPermission("shipments", "read"),
+  generateInvoiceExternalController
+);
+generateLabelRouter.post(
+  "/external/pdf/manifests",
+  checkAuth,
+  checkPermission("shipments", "read"),
+  generateManifestExternalController
+);
 
 module.exports = generateLabelRouter;

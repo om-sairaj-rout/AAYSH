@@ -1,6 +1,6 @@
 const express = require("express");
 const companyRouter = express.Router();
-const { checkAuth, authRoles } = require("../middlewares/auth.middleware");
+const { checkAuth, authRoles, checkPermission } = require("../middlewares/auth.middleware");
 const getCompanies = require("../controllers/companyControllers/getCompanies.controllers");
 const getCompanyDetail = require("../controllers/companyControllers/getCompanyDetail.controllers");
 const registerCompanyUser = require("../controllers/companyControllers/registerCompanyUser.controllers");
@@ -8,20 +8,28 @@ const updateCompanyUser = require("../controllers/companyControllers/updateCompa
 const deleteCompanyUser = require("../controllers/companyControllers/deleteCompanyUser.controllers");
 
 companyRouter.get("/companies", checkAuth, authRoles("admin"), getCompanies);
-companyRouter.get("/companies/:companyID", checkAuth, getCompanyDetail);
+companyRouter.get(
+  "/companies/:companyID",
+  checkAuth,
+  checkPermission("team", "read"),
+  getCompanyDetail
+);
 companyRouter.post(
   "/companies/:companyID/users",
   checkAuth,
+  checkPermission("team", "write"),
   registerCompanyUser
 );
 companyRouter.put(
   "/companies/:companyID/users/:userId",
   checkAuth,
+  checkPermission("team", "write"),
   updateCompanyUser
 );
 companyRouter.delete(
   "/companies/:companyID/users/:userId",
   checkAuth,
+  checkPermission("team", "write"),
   deleteCompanyUser
 );
 

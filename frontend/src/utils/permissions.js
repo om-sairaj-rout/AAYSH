@@ -21,6 +21,7 @@ const PATH_SECTION_MAP = {
   "/update/status": "upload",
   "/reports/orders": "orders",
   "/reports/all-orders": "orders",
+  "/select-courier": "orders",
   "/catalog/products": "orders",
   "/rate-calculator": "orders",
   "/reports/shipments": "shipments",

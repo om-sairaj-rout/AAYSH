@@ -4,6 +4,7 @@ const orderRouter = express.Router();
 const {
   checkAuth,
   authRoles,
+  checkPermission,
 } = require("../middlewares/auth.middleware");
 
 // Existing Controllers
@@ -25,24 +26,28 @@ const getOrdersByUserController = require("../controllers/orderUpdatesController
 orderRouter.get(
   "/orders/filter",
   checkAuth,
+  checkPermission("orders", "read"),
   getOrdersByDate
 );
 
 orderRouter.get(
   "/orders",
   checkAuth,
+  checkPermission("orders", "read"),
   getOrdersController
 );
 
 orderRouter.get(
   "/external/orders",
   checkAuth,
+  checkPermission("orders", "read"),
   getAllOrdersController
 );
 
 orderRouter.get(
   "/external/orders/:orderId",
   checkAuth,
+  checkPermission("orders", "read"),
   getSpecificOrderController
 );
 
@@ -60,30 +65,35 @@ orderRouter.get(
 orderRouter.post(
   "/external/orders/create-order",
   checkAuth,
+  checkPermission("orders", "write"),
   createOrderController
 );
 
 orderRouter.patch(
   "/external/orders/update-pickup-location",
   checkAuth,
+  checkPermission("orders", "write"),
   updatePickupLocation
 );
 
 orderRouter.post(
   "/external/orders/update-delivery-location",
   checkAuth,
+  checkPermission("orders", "write"),
   updateDeliveryLocation
 );
 
 orderRouter.post(
   "/external/orders/update-order",
   checkAuth,
+  checkPermission("orders", "write"),
   updateOrder
 );
 
 orderRouter.post(
   "/external/orders/cancel-order",
   checkAuth,
+  checkPermission("orders", "write"),
   cancelOrder
 );
 

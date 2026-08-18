@@ -7,6 +7,7 @@ const upload =
 const {
   checkAuth,
   authRoles,
+  checkPermission,
 } = require("../middlewares/auth.middleware");
 
 const addCourier =
@@ -47,12 +48,14 @@ courierRouter.post(
 courierRouter.get(
   "/courier/all",
   checkAuth,
+  checkPermission("orders", "read"),
   getCouriers
 );
 
 courierRouter.get(
   "/external/courier/courierList",
   checkAuth,
+  checkPermission("orders", "read"),
   getCouriersExternal
 );
 
@@ -78,11 +81,15 @@ courierRouter.post(
 
 courierRouter.get(
   "/priority/:service",
+  checkAuth,
+  authRoles("admin"),
   getCourierPriority
 );
 
 courierRouter.put(
   "/priority/:service",
+  checkAuth,
+  authRoles("admin"),
   updateCourierPriority
 );
 

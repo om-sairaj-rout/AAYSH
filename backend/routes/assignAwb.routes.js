@@ -3,6 +3,7 @@ const assignAwbRouter = express.Router();
 
 const {
   checkAuth,
+  checkPermission,
 } = require("../middlewares/auth.middleware");
 
 const assignAwbToOrdersController = require(
@@ -19,12 +20,14 @@ const assignAwbExternalController = require(
 assignAwbRouter.post(
   "/shipping/assign-awb",
   checkAuth,
+  checkPermission("orders", "write"),
   assignAwbToOrdersController
 );
 
 assignAwbRouter.post(
   "/external/shipping/assign-awb",
   checkAuth,
+  checkPermission("orders", "write"),
   assignAwbExternalController
 );
 

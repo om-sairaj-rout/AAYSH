@@ -51,6 +51,37 @@ const ensureCompanyIndexes = async () => {
   }
 };
 
+const dropLegacyOrderIndexes = async () => {
+  try {
+    const collection = mongoose.connection.collection("orders");
+    const indexes = await collection.indexes();
+
+    const legacyExternalOrderIdIndex = indexes.find(
+      (index) => index.name === "externalOrderId_1" && index.unique
+    );
+
+    if (legacyExternalOrderIdIndex) {
+      await collection.dropIndex("externalOrderId_1");
+      console.log(
+        "Removed legacy unique index on orders.externalOrderId (order IDs are unique per company)"
+      );
+    }
+  } catch (error) {
+    if (error.codeName !== "IndexNotFound") {
+      console.warn("Legacy order index cleanup skipped:", error.message);
+    }
+  }
+};
+
+const ensureOrderIndexes = async () => {
+  try {
+    const Order = require("../models/upload/order.model");
+    await Order.syncIndexes();
+  } catch (error) {
+    console.warn("Order index sync warning:", error.message);
+  }
+};
+
 const ensureUserIndexes = async () => {
   try {
     const User = require("../models/user.model");
@@ -68,6 +99,8 @@ function connectToDB() {
       await dropLegacyUserIndexes();
       await ensureUserIndexes();
       await ensureCompanyIndexes();
+      await dropLegacyOrderIndexes();
+      await ensureOrderIndexes();
       const { syncCompanyCounter } = require("../utils/generateCompanyId");
       await syncCompanyCounter();
     })

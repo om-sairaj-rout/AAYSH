@@ -2,8 +2,10 @@ const XLSX = require("xlsx");
 
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
-const User = require("../../models/user.model");
-const { buildOrderScopeForUser } = require("../../utils/companyScope");
+const Company = require("../../models/company.model");
+const {
+  buildOrderScopeForCompany,
+} = require("../../utils/companyScope");
 const Tracking = require("../../models/upload/tracking.model");
 const notifyShippingStatusWhatsApp = require("../../utils/notifyShippingStatusWhatsApp");
 
@@ -40,19 +42,23 @@ return new Date(
 
 const uploadAndUpdateStatusExcel = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { companyID } = req.params;
     const file = req.file;
 
-    const user = await User.findById(userId).select("companyID").lean();
+    const company = await Company.findOne({
+      companyID: String(companyID).trim().toUpperCase(),
+    })
+      .select("companyID")
+      .lean();
 
-    if (!user) {
+    if (!company) {
       return res.status(404).json({
         success: false,
-        message: "User not found",
+        message: "Company not found",
       });
     }
 
-    const orderScope = buildOrderScopeForUser(user);
+    const orderScope = buildOrderScopeForCompany(company.companyID);
 
     if (!file) {
       return res.status(400).json({

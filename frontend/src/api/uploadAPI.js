@@ -63,6 +63,36 @@ export const deleteUploadRecord = async (id) => {
     return data;
 };
 
+export const getStatusUpdateCompanies = async () => {
+  const res = await fetch(`${BASE}/api/status-update/companies`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to fetch companies");
+  }
+  return data;
+};
+
+export const downloadCompanyOrdersExcel = async (companyID) => {
+  const res = await fetch(
+    `${BASE}/api/download-company-orders/${encodeURIComponent(companyID)}`,
+    {
+      method: "GET",
+      credentials: "include",
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("Download failed");
+  }
+
+  return res.blob();
+};
+
 export const downloadUserOrdersExcel =
   async (userId) => {
 
@@ -83,9 +113,9 @@ export const downloadUserOrdersExcel =
   return res.blob();
 };
 
-export const uploadAndUpdateStatusExcel = async (userId, formData) => {
+export const uploadAndUpdateStatusExcel = async (companyID, formData) => {
   const res = await fetch(
-    `${BASE}/api/upload-status-excel/${userId}`,
+    `${BASE}/api/upload-status-excel/${encodeURIComponent(companyID)}`,
     {
       method: "POST",
       credentials: "include",

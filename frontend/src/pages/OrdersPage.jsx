@@ -12,6 +12,7 @@ import {
   formatDisplayDate,
 } from '../utils/dateTime';
 import { useLatestRequestId } from '../utils/useLatestRequestId';
+import { canAccess } from '../utils/permissions';
 
 const SEARCH_TYPES = {
   orderId: {
@@ -256,6 +257,7 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
 /* ================= MAIN ORDERS PAGE COMPONENT ================= */
 const OrdersPage = () => {
   const { isAdmin, user } = useSelector((state) => state.auth);
+  const canWrite = canAccess(user, "orders", "write");
   const [activeSegment, setActiveSegment] = useState('All Orders');
   const [counts, setCounts] = useState({});
   const [allOrders, setAllOrders] = useState([]);
@@ -511,7 +513,7 @@ const OrdersPage = () => {
             })}
           </div>
 
-          {selectedOrders.length > 0 && (
+          {canWrite && selectedOrders.length > 0 && (
             <button
               onClick={handleBulkShipClick}
               className="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-sm font-bold tracking-wide px-5 py-2.5 rounded-lg transition-colors shadow-sm"
@@ -641,14 +643,16 @@ const OrdersPage = () => {
           <table className="w-full text-left border-collapse table-auto">
             <thead>
               <tr className="border-b border-gray-100 bg-[#FAFAFA]">
-                <th className="p-4 sm:p-5 w-12 text-center">
-                  <input
-                    type="checkbox"
-                    onChange={handleSelectAll}
-                    checked={currentOrders.length > 0 && currentOrders.every(order => selectedOrders.includes(order._id))}
-                    className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                  />
-                </th>
+                {canWrite && (
+                  <th className="p-4 sm:p-5 w-12 text-center">
+                    <input
+                      type="checkbox"
+                      onChange={handleSelectAll}
+                      checked={currentOrders.length > 0 && currentOrders.every(order => selectedOrders.includes(order._id))}
+                      className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                  </th>
+                )}
                 {headers.map((header) => (
                   <th key={header} className="p-4 sm:p-5 text-xs font-bold tracking-wider text-slate-600 uppercase whitespace-nowrap">
                     <div className="flex items-center gap-1.5">
@@ -688,14 +692,16 @@ const OrdersPage = () => {
                     onClick={() => handleRowClick(order)}
                     className={`hover:bg-slate-50/90 transition-colors cursor-pointer ${isChecked ? 'bg-indigo-50/30' : ''}`}
                   >
-                    <td className="p-4 sm:p-5 text-center align-top" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => handleSelectRow(order._id)}
-                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer mt-1"
-                      />
-                    </td>
+                    {canWrite && (
+                      <td className="p-4 sm:p-5 text-center align-top" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleSelectRow(order._id)}
+                          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer mt-1"
+                        />
+                      </td>
+                    )}
 
                     {/* SECTION 1: ORDER ID & INFO */}
                     <td className="p-4 sm:p-5 align-top min-w-[220px]">
@@ -804,13 +810,18 @@ const OrdersPage = () => {
                     {/* SECTION 5: STATUS & ACTIONS */}
                     <td className="p-4 sm:p-5 align-top whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       <div className="pt-0.5">
-                        {order.shipping?.shippingStatus === 'Pending' && (
+                        {canWrite && order.shipping?.shippingStatus === 'Pending' && (
                           <button
                             onClick={() => handleSingleShipClick(order)}
                             className="bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow-sm transition-colors"
                           >
                             Ship Order
                           </button>
+                        )}
+                        {!canWrite && order.shipping?.shippingStatus === 'Pending' && (
+                          <span className="bg-amber-100 text-amber-800 font-bold text-xs px-3 py-1 rounded-full border border-amber-200">
+                            Pending
+                          </span>
                         )}
                         {order.shipping?.shippingStatus === "Booked" && (
                           <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-3 py-1 rounded-full border border-emerald-200">

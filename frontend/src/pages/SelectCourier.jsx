@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import {
   ArrowLeft,
   Truck,
@@ -12,6 +13,7 @@ import { toast } from 'react-hot-toast';
 import { todayISODateOnly } from '../utils/dateTime';
 import { shipOrdersAPI } from '../api/shipingAPI';
 import OrderResponse from './OrderResponse';
+import { canAccess } from '../utils/permissions';
 
 const SERVICE_TYPES = [
   {
@@ -46,6 +48,8 @@ const getFormattedTime = (dateObj) => {
 const SelectCourier = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useSelector((state) => state.auth);
+  const canWrite = canAccess(user, "orders", "write");
   const orders = useMemo(() => location.state?.orders || [], [location.state?.orders]);
 
   const todayStr = todayISODateOnly();
@@ -59,6 +63,13 @@ const SelectCourier = () => {
   const [submitting, setSubmitting] = useState(false);
   const [assignmentResponse, setAssignmentResponse] = useState(null);
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!canWrite) {
+      toast.error('You do not have permission to ship orders');
+      navigate('/reports/all-orders', { replace: true });
+    }
+  }, [canWrite, navigate]);
 
   useEffect(() => {
     if (!orders.length) {

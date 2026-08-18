@@ -141,6 +141,64 @@ const uploadFileController = async (req, res) => {
 
 
     const historyId = new mongoose.Types.ObjectId();
+    const companyID = String(req.user.companyID || "")
+      .trim()
+      .toUpperCase();
+
+    const rowOrderIds = rawData.map((row, index) => ({
+      rowNumber: index + 1,
+      externalOrderId: row["Order ID"]?.toString().trim() || "",
+    }));
+
+    const missingOrderIdRows = rowOrderIds
+      .filter((row) => !row.externalOrderId)
+      .map((row) => row.rowNumber);
+
+    if (missingOrderIdRows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Missing Order ID on row(s): ${missingOrderIdRows.join(", ")}`,
+      });
+    }
+
+    const seenInFile = new Set();
+    const duplicateInFile = [];
+
+    rowOrderIds.forEach((row) => {
+      if (seenInFile.has(row.externalOrderId)) {
+        duplicateInFile.push(row.externalOrderId);
+      } else {
+        seenInFile.add(row.externalOrderId);
+      }
+    });
+
+    if (duplicateInFile.length > 0) {
+      const uniqueDuplicates = [...new Set(duplicateInFile)];
+      return res.status(400).json({
+        success: false,
+        message: `Duplicate Order ID in file: ${uniqueDuplicates.join(", ")}`,
+        duplicateOrderIds: uniqueDuplicates,
+      });
+    }
+
+    const orderIdsInFile = rowOrderIds.map((row) => row.externalOrderId);
+    const existingOrders = await Order.find({
+      companyID,
+      externalOrderId: { $in: orderIdsInFile },
+    })
+      .select("externalOrderId")
+      .lean();
+
+    if (existingOrders.length > 0) {
+      const duplicateOrderIds = existingOrders.map(
+        (order) => order.externalOrderId
+      );
+      return res.status(400).json({
+        success: false,
+        message: `Duplicate Order ID already exists for your company: ${duplicateOrderIds.join(", ")}`,
+        duplicateOrderIds,
+      });
+    }
 
     const orderDocs = [];
     const shippingDocs = [];
@@ -167,16 +225,6 @@ const uploadFileController = async (req, res) => {
       const externalOrderId =
         row["Order ID"]?.toString().trim() || "";
 
-      if (externalOrderId) {
-  const alreadyExists = await Order.exists({
-    externalOrderId,
-  });
-
-  if (alreadyExists) {
-    continue;
-  }
-}
-
       const orderDoc = {
         // ==========================
         // Upload
@@ -184,7 +232,7 @@ const uploadFileController = async (req, res) => {
 
         historyId,
         uploadedBy: req.user.id,
-        companyID: req.user.companyID || "",
+        companyID,
 
         // ==========================
         // IDs
@@ -363,6 +411,13 @@ try {
     ordered: false,
   });
 } catch (err) {
+  if (err.code === 11000) {
+    return res.status(400).json({
+      success: false,
+      message: "Duplicate Order ID already exists for your company.",
+    });
+  }
+
   console.log("Inserted:", err.insertedDocs?.length);
 
   if (err.writeErrors) {
@@ -436,7 +491,7 @@ try {
   fileName: req.file.originalname,
   totalRows: rawData.length,
   uploadedBy: req.user.id,
-  companyID: req.user.companyID || "",
+  companyID,
   isVisible: true,
 });
 

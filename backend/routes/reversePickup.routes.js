@@ -1,6 +1,6 @@
 const express = require("express");
 const reversePickupRouter = express.Router();
-const { checkAuth, authRoles } = require("../middlewares/auth.middleware");
+const { checkAuth, authRoles, checkPermission } = require("../middlewares/auth.middleware");
 const upload = require("../middlewares/upload.middleware");
 const createReversePickup = require("../controllers/reversePickupControllers/createReversePickup.controllers");
 const getReversePickups = require("../controllers/reversePickupControllers/getReversePickups.controllers");
@@ -12,18 +12,26 @@ const getReversePickupDocumentByOrder = require("../controllers/reversePickupCon
 reversePickupRouter.post(
   "/reverse-pickups",
   checkAuth,
+  checkPermission("pickup", "write"),
   upload.single("supportingDocument"),
   createReversePickup
 );
-reversePickupRouter.get("/reverse-pickups", checkAuth, getReversePickups);
+reversePickupRouter.get(
+  "/reverse-pickups",
+  checkAuth,
+  checkPermission("pickup", "read"),
+  getReversePickups
+);
 reversePickupRouter.get(
   "/reverse-pickups/order/:orderId/document-url",
   checkAuth,
+  checkPermission("pickup", "read"),
   getReversePickupDocumentByOrder
 );
 reversePickupRouter.get(
   "/reverse-pickups/:id/document-url",
   checkAuth,
+  checkPermission("pickup", "read"),
   getReversePickupDocumentUrl
 );
 reversePickupRouter.put(

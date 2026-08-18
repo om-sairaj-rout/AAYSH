@@ -35,6 +35,7 @@ import ProductCatalogPage from "./pages/ProductCatalogPage.jsx";
 import ReversePickupRoute from "./ReversePickupRoute.jsx";
 import SupportTicketsPage from "./pages/SupportTicketsPage.jsx";
 import AdminTicketsRoute from "./AdminTicketsRoute.jsx";
+import PermissionRoute from "./PermissionRoute.jsx";
 
 const router = createBrowserRouter([
   { path: "/", element: <HomePage /> },
@@ -56,7 +57,14 @@ const router = createBrowserRouter([
       { path: "/upload/template", element: <TemplatePage /> },
       { path: "/update/status", element: <ExcelReportsPage /> },
       { path: "/reports/all-orders", element: <OrdersPage /> },
-      { path: "/select-courier", element: <SelectCourier /> },
+      {
+        path: "/select-courier",
+        element: (
+          <PermissionRoute section="orders" action="write">
+            <SelectCourier />
+          </PermissionRoute>
+        ),
+      },
       { path: "/catalog/products", element: <ProductCatalogPage /> },
       { path: "/user/create-account", element: <Register /> },
       { path: "/user/registrations", element: <RegistrationOverviewPage /> },

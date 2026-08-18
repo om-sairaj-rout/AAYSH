@@ -2,36 +2,38 @@ const XLSX = require("xlsx");
 
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
-const User = require("../../models/user.model");
+const Company = require("../../models/company.model");
 const {
-  buildOrderScopeForUser,
+  buildOrderScopeForCompany,
   FINAL_STATUS_UPDATE_EXCLUDED_STATUSES,
 } = require("../../utils/companyScope");
 
-const downloadUserOrdersExcel = async (req, res) => {
+const downloadCompanyOrdersExcel = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { companyID } = req.params;
 
-    const user = await User.findById(userId).select("companyID").lean();
+    const company = await Company.findOne({
+      companyID: String(companyID).trim().toUpperCase(),
+    })
+      .select("companyID companyName")
+      .lean();
 
-    if (!user) {
+    if (!company) {
       return res.status(404).json({
         success: false,
-        message: "User not found",
+        message: "Company not found",
       });
     }
 
-    const orders = await Order.find(buildOrderScopeForUser(user));
+    const orders = await Order.find(buildOrderScopeForCompany(company.companyID));
 
     const excelData = [];
 
     for (const order of orders) {
-
       const shipping = await Shipping.findOne({
         orderId: order._id,
       });
 
-      // Skip if AWB not assigned
       if (!shipping || !shipping.awbNumber) {
         continue;
       }
@@ -41,27 +43,19 @@ const downloadUserOrdersExcel = async (req, res) => {
       }
 
       excelData.push({
-  "AWB Number": shipping.awbNumber,
-  "Current Status": shipping.shippingStatus,
-  "New Status": "",
-  "Location": "",
-  "Failure Reason": "",
-  "Remarks": "",
-  "Tracking Date & Time": "",
-});
+        "AWB Number": shipping.awbNumber,
+        "Current Status": shipping.shippingStatus,
+        "New Status": "",
+        "Location": "",
+        "Failure Reason": "",
+        "Remarks": "",
+        "Tracking Date & Time": "",
+      });
     }
 
-    const worksheet =
-      XLSX.utils.json_to_sheet(excelData);
-
-    const workbook =
-      XLSX.utils.book_new();
-
-    XLSX.utils.book_append_sheet(
-      workbook,
-      worksheet,
-      "Tracking Update"
-    );
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Tracking Update");
 
     const buffer = XLSX.write(workbook, {
       type: "buffer",
@@ -75,19 +69,16 @@ const downloadUserOrdersExcel = async (req, res) => {
 
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=tracking-update-${userId}.xlsx`
+      `attachment; filename=tracking-update-${company.companyID}.xlsx`
     );
 
     return res.send(buffer);
-
   } catch (error) {
-
     return res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
 };
 
-module.exports = downloadUserOrdersExcel;
+module.exports = downloadCompanyOrdersExcel;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { toast } from 'react-hot-toast';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { pickupOrdersAPI, reschedulePickupAPI, cancelPickupAPI } from "../api/shipingAPI";
@@ -6,6 +7,7 @@ import {
   formatDisplayDate,
   todayISODateOnly,
 } from "../utils/dateTime";
+import { canAccess } from "../utils/permissions";
 
 /* ================= RESCHEDULE PICKUP MODAL ================= */
 const ReschedulePickupModal = ({ isOpen, onClose, pickup, onConfirmReschedule }) => {
@@ -216,6 +218,8 @@ const TAB_TO_QUERY = {
 
 /* ================= MAIN PICKUP PAGE COMPONENT ================= */
 const UserPickupPage = () => {
+  const { user } = useSelector((state) => state.auth);
+  const canWrite = canAccess(user, "pickup", "write");
   const [activeTab, setActiveTab] = useState("Today's Pickups");
   const [searchQuery, setSearchQuery] = useState('');
   const [pickups, setPickups] = useState([]);
@@ -519,7 +523,7 @@ const UserPickupPage = () => {
 
                     {/* Actions */}
                     <td className="p-3.5 text-right whitespace-nowrap">
-                      {pickup.pickupStatus === "Completed" ? (
+                      {pickup.pickupStatus === "Completed" || !canWrite ? (
                         <span className="text-xs text-slate-400">—</span>
                       ) : (
                         <div className="flex items-center justify-end gap-2">

@@ -72,28 +72,33 @@ const createCustomOrder = async (req, res) => {
 
 
     // ===============================
-    // Duplicate Order Check
+    // Duplicate Order Check (per company)
     // ===============================
 
+    const companyID = String(
+      body.company_id ||
+      body.companyID ||
+      req.user.companyID ||
+      ""
+    )
+      .trim()
+      .toUpperCase();
+
     const existingOrder = await Order.findOne({
-      externalOrderId: body.order_id
+      externalOrderId: body.order_id,
+      companyID,
     });
 
-
-    if(existingOrder){
-
+    if (existingOrder) {
       return res.status(400).json({
-        success:false,
-        error:"Order already exists"
+        success: false,
+        error: "Duplicate Order ID already exists for your company",
       });
-
     }
 
-
-
-   // ===============================
-// Generate IDs
-// ===============================
+    // ===============================
+    // Generate IDs
+    // ===============================
 
 const shipmentId = await generateUniqueShipmentId();
 
@@ -109,15 +114,6 @@ const serviceType = "surface";
 
 const expectedHours =
   getExpectedHours(category,serviceType);
-
-    const companyID = String(
-      body.company_id ||
-      body.companyID ||
-      req.user.companyID ||
-      ""
-    )
-      .trim()
-      .toUpperCase();
 
     let consignorName = String(body.consignor_name || "").trim();
 

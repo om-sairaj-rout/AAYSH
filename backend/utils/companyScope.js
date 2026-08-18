@@ -1,5 +1,13 @@
 const mongoose = require("mongoose");
 
+const FINAL_STATUS_UPDATE_EXCLUDED_STATUSES = [
+  "Delivered",
+  "Cancelled",
+  "RTO",
+  "Returned",
+  "Exchange",
+];
+
 const buildOrderScopeForUser = (user) => {
   if (user?.companyID) {
     return { companyID: user.companyID };
@@ -11,6 +19,11 @@ const buildOrderScopeForUser = (user) => {
   }
 
   return {};
+};
+
+const buildOrderScopeForCompany = (companyID) => {
+  if (!companyID) return {};
+  return { companyID: String(companyID).trim().toUpperCase() };
 };
 
 const applyCompanyOrderFilter = (req, filter = {}) => {
@@ -48,7 +61,9 @@ const userOwnsOrder = (order, req) => {
 };
 
 module.exports = {
+  FINAL_STATUS_UPDATE_EXCLUDED_STATUSES,
   applyCompanyOrderFilter,
   buildOrderScopeForUser,
+  buildOrderScopeForCompany,
   userOwnsOrder,
 };
