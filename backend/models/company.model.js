@@ -24,6 +24,15 @@ const companySchema = new mongoose.Schema(
     website: { type: String, default: "" },
     logo: { type: String, default: "" },
     gstin: { type: String, default: "" },
+    defaultOrderIdSequence: {
+      type: String,
+      enum: ["numeric", "alphanumeric"],
+      default: "alphanumeric",
+    },
+    orderIdSequenceLocked: {
+      type: Boolean,
+      default: false,
+    },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

@@ -1,7 +1,33 @@
 const mongoose = require("mongoose");
 
-const ShippingSchema = new mongoose.Schema(
+const deliveryAttemptHistorySchema = new mongoose.Schema(
   {
+    attemptNumber: {
+      type: Number,
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ["In Progress", "Failed", "Delivered"],
+      required: true,
+    },
+    failureReason: {
+      type: String,
+      default: "",
+    },
+    startedAt: {
+      type: Date,
+      default: null,
+    },
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  { _id: false }
+);
+
+const ShippingSchema = new mongoose.Schema(  {
     orderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Order",
@@ -113,8 +139,12 @@ attemptFailureReason: {
   default: "",
 },
 
-serviceType: {
-    type: String,
+deliveryAttemptHistory: {
+  type: [deliveryAttemptHistorySchema],
+  default: [],
+},
+
+serviceType: {    type: String,
     enum: [
         "prime",
         "surface",

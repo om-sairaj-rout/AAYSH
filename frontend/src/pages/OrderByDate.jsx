@@ -1,11 +1,46 @@
 import { ChevronsUpDown } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { getOrdersByDate } from "../api/ordersAPI";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useSelector } from "react-redux";
 import { toast } from "react-hot-toast";
 import { formatDisplayDate } from "../utils/dateTime";
+
+const HIDDEN_TABLE_KEYS = new Set([
+  "_id",
+  "__v",
+  "historyId",
+  "uploadedBy",
+  "createdAt",
+  "updatedAt",
+  "delivery_attempt_list",
+  "attempt_failure_reason",
+  "delivery_attempts",
+]);
+
+const formatAttemptStatus = (attempt) => {
+  if (!attempt) {
+    return "—";
+  }
+
+  if (attempt.outcome === "Failed") {
+    return `Failed - ${attempt.failure_reason || "No reason provided"}`;
+  }
+
+  if (attempt.outcome === "Delivered") {
+    return "Delivered";
+  }
+
+  if (attempt.outcome === "In Progress") {
+    return "In Progress";
+  }
+
+  return attempt.outcome || "—";
+};
+
+const getAttemptByNumber = (attempts = [], attemptNumber) =>
+  attempts.find((attempt) => attempt.attempt_number === attemptNumber) || null;
 
 const OrderByDateInfo = () => {
   const [tableData, setTableData] = useState([]);
@@ -84,6 +119,75 @@ const OrderByDateInfo = () => {
     }
   }, [currentPage, entriesPerPage]);
 
+  const getVisibleKeys = () => {
+    if (tableData.length === 0) return [];
+
+    return Object.keys(tableData[0]).filter((key) => {
+      if (HIDDEN_TABLE_KEYS.has(key)) return false;
+
+      if (key === "weight" && !canSeeWeight) return false;
+      if (!isAdmin && adminOnlyFields.includes(key) && key !== "weight") return false;
+
+      return true;
+    });
+  };
+
+  const visibleKeys = getVisibleKeys();
+  const currentRows = tableData;
+
+  const maxAttemptColumns = useMemo(() => {
+    if (!currentRows.length) return 0;
+
+    return currentRows.reduce((max, row) => {
+      const total = Number(row.delivery_attempts || 0);
+      const listLength = row.delivery_attempt_list?.length || 0;
+      return Math.max(max, total, listLength);
+    }, 0);
+  }, [currentRows]);
+
+  const attemptColumnNumbers = useMemo(
+    () => Array.from({ length: maxAttemptColumns }, (_, index) => index + 1),
+    [maxAttemptColumns]
+  );
+
+  const renderCellValue = (value) => {
+    if (value === undefined || value === null || value === "") {
+      return "N/A";
+    }
+
+    if (
+      typeof value === "string" &&
+      (value.includes("T") || /^\d{4}-\d{2}-\d{2}/.test(value))
+    ) {
+      const parsed = new Date(value);
+      if (!Number.isNaN(parsed.getTime())) {
+        return formatDisplayDate(parsed);
+      }
+    }
+
+    return String(value);
+  };
+
+  const buildExportRow = (row) => {
+    const newRow = {};
+
+    visibleKeys.forEach((key) => {
+      newRow[key] = renderCellValue(row[key]);
+    });
+
+    newRow.DeliveryAttempts = Number(row.delivery_attempts || 0);
+
+    attemptColumnNumbers.forEach((attemptNumber) => {
+      const attempt = getAttemptByNumber(
+        row.delivery_attempt_list || [],
+        attemptNumber
+      );
+      newRow[`Attempt ${attemptNumber}`] = formatAttemptStatus(attempt);
+    });
+
+    return newRow;
+  };
+
   const handleExport = async () => {
     if (!fromDate || !toDate) {
       toast.error("Please select both dates");
@@ -100,92 +204,97 @@ const OrderByDateInfo = () => {
         return;
       }
 
-      const cleanedData = exportData.map((row) => {
-      const newRow = {};
+      const exportMaxAttempts = result.orders.reduce((max, row) => {
+        const total = Number(row.delivery_attempts || 0);
+        const listLength = row.delivery_attempt_list?.length || 0;
+        return Math.max(max, total, listLength);
+      }, 0);
 
-      Object.entries(row)
-        .filter(([key]) => {
-          if (
-            [
-              "_id",
-              "__v",
-              "historyId",
-              "uploadedBy",
-              "createdAt",
-              "updatedAt",
-            ].includes(key)
-          )
-            return false;
+      const exportAttemptNumbers = Array.from(
+        { length: exportMaxAttempts },
+        (_, index) => index + 1
+      );
 
-          if (key === "weight" && !canSeeWeight) return false;
-          if (!isAdmin && adminOnlyFields.includes(key) && key !== "weight") return false;
+      const cleanedData = result.orders.map((row) => {
+        const newRow = {};
 
-          return true;
-        })
-        .forEach(([key, value]) => {
-          if (
-            typeof value === "string" &&
-            (value.includes("T") || /^\d{4}-\d{2}-\d{2}/.test(value))
-          ) {
-            const parsed = new Date(value);
-            if (!Number.isNaN(parsed.getTime())) {
-              newRow[key] = formatDisplayDate(parsed);
-              return;
+        Object.entries(row)
+          .filter(([key]) => {
+            if (HIDDEN_TABLE_KEYS.has(key)) return false;
+            if (key === "weight" && !canSeeWeight) return false;
+            if (!isAdmin && adminOnlyFields.includes(key) && key !== "weight") {
+              return false;
             }
-          }
-          newRow[key] = value ?? "N/A";
+            return true;
+          })
+          .forEach(([key, value]) => {
+            newRow[key] = renderCellValue(value);
+          });
+
+        newRow.DeliveryAttempts = Number(row.delivery_attempts || 0);
+
+        exportAttemptNumbers.forEach((attemptNumber) => {
+          const attempt = getAttemptByNumber(
+            row.delivery_attempt_list || [],
+            attemptNumber
+          );
+          newRow[`Attempt ${attemptNumber}`] = formatAttemptStatus(attempt);
         });
 
-      return newRow;
-    });
+        return newRow;
+      });
 
-    const worksheet = XLSX.utils.json_to_sheet(cleanedData);
+      const worksheet = XLSX.utils.json_to_sheet(cleanedData);
 
-    // ================= EXCEL STYLING (BOLD HEADERS & THIN BORDERS) =================
-    if (worksheet["!ref"]) {
-      const range = XLSX.utils.decode_range(worksheet["!ref"]);
+      if (worksheet["!ref"]) {
+        const range = XLSX.utils.decode_range(worksheet["!ref"]);
 
-      const thinBorder = {
-        top: { style: "thin", color: { rgb: "A6A6A6" } },
-        bottom: { style: "thin", color: { rgb: "A6A6A6" } },
-        left: { style: "thin", color: { rgb: "A6A6A6" } },
-        right: { style: "thin", color: { rgb: "A6A6A6" } },
-      };
+        const thinBorder = {
+          top: { style: "thin", color: { rgb: "A6A6A6" } },
+          bottom: { style: "thin", color: { rgb: "A6A6A6" } },
+          left: { style: "thin", color: { rgb: "A6A6A6" } },
+          right: { style: "thin", color: { rgb: "A6A6A6" } },
+        };
 
-      for (let R = range.s.r; R <= range.e.r; ++R) {
-        for (let C = range.s.c; C <= range.e.c; ++C) {
-          const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
-          if (!worksheet[cellAddress]) continue;
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+          for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+            if (!worksheet[cellAddress]) continue;
 
-          worksheet[cellAddress].s = worksheet[cellAddress].s || {};
-          
-          // Apply thin border to all exported data cells
-          worksheet[cellAddress].s.border = thinBorder;
+            worksheet[cellAddress].s = worksheet[cellAddress].s || {};
+            worksheet[cellAddress].s.border = thinBorder;
 
-          // Header Row (Row 0): Bold Text + Light Background Fill + Left Alignment
-          if (R === 0) {
-            worksheet[cellAddress].s.font = { bold: true, color: { rgb: "000000" }, name: "Calibri", sz: 11 };
-            worksheet[cellAddress].s.fill = { fgColor: { rgb: "E5E7EB" } };
-            worksheet[cellAddress].s.alignment = { vertical: "center", horizontal: "left" };
+            if (R === 0) {
+              worksheet[cellAddress].s.font = {
+                bold: true,
+                color: { rgb: "000000" },
+                name: "Calibri",
+                sz: 11,
+              };
+              worksheet[cellAddress].s.fill = { fgColor: { rgb: "E5E7EB" } };
+              worksheet[cellAddress].s.alignment = {
+                vertical: "center",
+                horizontal: "left",
+              };
+            }
           }
         }
       }
-    }
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
 
-    const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "array",
-      cellStyles: true,
-    });
+      const excelBuffer = XLSX.write(workbook, {
+        bookType: "xlsx",
+        type: "array",
+        cellStyles: true,
+      });
 
-    const fileData = new Blob([excelBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
+      const fileData = new Blob([excelBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
 
-    saveAs(fileData, `orders_${fromDate}_to_${toDate}.xlsx`);
+      saveAs(fileData, `orders_${fromDate}_to_${toDate}.xlsx`);
     } catch (error) {
       console.error(error);
       toast.error("Failed to export data");
@@ -198,39 +307,10 @@ const OrderByDateInfo = () => {
   const totalPages = pagination.total_pages || 1;
   const indexOfFirstRow = totalRows === 0 ? 0 : (currentPage - 1) * entriesPerPage;
   const indexOfLastRow = Math.min(currentPage * entriesPerPage, totalRows);
-  const currentRows = tableData;
-
-  const getVisibleKeys = () => {
-    if (tableData.length === 0) return [];
-
-    return Object.keys(tableData[0]).filter((key) => {
-      if (
-        [
-          "_id",
-          "__v",
-          "historyId",
-          "uploadedBy",
-          "createdAt",
-          "updatedAt",
-        ].includes(key)
-      )
-        return false;
-
-      if (key === "weight" && !canSeeWeight) return false;
-      if (!isAdmin && adminOnlyFields.includes(key) && key !== "weight") return false;
-
-      return true;
-    });
-  };
-
-  const visibleKeys = getVisibleKeys();
 
   return (
     <div className="flex flex-col gap-8">
-
-      {/* FILTER SECTION */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end border-b border-gray-200 pb-6">
-
         <div className="space-y-1">
           <label className="text-sm font-semibold text-red-700">From Date</label>
           <input
@@ -259,9 +339,7 @@ const OrderByDateInfo = () => {
         </button>
       </div>
 
-      {/* TOP CONTROLS */}
       <div className="flex flex-wrap items-center justify-between gap-4">
-
         <div className="flex items-center gap-2">
           <span className="text-gray-700">Show</span>
 
@@ -283,25 +361,19 @@ const OrderByDateInfo = () => {
         </div>
 
         <div className="flex items-center gap-3">
-
           <button
             onClick={handleExport}
             className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors"
           >
             XLSX
           </button>
-
         </div>
       </div>
 
-      {/* TABLE */}
       <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
-
         <table className="w-full text-left text-sm border-collapse">
-
           <thead>
             <tr className="border-t border-b border-gray-300 bg-gray-100/80">
-
               {visibleKeys.map((header) => (
                 <th
                   key={header}
@@ -314,40 +386,62 @@ const OrderByDateInfo = () => {
                 </th>
               ))}
 
+              <th className="p-4 font-bold text-gray-800 whitespace-nowrap border-r border-gray-200">
+                <div className="flex items-center gap-2">
+                  DeliveryAttempts
+                  <ChevronsUpDown size={14} className="text-gray-400" />
+                </div>
+              </th>
+
+              {attemptColumnNumbers.map((attemptNumber) => (
+                <th
+                  key={`attempt-header-${attemptNumber}`}
+                  className="p-4 font-bold text-gray-800 whitespace-nowrap border-r border-gray-200 last:border-r-0"
+                >
+                  <div className="flex items-center gap-2">
+                    {`Attempt ${attemptNumber}`}
+                    <ChevronsUpDown size={14} className="text-gray-400" />
+                  </div>
+                </th>
+              ))}
             </tr>
           </thead>
 
           <tbody className="divide-y divide-gray-100">
-
             {currentRows.length > 0 ? (
               currentRows.map((row, index) => (
-                <tr key={index} className="hover:bg-gray-50 transition-colors">
-
+                <tr
+                  key={`${row.order_id || "order"}-${index}`}
+                  className="hover:bg-gray-50 transition-colors"
+                >
                   {visibleKeys.map((key, i) => (
                     <td
                       key={`${key}-${i}`}
                       className="p-4 text-gray-600 whitespace-nowrap"
                     >
-                      {(() => {
-                        const value = row[key];
-
-                        if (!value) return "N/A";
-
-                        if (
-                          typeof value === "string" &&
-                          (value.includes("T") || /^\d{4}-\d{2}-\d{2}/.test(value))
-                        ) {
-                          const parsed = new Date(value);
-                          if (!Number.isNaN(parsed.getTime())) {
-                            return formatDisplayDate(parsed);
-                          }
-                        }
-
-                        return String(value);
-                      })()}
+                      {renderCellValue(row[key])}
                     </td>
                   ))}
 
+                  <td className="p-4 text-gray-600 whitespace-nowrap font-semibold">
+                    {Number(row.delivery_attempts || 0)}
+                  </td>
+
+                  {attemptColumnNumbers.map((attemptNumber) => {
+                    const attempt = getAttemptByNumber(
+                      row.delivery_attempt_list || [],
+                      attemptNumber
+                    );
+
+                    return (
+                      <td
+                        key={`${row.order_id || index}-attempt-${attemptNumber}`}
+                        className="p-4 text-gray-600 whitespace-nowrap"
+                      >
+                        {formatAttemptStatus(attempt)}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))
             ) : (
@@ -357,22 +451,17 @@ const OrderByDateInfo = () => {
                 </td>
               </tr>
             )}
-
           </tbody>
-
         </table>
       </div>
 
-      {/* PAGINATION */}
       <div className="flex items-center justify-between mt-4">
-
         <p className="text-sm font-semibold text-gray-800">
           Showing {totalRows > 0 ? indexOfFirstRow + 1 : 0} to{" "}
           {indexOfLastRow} of {totalRows} entries
         </p>
 
         <div className="flex items-center gap-2">
-
           <button
             onClick={() => setCurrentPage((prev) => prev - 1)}
             disabled={currentPage === 1}
@@ -400,10 +489,8 @@ const OrderByDateInfo = () => {
           >
             Next
           </button>
-
         </div>
       </div>
-
     </div>
   );
 };

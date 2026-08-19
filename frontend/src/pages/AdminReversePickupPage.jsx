@@ -152,7 +152,6 @@ const AdminReversePickupPage = () => {
           <option value="pending">Pending</option>
           <option value="awb_assigned">AWB Assigned</option>
           <option value="failed">Failed</option>
-          <option value="approved">Approved (legacy)</option>
           <option value="rejected">Rejected</option>
           <option value="ALL">All</option>
         </select>

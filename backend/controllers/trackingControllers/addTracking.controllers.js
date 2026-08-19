@@ -2,6 +2,11 @@ const Tracking = require("../../models/upload/tracking.model");
 const Shipping = require("../../models/upload/shipping.model");
 const Order = require("../../models/upload/order.model");
 const notifyShippingStatusWhatsApp = require("../../utils/notifyShippingStatusWhatsApp");
+const {
+  startDeliveryAttempt,
+  failCurrentDeliveryAttempt,
+  completeCurrentDeliveryAttempt,
+} = require("../../utils/deliveryAttemptService");
 
 const addTracking = async (req, res) => {
   try {
@@ -73,13 +78,25 @@ const addTracking = async (req, res) => {
         break;
 
       case "Out For Delivery":
-        if (!shipping.outForDeliveryAt)
+        if (!shipping.outForDeliveryAt) {
           shipping.outForDeliveryAt = new Date();
+        }
+        startDeliveryAttempt(shipping, new Date());
         break;
 
       case "Delivered":
-        if (!shipping.deliveredAt)
+        if (!shipping.deliveredAt) {
           shipping.deliveredAt = new Date();
+        }
+        completeCurrentDeliveryAttempt(shipping, new Date());
+        break;
+
+      case "Delivery Attempt Failed":
+        failCurrentDeliveryAttempt(
+          shipping,
+          req.body.failureReason || remarks.trim(),
+          new Date()
+        );
         break;
 
       default:

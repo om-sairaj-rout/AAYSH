@@ -232,3 +232,39 @@ export const createOrder = async (payload) => {
 
   return data;
 };
+
+export const getOrderIdSequences = async () => {
+  const res = await fetch(`${BASE}/api/external/orders/order-id-sequences`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to fetch order ID sequences");
+  }
+  return data;
+};
+
+export const getNextOrderId = async ({ sequence = "alphanumeric", companyId } = {}) => {
+  const params = new URLSearchParams({ sequence });
+  if (companyId) {
+    params.set("companyId", companyId);
+  }
+
+  const res = await fetch(
+    `${BASE}/api/external/orders/next-order-id?${params.toString()}`,
+    {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    }
+  );
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to fetch next order ID");
+  }
+  return data;
+};

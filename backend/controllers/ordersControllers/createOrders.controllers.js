@@ -8,7 +8,7 @@ const {
   calculateItemsSubTotal,
 } = require("../../utils/invoiceCalculations");
 const { parseISODateOnly, now } = require("../../utils/dateTime");
-
+const { resolveOrderExternalId } = require("../../utils/generateOrderId");
 
 // Generate random 8 digit id
 const generateId = () => {
@@ -57,7 +57,6 @@ const createCustomOrder = async (req, res) => {
     // ===============================
 
     if (
-      !body.order_id ||
       !body.pickup_location ||
       !Array.isArray(body.order_items) ||
       body.order_items.length === 0
@@ -65,15 +64,9 @@ const createCustomOrder = async (req, res) => {
       return res.status(400).json({
         success:false,
         error:
-        "Missing required fields. Required: order_id, pickup_location, order_items"
+        "Missing required fields. Required: pickup_location, order_items"
       });
     }
-
-
-
-    // ===============================
-    // Duplicate Order Check (per company)
-    // ===============================
 
     const companyID = String(
       body.company_id ||
@@ -84,8 +77,28 @@ const createCustomOrder = async (req, res) => {
       .trim()
       .toUpperCase();
 
+    if (!companyID) {
+      return res.status(400).json({
+        success: false,
+        error: "Company ID is required to create an order",
+      });
+    }
+
+    let externalOrderId;
+    try {
+      externalOrderId = await resolveOrderExternalId({
+        body,
+        companyID,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: error.message,
+      });
+    }
+
     const existingOrder = await Order.findOne({
-      externalOrderId: body.order_id,
+      externalOrderId,
       companyID,
     });
 
@@ -140,8 +153,7 @@ const expectedHours =
 
 
       // Client order id
-      externalOrderId:
-      body.order_id,
+      externalOrderId,
 
 
 
@@ -373,7 +385,6 @@ expectedHours,
     // ===============================
     // Response
     // ===============================
-
 
     return res.status(201).json({
 

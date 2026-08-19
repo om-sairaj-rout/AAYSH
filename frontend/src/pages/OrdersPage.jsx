@@ -13,6 +13,8 @@ import {
 } from '../utils/dateTime';
 import { useLatestRequestId } from '../utils/useLatestRequestId';
 import { canAccess } from '../utils/permissions';
+import CreateOrderDialog from '../components/CreateOrderDialog';
+import { Plus } from 'lucide-react';
 
 const SEARCH_TYPES = {
   orderId: {
@@ -280,6 +282,7 @@ const OrdersPage = () => {
   // Modal State for Order Details & Tracking
   const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage, setOrdersPerPage] = useState(20);
@@ -471,6 +474,26 @@ const OrdersPage = () => {
   return (
     <div className="w-full min-h-screen bg-[#F8FAFC] p-4 font-sans text-[#1E293B]">
       <div className="max-w-400 mx-auto space-y-4">
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-[#1B2B4B]">All Orders</h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Search, track, and manage your company orders.
+            </p>
+          </div>
+
+          {canWrite && (
+            <button
+              type="button"
+              onClick={() => setIsCreateOrderOpen(true)}
+              className="inline-flex items-center justify-center gap-2 self-start sm:self-auto rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 text-sm font-bold shadow-sm transition-colors"
+            >
+              <Plus size={16} />
+              Create Order
+            </button>
+          )}
+        </div>
 
         <OrdersAnalyticsPanel
           loading={analyticsLoading}
@@ -923,6 +946,16 @@ const OrdersPage = () => {
         isOpen={isDetailsModalOpen}
         onClose={() => { setIsDetailsModalOpen(false); setSelectedOrderDetails(null); }}
         order={selectedOrderDetails}
+      />
+
+      <CreateOrderDialog
+        open={isCreateOrderOpen}
+        onClose={() => setIsCreateOrderOpen(false)}
+        user={user}
+        isAdmin={isAdmin}
+        companiesList={companiesList}
+        defaultCompanyId={selectedCompany}
+        onSuccess={fetchOrders}
       />
 
     </div>

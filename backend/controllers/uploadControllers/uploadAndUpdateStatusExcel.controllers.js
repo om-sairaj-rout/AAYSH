@@ -8,6 +8,11 @@ const {
 } = require("../../utils/companyScope");
 const Tracking = require("../../models/upload/tracking.model");
 const notifyShippingStatusWhatsApp = require("../../utils/notifyShippingStatusWhatsApp");
+const {
+  startDeliveryAttempt,
+  failCurrentDeliveryAttempt,
+  completeCurrentDeliveryAttempt,
+} = require("../../utils/deliveryAttemptService");
 
 const parseExcelDate = (value) => {
   if (!value) return new Date();
@@ -229,16 +234,16 @@ console.log(typeof row["Tracking Date & Time"]);
 
   case "Out For Delivery":
   shipping.outForDeliveryAt = eventTime;
-  shipping.deliveryAttempts += 1;
-  shipping.attemptFailureReason = "";
+  startDeliveryAttempt(shipping, eventTime);
   break;
 
   case "Delivered":
     shipping.deliveredAt = eventTime;
+    completeCurrentDeliveryAttempt(shipping, eventTime);
     break;
 
   case "Delivery Attempt Failed":
-  shipping.attemptFailureReason = failureReason;
+  failCurrentDeliveryAttempt(shipping, failureReason, eventTime);
   break;
 
   case "Cancelled":

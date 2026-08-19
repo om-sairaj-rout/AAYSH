@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
+const Tracking = require("../../models/upload/tracking.model");
 const {
   toISTDate,
   startOfDayIST,
@@ -11,10 +12,11 @@ const {
   buildPaginationMeta,
 } = require("../../utils/pagination");
 const { applyCompanyOrderFilter } = require("../../utils/companyScope");
+const { resolveDeliveryAttempts } = require("../../utils/deliveryAttemptService");
 
 const orderCalculations = require("../../utils/orderCalculations");
 
-const mapOrderItemRow = (order, shipping, item) => {
+const mapOrderItemRow = (order, shipping, item, deliveryAttemptDetails) => {
   const calculations = orderCalculations(order, shipping);
 
   return {
@@ -55,7 +57,8 @@ const mapOrderItemRow = (order, shipping, item) => {
     breadth: order.breadth,
     height: order.height,
     status: shipping?.shippingStatus || "Pending",
-    delivery_attempts: shipping?.deliveryAttempts || 0,
+    delivery_attempts: deliveryAttemptDetails?.total || 0,
+    delivery_attempt_list: deliveryAttemptDetails?.attempts || [],
     attempt_failure_reason: shipping?.attemptFailureReason || "",
     expected_hours: calculations.expectedHours,
     actual_hours: calculations.actualHours,
@@ -64,6 +67,59 @@ const mapOrderItemRow = (order, shipping, item) => {
     sla_status: calculations.slaStatus,
   };
 };
+
+const buildTrackingMap = async (rows = []) => {
+  const shippingIds = [
+    ...new Set(
+      rows
+        .map((doc) => doc.shipping?._id)
+        .filter(Boolean)
+        .map((id) => new mongoose.Types.ObjectId(String(id)))
+    ),
+  ];
+
+  if (!shippingIds.length) {
+    return new Map();
+  }
+
+  const trackingRows = await Tracking.find({
+    shippingId: { $in: shippingIds },
+  })
+    .sort({ eventTime: 1 })
+    .lean();
+
+  const trackingMap = new Map();
+
+  trackingRows.forEach((track) => {
+    const key = String(track.shippingId);
+    if (!trackingMap.has(key)) {
+      trackingMap.set(key, []);
+    }
+    trackingMap.get(key).push(track);
+  });
+
+  return trackingMap;
+};
+
+const mapRowsToOrders = (rows, trackingMap) =>
+  rows.map((doc) => {
+    const shipping = doc.shipping || null;
+    const shippingKey = shipping?._id ? String(shipping._id) : "";
+    const trackingEvents = shippingKey
+      ? trackingMap.get(shippingKey) || []
+      : [];
+    const deliveryAttemptDetails = resolveDeliveryAttempts(
+      shipping || {},
+      trackingEvents
+    );
+
+    return mapOrderItemRow(
+      doc,
+      shipping,
+      doc.orderItems,
+      deliveryAttemptDetails
+    );
+  });
 
 const getOrdersByDate = async (req, res) => {
   try {
@@ -104,14 +160,8 @@ const getOrdersByDate = async (req, res) => {
 
     if (fetchAll) {
       const rows = await Order.aggregate(pipeline);
-
-      const orders = rows.map((doc) =>
-        mapOrderItemRow(
-          doc,
-          doc.shipping || null,
-          doc.orderItems
-        )
-      );
+      const trackingMap = await buildTrackingMap(rows);
+      const orders = mapRowsToOrders(rows, trackingMap);
 
       return res.status(200).json({
         success: true,
@@ -132,10 +182,8 @@ const getOrdersByDate = async (req, res) => {
     const [result] = await Order.aggregate(pipeline);
     const total = result.metadata[0]?.total || 0;
     const rows = result.data || [];
-
-    const orders = rows.map((doc) =>
-      mapOrderItemRow(doc, doc.shipping || null, doc.orderItems)
-    );
+    const trackingMap = await buildTrackingMap(rows);
+    const orders = mapRowsToOrders(rows, trackingMap);
 
     return res.status(200).json({
       success: true,
