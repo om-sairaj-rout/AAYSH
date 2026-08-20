@@ -1,4 +1,4 @@
-const digitsOnly = (value) => String(value || "").replace(/\D/g, "");
+const { digitsOnly, normalizePhone, validateOptionalPhone } = require("./phone");
 
 const normalizePaymentMethod = (value) => {
   const raw = String(value || "").trim().toLowerCase();
@@ -10,54 +10,73 @@ const normalizePaymentMethod = (value) => {
   return "COD";
 };
 
-const normalizePhone = (value) => {
-  const digits = digitsOnly(value);
-  if (digits.length >= 10) {
-    return digits.slice(-10);
+const pickShippingObject = (body = {}) => {
+  if (body.shipping && typeof body.shipping === "object") return body.shipping;
+  if (body.shipping_address && typeof body.shipping_address === "object") {
+    return body.shipping_address;
   }
-  return digits;
+  if (body.shippingAddress && typeof body.shippingAddress === "object") {
+    return body.shippingAddress;
+  }
+  return {};
 };
 
-const isShopifyShape = (body = {}) =>
-  Boolean(
-    body.shipping &&
-      typeof body.shipping === "object" &&
-      (Array.isArray(body.lineItems) || body.payment !== undefined)
+const isShopifyShape = (body = {}) => {
+  const shipping = pickShippingObject(body);
+  return Boolean(
+    Object.keys(shipping).length > 0 ||
+      Array.isArray(body.lineItems) ||
+      body.payment !== undefined
   );
+};
 
 /**
  * Normalize CRM Shopify create-order body OR legacy Aaysh body
  * into the flat fields used by Order.create / AWB assign.
  */
 const normalizeCreateOrderPayload = (body = {}) => {
-  const shipping = body.shipping && typeof body.shipping === "object"
-    ? body.shipping
-    : {};
+  const shipping = pickShippingObject(body);
   const billing =
-    body.billing && typeof body.billing === "object" ? body.billing : {};
+    body.billing && typeof body.billing === "object"
+      ? body.billing
+      : body.billing_address && typeof body.billing_address === "object"
+        ? body.billing_address
+        : {};
 
   const shopify = isShopifyShape(body);
 
   const consigneeName = String(
     shipping.firstName ||
+      shipping.first_name ||
       body.billing_customer_name ||
       billing.firstName ||
+      billing.first_name ||
       ""
   ).trim();
 
   const consigneeLastName = String(
     shipping.lastName ||
+      shipping.last_name ||
       body.billing_last_name ||
       billing.lastName ||
+      billing.last_name ||
       ""
   ).trim();
 
   const address = String(
-    shipping.address1 || body.billing_address || billing.address1 || ""
+    shipping.address1 ||
+      shipping.address_1 ||
+      body.billing_address ||
+      billing.address1 ||
+      ""
   ).trim();
 
   const address2 = String(
-    shipping.address2 || body.billing_address_2 || billing.address2 || ""
+    shipping.address2 ||
+      shipping.address_2 ||
+      body.billing_address_2 ||
+      billing.address2 ||
+      ""
   ).trim();
 
   const destinationCity = String(
@@ -73,15 +92,17 @@ const normalizeCreateOrderPayload = (body = {}) => {
       ""
   ).trim();
 
-  const destinationPincode = String(
+  const destinationPincode = digitsOnly(
     shipping.zip ||
       shipping.postal_code ||
+      shipping.pincode ||
       body.billing_pincode ||
+      body.destination_pincode ||
+      body.destinationPincode ||
       billing.zip ||
+      billing.postal_code ||
       ""
-  )
-    .trim()
-    .replace(/\D/g, "");
+  );
 
   const destinationCountry = String(
     shipping.country || body.billing_country || billing.country || "India"
@@ -117,6 +138,16 @@ const normalizeCreateOrderPayload = (body = {}) => {
       tax: Number(item.tax || 0) || 0,
       hsn: String(item.hsn || "").trim(),
     }));
+  } else if (Array.isArray(body.line_items) && body.line_items.length > 0) {
+    orderItems = body.line_items.map((item) => ({
+      name: String(item.title || item.name || "").trim(),
+      sku: String(item.sku || "").trim(),
+      units: Number(item.quantity ?? item.units) || 1,
+      selling_price: Number(item.price ?? item.selling_price) || 0,
+      discount: Number(item.discount || 0) || 0,
+      tax: Number(item.tax || 0) || 0,
+      hsn: String(item.hsn || "").trim(),
+    }));
   } else if (Array.isArray(body.order_items)) {
     orderItems = body.order_items;
   }
@@ -141,7 +172,7 @@ const normalizeCreateOrderPayload = (body = {}) => {
     destinationCountry,
     consigneeEmail,
     billingPhone,
-    billingAlternatePhone: String(body.billing_alternate_phone || "").trim(),
+    billingAlternatePhone: normalizePhone(body.billing_alternate_phone || ""),
     paymentMethod,
     comment,
     orderItems,
@@ -162,38 +193,70 @@ const normalizeCreateOrderPayload = (body = {}) => {
 };
 
 /**
- * Validate required fields for Shopify-shaped create payloads.
- * Legacy payloads keep existing (lighter) validation.
+ * Always require destination pincode (AWB cannot work without it).
+ * Shopify-shaped payloads get full address validation.
  */
 const validateNormalizedCreateOrder = (normalized) => {
   if (!normalized.pickup_location) {
     return "Missing required field: pickup_location";
   }
 
-  if (!normalized.shopify) {
-    return null;
+  if (!/^\d{6}$/.test(normalized.destinationPincode)) {
+    return "Missing or invalid destination pincode (expected 6-digit zip / billing_pincode)";
   }
 
-  if (!normalized.consigneeName) {
-    return "Missing required field: shipping.firstName";
-  }
-  if (!normalized.address) {
-    return "Missing required field: shipping.address1";
-  }
-  if (!normalized.destinationCity) {
-    return "Missing required field: shipping.city";
-  }
-  if (!normalized.destinationState) {
-    return "Missing required field: shipping.province";
-  }
-  if (!/^\d{6}$/.test(normalized.destinationPincode)) {
-    return "Missing or invalid shipping.zip (expected 6-digit pincode)";
-  }
-  if (!/^\d{10}$/.test(normalized.billingPhone)) {
-    return "Missing or invalid phone (expected 10-digit mobile number)";
-  }
-  if (!normalized.orderItems.length) {
-    return "At least one lineItems entry is required";
+  if (normalized.shopify) {
+    if (!normalized.consigneeName) {
+      return "Missing required field: shipping.firstName";
+    }
+    if (!normalized.address) {
+      return "Missing required field: shipping.address1";
+    }
+    if (!normalized.destinationCity) {
+      return "Missing required field: shipping.city";
+    }
+    if (!normalized.destinationState) {
+      return "Missing required field: shipping.province";
+    }
+    const phoneCheck = validateOptionalPhone(
+      normalized.billingPhone,
+      "Customer phone number"
+    );
+    if (!phoneCheck.ok) {
+      return phoneCheck.message;
+    }
+    normalized.billingPhone = phoneCheck.value;
+
+    const alternatePhoneCheck = validateOptionalPhone(
+      normalized.billingAlternatePhone,
+      "Alternate phone number"
+    );
+    if (!alternatePhoneCheck.ok) {
+      return alternatePhoneCheck.message;
+    }
+    normalized.billingAlternatePhone = alternatePhoneCheck.value;
+
+    if (!normalized.orderItems.length) {
+      return "At least one lineItems entry is required";
+    }
+  } else {
+    const phoneCheck = validateOptionalPhone(
+      normalized.billingPhone,
+      "Customer phone number"
+    );
+    if (!phoneCheck.ok) {
+      return phoneCheck.message;
+    }
+    normalized.billingPhone = phoneCheck.value;
+
+    const alternatePhoneCheck = validateOptionalPhone(
+      normalized.billingAlternatePhone,
+      "Alternate phone number"
+    );
+    if (!alternatePhoneCheck.ok) {
+      return alternatePhoneCheck.message;
+    }
+    normalized.billingAlternatePhone = alternatePhoneCheck.value;
   }
 
   return null;
@@ -204,4 +267,5 @@ module.exports = {
   validateNormalizedCreateOrder,
   normalizePaymentMethod,
   isShopifyShape,
+  normalizePhone,
 };

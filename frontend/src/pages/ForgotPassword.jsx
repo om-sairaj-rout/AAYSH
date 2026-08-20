@@ -3,7 +3,7 @@ import aayshlogo from "../assets/aaysh_logo.png";
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { forgotPasswordAPI } from "../api/authAPI";
-import { toast } from "react-hot-toast"; // Imported for crisp toast notifications
+import { toast } from '../utils/toast'; // Imported for crisp toast notifications
 
 const ForgotPassword = () => {
   const emailRef = useRef();

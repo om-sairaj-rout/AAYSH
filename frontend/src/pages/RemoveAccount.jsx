@@ -19,9 +19,11 @@ import {
   getAllUsers,
   deleteUserAccount
 } from "../api/authAPI";
-import { toast } from "react-hot-toast";
+import { toast } from "../utils/toast";
+import { useConfirm } from "../components/ConfirmDialog";
 
 const RemoveAccount = () => {
+  const { confirm } = useConfirm();
   const [usersList, setUsersList] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -61,9 +63,13 @@ const RemoveAccount = () => {
       return;
     }
 
-    const secureConfirm = window.confirm(
-      `Are you absolutely sure you want to permanently delete ${selectedUser.companyName}'s account? This action cannot be undone.`
-    );
+    const secureConfirm = await confirm({
+      title: "Permanently delete account",
+      message: `Are you absolutely sure you want to permanently delete ${selectedUser.companyName}'s account?\n\nThis action cannot be undone.`,
+      confirmLabel: "Delete account",
+      cancelLabel: "Keep account",
+      variant: "danger",
+    });
 
     if (!secureConfirm) return;
 

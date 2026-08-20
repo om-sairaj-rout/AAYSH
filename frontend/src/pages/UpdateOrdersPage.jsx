@@ -511,6 +511,24 @@ const UpdateOrdersPage = () => {
       return;
     }
 
+    const phone = String(formData.billing_phone || "").trim();
+    if (phone && !/^\d{10}$/.test(phone)) {
+      setMessage({
+        type: "error",
+        text: "Enter a valid 10-digit customer phone number, or leave it blank.",
+      });
+      return;
+    }
+
+    const alternatePhone = String(formData.billing_alternate_phone || "").trim();
+    if (alternatePhone && !/^\d{10}$/.test(alternatePhone)) {
+      setMessage({
+        type: "error",
+        text: "Enter a valid 10-digit alternate phone number, or leave it blank.",
+      });
+      return;
+    }
+
     const payload = buildUpdatePayload(formData);
 
     try {
@@ -843,13 +861,15 @@ const UpdateOrdersPage = () => {
                             <p className="font-bold text-slate-900 uppercase">{order.consigneeName}</p>
                             <div className="flex items-center gap-1.5 text-slate-600 font-medium">
                               <Phone size={12} className="text-pink-500" />
-                              <span>{order.billingPhone}</span>
+                              <span>{order.billingPhone || "N/A"}</span>
+                              {order.billingPhone ? (
                               <button
                                 onClick={() => copyToClipboard(order.billingPhone)}
                                 className="text-slate-400 hover:text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px]"
                               >
                                 Copy
                               </button>
+                              ) : null}
                             </div>
                             <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex items-start gap-1.5 mt-1 text-[11px] text-slate-600">
                               <MapPin size={13} className="text-pink-500 shrink-0 mt-0.5" />
@@ -1139,7 +1159,7 @@ const UpdateOrdersPage = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-600 font-medium mb-1">Phone</label>
+                    <label className="block text-slate-600 font-medium mb-1">Phone (optional)</label>
                     <input
                       type="text"
                       name="billing_phone"

@@ -15,7 +15,7 @@ import {
   getCourierPriorityAPI,
   updateCourierPriorityAPI,
 } from "../api/courierAPI";
-import { toast } from "react-hot-toast";
+import { toast } from '../utils/toast';
 
 
 const CourierPriorityPage = () => {

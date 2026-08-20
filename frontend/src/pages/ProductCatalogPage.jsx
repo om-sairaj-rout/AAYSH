@@ -10,7 +10,8 @@ import {
   Truck,
   X,
 } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "../utils/toast";
+import { useConfirm } from "../components/ConfirmDialog";
 import {
   getProducts,
   createProduct,
@@ -49,6 +50,7 @@ const emptyShipForm = {
 };
 
 const ProductCatalogPage = () => {
+  const { confirm } = useConfirm();
   const navigate = useNavigate();
   const { user, isAdmin } = useSelector((state) => state.auth);
   const canWrite = canAccess(user, "orders", "write");
@@ -113,7 +115,7 @@ const ProductCatalogPage = () => {
 
   const openCreate = () => {
     if (isAdmin && selectedCompany === "ALL") {
-      toast.error("Select a company before adding a product");
+      toast.validation("Select a company before adding a product");
       return;
     }
     setEditingProduct(null);
@@ -144,7 +146,7 @@ const ProductCatalogPage = () => {
     e.preventDefault();
     const taxPercent = Number(form.tax) || 0;
     if (taxPercent < 0 || taxPercent > 100) {
-      toast.error("Tax must be between 0 and 100%");
+      toast.validation("Tax must be between 0 and 100%");
       return;
     }
     try {
@@ -185,7 +187,14 @@ const ProductCatalogPage = () => {
   };
 
   const handleDelete = async (product) => {
-    if (!window.confirm(`Remove "${product.name}" from catalog?`)) return;
+    const confirmed = await confirm({
+      title: "Remove product",
+      message: `Remove "${product.name}" from catalog?`,
+      confirmLabel: "Remove",
+      cancelLabel: "Keep product",
+      variant: "danger",
+    });
+    if (!confirmed) return;
     try {
       await deleteProduct(product._id);
       toast.success("Product removed");
@@ -208,7 +217,7 @@ const ProductCatalogPage = () => {
 
   const openShip = () => {
     if (selectedProducts.length === 0) {
-      toast.error("Select at least one product to ship");
+      toast.validation("Select at least one product to ship");
       return;
     }
     const qtyMap = {};
@@ -221,6 +230,13 @@ const ProductCatalogPage = () => {
 
   const handleShip = async (e) => {
     e.preventDefault();
+
+    const phone = String(shipForm.billing_phone || "").trim();
+    if (phone && !/^\d{10}$/.test(phone)) {
+      toast.validation("Enter a valid 10-digit customer phone number, or leave it blank");
+      return;
+    }
+
     try {
       setSubmitting(true);
 
@@ -248,7 +264,7 @@ const ProductCatalogPage = () => {
 
       const companyIds = [...new Set(selectedProducts.map((p) => p.companyID))];
       if (companyIds.length > 1) {
-        toast.error("Selected products must belong to the same company");
+        toast.validation("Selected products must belong to the same company");
         return;
       }
 
@@ -616,7 +632,7 @@ const ProductCatalogPage = () => {
                 />
                 <input
                   required
-                  placeholder="Phone *"
+                  placeholder="Phone (optional)"
                   value={shipForm.billing_phone}
                   onChange={(e) =>
                     setShipForm({ ...shipForm, billing_phone: e.target.value })

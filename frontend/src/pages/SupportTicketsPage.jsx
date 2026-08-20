@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import { Headphones, Plus, RefreshCw, Eye } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from '../utils/toast';
 import DocumentPreviewDialog from "../components/DocumentPreviewDialog";
 import useDocumentPreview from "../utils/useDocumentPreview";
 import {
@@ -90,11 +90,11 @@ const SupportTicketsPage = () => {
     e.preventDefault();
 
     if (!form.subject.trim()) {
-      toast.error("Subject is required");
+      toast.validation("Subject is required");
       return;
     }
     if (!form.description.trim()) {
-      toast.error("Description is required");
+      toast.validation("Description is required");
       return;
     }
 

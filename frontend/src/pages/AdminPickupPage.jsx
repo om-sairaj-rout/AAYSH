@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { toast } from 'react-hot-toast';
+import { toast } from '../utils/toast';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
     getAdminPickupsAPI,
@@ -19,7 +19,7 @@ const FailPickupModal = ({ isOpen, onClose, pickup, onConfirmFail }) => {
     e.preventDefault();
     const finalReason = failureReason === 'Other' ? customReason : failureReason;
     if (!finalReason) {
-      toast.error('Please specify a failure reason');
+      toast.validation('Please specify a failure reason');
       return;
     }
     onConfirmFail(pickup._id, finalReason);
@@ -113,7 +113,7 @@ const BulkFailPickupModal = ({ isOpen, onClose, selectedCount, onConfirmBulkFail
     e.preventDefault();
     const finalReason = failureReason === 'Other' ? customReason : failureReason;
     if (!finalReason) {
-      toast.error('Please specify a failure reason');
+      toast.validation('Please specify a failure reason');
       return;
     }
     onConfirmBulkFail(finalReason);

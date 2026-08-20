@@ -14,22 +14,31 @@ const { buildOrderScopeForUser } = require("../../utils/companyScope");
 const buildTabMatch = (tab) => {
   const todayStart = startOfDayIST(new Date());
   const todayEnd = endOfDayIST(new Date());
+  const activePickup = {
+    shippingStatus: { $ne: "Cancelled" },
+    pickupStatus: { $nin: ["Failed", "Cancelled"] },
+  };
 
   switch (tab) {
     case "today":
       return {
         pickupDate: { $gte: todayStart, $lte: todayEnd },
-        pickupStatus: { $nin: ["Failed", "Cancelled"] },
+        ...activePickup,
       };
     case "future":
       return {
         pickupDate: { $gt: todayEnd },
-        pickupStatus: { $nin: ["Failed", "Cancelled"] },
+        ...activePickup,
       };
     case "failed":
-      return { pickupStatus: "Failed" };
+      return { pickupStatus: "Failed", shippingStatus: { $ne: "Cancelled" } };
     case "cancelled":
-      return { pickupStatus: "Cancelled" };
+      return {
+        $or: [
+          { pickupStatus: "Cancelled" },
+          { shippingStatus: "Cancelled" },
+        ],
+      };
     case "completed":
       return { pickupStatus: "Completed" };
     case "all":
@@ -160,6 +169,7 @@ const getUserPickups = async (req, res) => {
             {
               $match: {
                 pickupDate: { $gte: todayStart, $lte: todayEnd },
+                shippingStatus: { $ne: "Cancelled" },
                 pickupStatus: { $nin: ["Failed", "Cancelled"] },
               },
             },
@@ -169,14 +179,30 @@ const getUserPickups = async (req, res) => {
             {
               $match: {
                 pickupDate: { $gt: todayEnd },
+                shippingStatus: { $ne: "Cancelled" },
                 pickupStatus: { $nin: ["Failed", "Cancelled"] },
               },
             },
             { $count: "count" },
           ],
-          failed: [{ $match: { pickupStatus: "Failed" } }, { $count: "count" }],
+          failed: [
+            {
+              $match: {
+                pickupStatus: "Failed",
+                shippingStatus: { $ne: "Cancelled" },
+              },
+            },
+            { $count: "count" },
+          ],
           cancelled: [
-            { $match: { pickupStatus: "Cancelled" } },
+            {
+              $match: {
+                $or: [
+                  { pickupStatus: "Cancelled" },
+                  { shippingStatus: "Cancelled" },
+                ],
+              },
+            },
             { $count: "count" },
           ],
           completed: [

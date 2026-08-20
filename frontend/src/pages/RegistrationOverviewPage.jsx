@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { getRegistrationStats, migrateLegacyCompanies } from "../api/authAPI";
 import { formatDisplayDate } from "../utils/dateTime";
-import { toast } from "react-hot-toast";
+import { toast } from '../utils/toast';
 
 const StatCard = ({ icon: Icon, label, value, hint, tone = "text-[#1B2B4B]", onClick }) => (
   <button

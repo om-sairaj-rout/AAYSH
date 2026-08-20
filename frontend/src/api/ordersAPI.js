@@ -308,3 +308,35 @@ export const getNextOrderId = async ({ sequence = "alphanumeric", companyId } = 
   }
   return data;
 };
+
+export const cancelOrder = async (orderIds) => {
+  const ids = Array.isArray(orderIds) ? orderIds : [orderIds];
+  const res = await fetch(`${BASE}/api/external/orders/cancel-order`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ order_id: ids }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to cancel order");
+  }
+  return data;
+};
+
+export const cancelShipments = async (awbs) => {
+  const list = Array.isArray(awbs) ? awbs : [awbs];
+  const res = await fetch(`${BASE}/api/external/shipments/cancel`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ awbs: list }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to cancel shipment");
+  }
+  return data;
+};

@@ -18,7 +18,7 @@ import {
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { registerUser } from "../api/authAPI";
-import { toast } from "react-hot-toast";
+import { toast } from '../utils/toast';
 
 const inputClass =
   "w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50/80 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition";
@@ -128,7 +128,7 @@ const Register = () => {
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      toast.error("Please fix the highlighted fields");
+      toast.validation("Please fix the highlighted fields");
       return;
     }
 

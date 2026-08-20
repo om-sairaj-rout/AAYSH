@@ -1,31 +1,35 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import {
   ArrowLeftRight,
+  ChevronLeft,
+  ChevronRight,
   MapPin,
   Phone,
   Plus,
   RefreshCw,
+  Search,
   User,
 } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from '../utils/toast';
 import {
   createReversePickup,
   getReversePickups,
+  searchReversePickupCustomers,
 } from "../api/reversePickupAPI";
 import { getOrderByAwb } from "../api/ordersAPI";
 import { getCompanyDetail } from "../api/companyAPI";
 import { getProducts } from "../api/productsAPI";
 import { canAccess } from "../utils/permissions";
 import { formatDisplayDate, todayISODateOnly } from "../utils/dateTime";
+import ReversePickupRouteCell from "../components/ReversePickupRouteCell";
+import {
+  getReversePickupAwb,
+  getReversePickupCourier,
+  getReversePickupStatusClass,
+  getReversePickupStatusDisplay,
+} from "../utils/reversePickupDisplay";
 
-const STATUS_STYLES = {
-  pending: "bg-amber-50 text-amber-700 border-amber-200",
-  approved: "bg-blue-50 text-blue-700 border-blue-200",
-  awb_assigned: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  rejected: "bg-rose-50 text-rose-700 border-rose-200",
-  failed: "bg-rose-50 text-rose-700 border-rose-200",
-};
 
 const inputClass =
   "w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white";
@@ -46,6 +50,7 @@ const buildEmptyForm = (user) => ({
   fromCity: "",
   fromState: "",
   fromPhone: "",
+  fromEmail: "",
   toName: user?.companyName || "",
   toAddress: "",
   toPincode: "",
@@ -95,6 +100,16 @@ const ReversePickupPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [awbLoading, setAwbLoading] = useState(false);
   const [showForm, setShowForm] = useState(true);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
+  const [customerResults, setCustomerResults] = useState([]);
+  const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const customerSearchTimer = useRef(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
+  const [pagination, setPagination] = useState({ total: 0, total_pages: 1 });
 
   const previewRequestNo = useMemo(
     () => `REV-RP-${Date.now().toString().slice(-8)}`,
@@ -104,21 +119,28 @@ const ReversePickupPage = () => {
   const invoiceValueNumber = Number(form.invoiceValue) || 0;
   const isDocumentRequired =
     invoiceValueNumber >= HIGH_VALUE_INVOICE_THRESHOLD;
+  const totalPages = pagination.total_pages || 1;
+  const totalRequests = pagination.total || 0;
 
   const setField = (key, value) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  const loadRequests = async () => {
+  const loadRequests = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await getReversePickups({ perPage: 50 });
+      const res = await getReversePickups({
+        page: currentPage,
+        perPage,
+        search: debouncedSearch,
+      });
       setRequests(res.requests || []);
+      setPagination(res.meta?.pagination || { total: 0, total_pages: 1 });
     } catch (error) {
       toast.error(error.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, perPage, debouncedSearch]);
 
   const loadCompanyDefaults = useCallback(async () => {
     if (!user?.companyID) return;
@@ -141,17 +163,82 @@ const ReversePickupPage = () => {
   }, [user?.companyID]);
 
   useEffect(() => {
-    loadRequests();
     loadCompanyDefaults();
     getProducts()
       .then((res) => setProducts(res.products || []))
       .catch(() => {});
   }, [loadCompanyDefaults]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, perPage]);
+
+  useEffect(() => {
+    loadRequests();
+  }, [loadRequests]);
+
+  useEffect(() => {
+    if (customerSearchTimer.current) {
+      clearTimeout(customerSearchTimer.current);
+    }
+
+    const query = customerSearchQuery.trim();
+    if (query.length < 2) {
+      setCustomerResults([]);
+      setCustomerSearchLoading(false);
+      return undefined;
+    }
+
+    customerSearchTimer.current = setTimeout(async () => {
+      try {
+        setCustomerSearchLoading(true);
+        const res = await searchReversePickupCustomers(query);
+        setCustomerResults(res.customers || []);
+        setShowCustomerDropdown(true);
+      } catch (error) {
+        setCustomerResults([]);
+        toast.error(error.message);
+      } finally {
+        setCustomerSearchLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      if (customerSearchTimer.current) {
+        clearTimeout(customerSearchTimer.current);
+      }
+    };
+  }, [customerSearchQuery]);
+
+  const applyCustomer = (customer) => {
+    setForm((prev) => ({
+      ...prev,
+      fromName: customer.name || prev.fromName,
+      fromPhone: customer.phone || prev.fromPhone,
+      fromEmail: customer.email || prev.fromEmail,
+      fromAddress: customer.address || prev.fromAddress,
+      fromAddress2: customer.address2 || prev.fromAddress2,
+      fromCity: customer.city || prev.fromCity,
+      fromState: customer.state || prev.fromState,
+      fromPincode: customer.pincode || prev.fromPincode,
+    }));
+    setCustomerSearchQuery(customer.name || "");
+    setCustomerResults([]);
+    setShowCustomerDropdown(false);
+    toast.success("Customer details filled");
+  };
+
   const loadFromOriginalAwb = async () => {
     const awb = form.originalAwbNumber.trim();
     if (!awb) {
-      toast.error("Enter the original shipment AWB number");
+      toast.validation("Enter the original shipment AWB number");
       return;
     }
 
@@ -222,6 +309,9 @@ const ReversePickupPage = () => {
       });
       toast.success("Reverse pickup request submitted for admin approval");
       setForm(buildEmptyForm(user));
+      setCustomerSearchQuery("");
+      setCustomerResults([]);
+      setShowCustomerDropdown(false);
       await loadCompanyDefaults();
       await loadRequests();
       setShowForm(false);
@@ -360,9 +450,70 @@ const ReversePickupPage = () => {
           <div className="border-t border-slate-100 pt-8">
             <Section
               title="Pickup Detail"
-              description="Customer location — where the package will be collected from."
+              description="Search existing customers or enter pickup location manually."
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Field label="Search Customer" className="sm:col-span-2 lg:col-span-4">
+                <div className="relative">
+                  <input
+                    value={customerSearchQuery}
+                    onChange={(e) => {
+                      setCustomerSearchQuery(e.target.value);
+                      setShowCustomerDropdown(true);
+                    }}
+                    onFocus={() => {
+                      if (customerResults.length > 0) {
+                        setShowCustomerDropdown(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => setShowCustomerDropdown(false), 150);
+                    }}
+                    placeholder="Search by customer name (min 2 characters)"
+                    className={inputClass}
+                  />
+                  {customerSearchLoading && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                      Searching...
+                    </span>
+                  )}
+                  {showCustomerDropdown && !customerSearchLoading && customerSearchQuery.trim().length >= 2 && customerResults.length === 0 && (
+                    <div className="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-lg px-4 py-3 text-xs text-slate-500">
+                      No customers found for this name.
+                    </div>
+                  )}
+                  {showCustomerDropdown && customerResults.length > 0 && (
+                    <div className="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-lg max-h-72 overflow-y-auto">
+                      <p className="px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-100">
+                        {customerResults.length} matching customer{customerResults.length === 1 ? "" : "s"} — select one
+                      </p>
+                      {customerResults.map((customer) => (
+                        <button
+                          key={customer.id}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => applyCustomer(customer)}
+                          className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-b-0"
+                        >
+                          <p className="font-semibold text-sm text-[#1B2B4B]">
+                            {customer.name}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {customer.phone || "No phone"}
+                            {customer.email ? ` · ${customer.email}` : ""}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
+                            {[customer.address, customer.address2].filter(Boolean).join(", ")}
+                            {customer.city || customer.pincode
+                              ? ` · ${[customer.city, customer.state, customer.pincode].filter(Boolean).join(", ")}`
+                              : ""}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:col-span-2 lg:col-span-4">
                 <Field label="Name">
                   <input
                     required
@@ -615,8 +766,20 @@ const ReversePickupPage = () => {
       )}
 
       <div className="bg-white rounded-[22px] shadow-sm border border-white overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100">
+        <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h2 className="font-bold text-[#1B2B4B]">Your Requests</h2>
+          <div className="relative w-full sm:max-w-sm">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by Order ID, AWB, or Status"
+              className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2.5 text-sm"
+            />
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -646,8 +809,13 @@ const ReversePickupPage = () => {
                   </td>
                 </tr>
               ) : (
-                requests.map((item) => (
-                  <tr key={item._id} className="hover:bg-slate-50/70">
+                requests.map((item) => {
+                  const statusDisplay = getReversePickupStatusDisplay(item);
+                  const awb = getReversePickupAwb(item);
+                  const courier = getReversePickupCourier(item);
+
+                  return (
+                  <tr key={item._id} className="hover:bg-slate-50/70 align-top">
                     <td className="px-4 py-4">
                       <p className="font-bold text-[#1B2B4B]">{item.requestId}</p>
                       <p className="text-xs text-slate-400 mt-0.5">
@@ -658,13 +826,14 @@ const ReversePickupPage = () => {
                       {item.originalAwbNumber || "—"}
                     </td>
                     <td className="px-4 py-4">
-                      <p className="font-medium text-[#1B2B4B]">
-                        {item.fromName}{" "}
-                        <span className="text-slate-400">({item.fromPincode})</span>
-                      </p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        → {item.toName} ({item.toPincode})
-                      </p>
+                      <ReversePickupRouteCell
+                        fromName={item.fromName}
+                        fromCity={item.fromCity}
+                        fromPincode={item.fromPincode}
+                        toName={item.toName}
+                        toCity={item.toCity}
+                        toPincode={item.toPincode}
+                      />
                     </td>
                     <td className="px-4 py-4 text-slate-600">
                       {item.itemDescription || "—"}
@@ -673,14 +842,17 @@ const ReversePickupPage = () => {
                       </p>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-slate-600">
-                      {formatDisplayDate(item.pickupDate)}
-                      <span className="text-slate-400"> · {item.pickupTime}</span>
+                      {formatDisplayDate(item.livePickupDate || item.pickupDate)}
+                      <span className="text-slate-400">
+                        {" "}
+                        · {item.livePickupTime || item.pickupTime}
+                      </span>
                     </td>
                     <td className="px-4 py-4">
                       <span
-                        className={`inline-flex px-2 py-1 rounded-full text-xs font-bold border ${STATUS_STYLES[item.status] || ""}`}
+                        className={`inline-flex px-2 py-1 rounded-full text-xs font-bold border ${getReversePickupStatusClass(statusDisplay)}`}
                       >
-                        {item.status.replace("_", " ")}
+                        {statusDisplay.label}
                       </span>
                       {item.rejectionReason && (
                         <p className="text-xs text-rose-500 mt-1">{item.rejectionReason}</p>
@@ -689,14 +861,56 @@ const ReversePickupPage = () => {
                         <p className="text-xs text-rose-500 mt-1">{item.failureReason}</p>
                       )}
                     </td>
-                    <td className="px-4 py-4 font-mono text-xs font-bold text-indigo-600">
-                      {item.awbNumber || "—"}
+                    <td className="px-4 py-4">
+                      <p className="font-mono text-xs font-bold text-indigo-600">{awb}</p>
+                      {courier && (
+                        <p className="text-xs text-slate-500 mt-0.5">{courier}</p>
+                      )}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="flex flex-col sm:flex-row justify-between items-center border-t border-slate-100 px-5 py-4 gap-4">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-slate-500">Rows per page:</span>
+            <select
+              value={perPage}
+              onChange={(e) => setPerPage(Number(e.target.value))}
+              className="bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs rounded-lg py-1.5 px-2.5"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+            <span className="text-xs text-slate-400">
+              Page {currentPage} of {totalPages} ({totalRequests} requests)
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg border border-slate-200 text-slate-400 disabled:opacity-30"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentPage((page) => Math.min(page + 1, totalPages))
+              }
+              disabled={currentPage === totalPages || totalRequests === 0}
+              className="p-2 rounded-lg border border-slate-200 text-slate-400 disabled:opacity-30"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

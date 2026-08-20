@@ -2,6 +2,7 @@ const Shipping = require("../../models/upload/shipping.model");
 const Order = require("../../models/upload/order.model");
 const Awb = require("../../models/awb/awb.model");
 const { userOwnsOrder } = require("../../utils/companyScope");
+const { applyShipmentCancellation } = require("../../utils/applyShipmentCancellation");
 
 const cancelShipments = async (req, res) => {
   try {
@@ -74,8 +75,7 @@ const cancelShipments = async (req, res) => {
           continue;
         }
 
-        shipment.shippingStatus = "Cancelled";
-        shipment.cancelledAt = new Date();
+        applyShipmentCancellation(shipment);
 
         await shipment.save();
 

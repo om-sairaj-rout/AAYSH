@@ -1,5 +1,6 @@
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
+const { validateOptionalPhone } = require("../../utils/phone");
 
 const updateCustomerDeliveryAddress = async (req, res) => {
   try {
@@ -24,7 +25,6 @@ const updateCustomerDeliveryAddress = async (req, res) => {
     if (
   !order_id ||
   !shipping_customer_name ||
-  !shipping_phone ||
   !shipping_address ||
   !shipping_city ||
   !shipping_state ||
@@ -34,9 +34,35 @@ const updateCustomerDeliveryAddress = async (req, res) => {
   return res.status(400).json({
     success: false,
     message:
-      "Required fields: order_id, shipping_customer_name, shipping_phone, shipping_address, shipping_city, shipping_state, shipping_country, shipping_pincode.",
+      "Required fields: order_id, shipping_customer_name, shipping_address, shipping_city, shipping_state, shipping_country, shipping_pincode.",
   });
 }
+
+    if (shipping_phone !== undefined && shipping_phone !== null) {
+      const phoneCheck = validateOptionalPhone(
+        shipping_phone,
+        "Customer phone number"
+      );
+      if (!phoneCheck.ok) {
+        return res.status(400).json({
+          success: false,
+          message: phoneCheck.message,
+        });
+      }
+    }
+
+    if (billing_alternate_phone !== undefined && billing_alternate_phone !== null) {
+      const alternatePhoneCheck = validateOptionalPhone(
+        billing_alternate_phone,
+        "Alternate phone number"
+      );
+      if (!alternatePhoneCheck.ok) {
+        return res.status(400).json({
+          success: false,
+          message: alternatePhoneCheck.message,
+        });
+      }
+    }
 
     const order = await Order.findOne({
       externalOrderId: order_id,
@@ -74,8 +100,19 @@ if (shipping) {
     if (shipping_customer_name !== undefined)
       order.consigneeName = shipping_customer_name;
 
-    if (shipping_phone !== undefined)
-      order.billingPhone = shipping_phone;
+    if (shipping_phone !== undefined) {
+      const phoneCheck = validateOptionalPhone(
+        shipping_phone,
+        "Customer phone number"
+      );
+      if (!phoneCheck.ok) {
+        return res.status(400).json({
+          success: false,
+          message: phoneCheck.message,
+        });
+      }
+      order.billingPhone = phoneCheck.value;
+    }
 
     if (shipping_address !== undefined)
       order.address = shipping_address;
@@ -98,8 +135,19 @@ if (shipping) {
     if (shipping_email !== undefined)
       order.consigneeEmail = shipping_email;
 
-    if (billing_alternate_phone !== undefined)
-        order.billingAlternatePhone = billing_alternate_phone;
+    if (billing_alternate_phone !== undefined) {
+      const alternatePhoneCheck = validateOptionalPhone(
+        billing_alternate_phone,
+        "Alternate phone number"
+      );
+      if (!alternatePhoneCheck.ok) {
+        return res.status(400).json({
+          success: false,
+          message: alternatePhoneCheck.message,
+        });
+      }
+      order.billingAlternatePhone = alternatePhoneCheck.value;
+    }
 
     await order.save();
 

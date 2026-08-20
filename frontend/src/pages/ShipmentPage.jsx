@@ -1,14 +1,34 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSelector } from "react-redux";
-import { ChevronLeft, ChevronRight, FileText, ClipboardList, Tag, Paperclip, Eye } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileText, ClipboardList, Tag, Paperclip, Eye, Ban } from 'lucide-react';
 import { getReversePickupDocumentByOrderId } from '../api/reversePickupAPI';
-import { getOrders, getOrderDocumentUrl } from '../api/ordersAPI';
+import { getOrders, getOrderDocumentUrl, cancelOrder, cancelShipments } from '../api/ordersAPI';
+import { useConfirm } from '../components/ConfirmDialog';
 import { generateLabelAPI, generateInvoiceAPI, generateManifestAPI } from "../api/labelAPI";
 import { useLatestRequestId } from '../utils/useLatestRequestId';
 import useDocumentPreview from '../utils/useDocumentPreview';
 import DocumentPreviewDialog from '../components/DocumentPreviewDialog';
-import { toast } from 'react-hot-toast';
+import { toast } from '../utils/toast';
 import { formatDisplayDate } from '../utils/dateTime';
+import { canAccess } from '../utils/permissions';
+
+const NON_CANCELLABLE_STATUSES = [
+  'Delivered',
+  'Out For Delivery',
+  'Returned',
+  'RTO',
+  'Cancelled',
+];
+
+const canCancelShipment = (order) => {
+  const status = order?.shipping?.shippingStatus || 'Pending';
+  if (NON_CANCELLABLE_STATUSES.includes(status)) return false;
+
+  const awb = order?.shipping?.awbNumber?.trim();
+  if (awb) return true;
+
+  return ['Pending', 'Booked'].includes(status);
+};
 
 /* ================= COPY BUTTON UI COMPONENT ================= */
 const CopyButton = ({ text, label, e }) => {
@@ -147,12 +167,14 @@ const ShipmentPage = () => {
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [counts, setCounts] = useState({});
   const { isAdmin, user } = useSelector((state) => state.auth);
+  const canWrite = canAccess(user, "shipments", "write") || canAccess(user, "orders", "write");
 
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage, setOrdersPerPage] = useState(20);
   const [pagination, setPagination] = useState({ total: 0, total_pages: 1 });
   const { startRequest, isLatestRequest } = useLatestRequestId();
   const { preview, openPreviewWithLoader, closePreview } = useDocumentPreview();
+  const { confirm } = useConfirm();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -302,6 +324,80 @@ const ShipmentPage = () => {
           order.reversePickup?.documentName || "reverse-pickup-document.pdf",
       }
     );
+  };
+
+  const handleCancelShipment = async (order) => {
+    if (!canCancelShipment(order)) {
+      toast.error("This shipment cannot be cancelled");
+      return;
+    }
+
+    const label = order.externalOrderId || order._id;
+    const confirmed = await confirm({
+      title: "Cancel shipment",
+      message: `Cancel shipment for order #${label}? This cannot be undone.`,
+      confirmLabel: "Cancel shipment",
+      cancelLabel: "Keep shipment",
+      variant: "danger",
+    });
+    if (!confirmed) return;
+
+    try {
+      const awb = order.shipping?.awbNumber?.trim();
+      if (awb) {
+        await cancelShipments([awb]);
+      } else {
+        await cancelOrder([order.externalOrderId]);
+      }
+      toast.success(`Shipment for #${label} cancelled`);
+      setSelectedOrders((prev) => prev.filter((id) => id !== order._id));
+      fetchOrders();
+    } catch (error) {
+      toast.error(error.message || "Failed to cancel shipment");
+    }
+  };
+
+  const handleBulkCancelShipments = async () => {
+    const cancellable = currentOrders.filter(
+      (order) => selectedOrders.includes(order._id) && canCancelShipment(order)
+    );
+
+    if (cancellable.length === 0) {
+      toast.error("No cancellable shipments selected");
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: "Cancel selected shipments",
+      message: `Cancel ${cancellable.length} selected shipment(s)? This cannot be undone.`,
+      confirmLabel: "Cancel shipments",
+      cancelLabel: "Keep shipments",
+      variant: "danger",
+    });
+    if (!confirmed) return;
+
+    try {
+      const withAwb = cancellable
+        .map((order) => order.shipping?.awbNumber?.trim())
+        .filter(Boolean);
+      const withoutAwb = cancellable
+        .filter((order) => !order.shipping?.awbNumber?.trim())
+        .map((order) => order.externalOrderId)
+        .filter(Boolean);
+
+      if (withAwb.length) {
+        await cancelShipments(withAwb);
+      }
+      if (withoutAwb.length) {
+        await cancelOrder(withoutAwb);
+      }
+
+      toast.success(`Cancelled ${cancellable.length} shipment(s)`);
+      setSelectedOrders([]);
+      fetchOrders();
+    } catch (error) {
+      toast.error(error.message || "Bulk cancel failed");
+    }
   };
 
   const handleViewCompanyDocument = async (order, document) => {
@@ -519,6 +615,16 @@ const ShipmentPage = () => {
                 <ClipboardList className="w-3.5 h-3.5" />
                 <span>Bulk Manifest ({selectedOrders.length})</span>
               </button>
+
+              {canWrite && (
+                <button
+                  onClick={handleBulkCancelShipments}
+                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold tracking-wide px-3.5 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-1.5"
+                >
+                  <Ban className="w-3.5 h-3.5" />
+                  <span>Cancel Selected</span>
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -815,13 +921,26 @@ const ShipmentPage = () => {
 
                     {/* SECTION 6: VIEW ACTIONS */}
                     <td className="p-4 sm:p-5 align-top whitespace-nowrap text-center">
-                      <ViewDropdown
-                        order={order}
-                        onViewLabel={handleViewLabel}
-                        onViewInvoice={handleViewInvoice}
-                        onViewManifest={handleViewManifest}
-                        onViewReversePickupDoc={handleViewReversePickupDoc}
-                      />
+                      <div className="inline-flex flex-col items-center gap-1.5">
+                        <ViewDropdown
+                          order={order}
+                          onViewLabel={handleViewLabel}
+                          onViewInvoice={handleViewInvoice}
+                          onViewManifest={handleViewManifest}
+                          onViewReversePickupDoc={handleViewReversePickupDoc}
+                        />
+                        {canWrite && canCancelShipment(order) && (
+                          <button
+                            type="button"
+                            onClick={() => handleCancelShipment(order)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors"
+                            title="Cancel shipment"
+                          >
+                            <Ban className="w-3 h-3" />
+                            Cancel
+                          </button>
+                        )}
+                      </div>
                     </td>
 
                   </tr>

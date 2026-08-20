@@ -12,6 +12,8 @@ const {
 const { parseISODateOnly } = require("../../utils/dateTime");
 const { resolveOrderWeights } = require("../../utils/weightCalculations");
 const { parseNoOfBoxes } = require("../../utils/parseNoOfBoxes");
+const { validateOptionalPhone } = require("../../utils/phone");
+const { syncReversePickupFromShipping } = require("../../utils/reversePickupSync");
 
 const SHIPPING_STATUSES = [
   "Pending",
@@ -461,11 +463,31 @@ const updateOrder = async (req, res) => {
     }
 
     if (billing_phone !== undefined) {
-      order.billingPhone = billing_phone;
+      const phoneCheck = validateOptionalPhone(
+        billing_phone,
+        "Customer phone number"
+      );
+      if (!phoneCheck.ok) {
+        return res.status(400).json({
+          success: false,
+          message: phoneCheck.message,
+        });
+      }
+      order.billingPhone = phoneCheck.value;
     }
 
     if (billing_alternate_phone !== undefined) {
-      order.billingAlternatePhone = billing_alternate_phone;
+      const alternatePhoneCheck = validateOptionalPhone(
+        billing_alternate_phone,
+        "Alternate phone number"
+      );
+      if (!alternatePhoneCheck.ok) {
+        return res.status(400).json({
+          success: false,
+          message: alternatePhoneCheck.message,
+        });
+      }
+      order.billingAlternatePhone = alternatePhoneCheck.value;
     }
 
     // =========================================
@@ -704,6 +726,10 @@ const updateOrder = async (req, res) => {
 
     await order.save();
     await shipping.save();
+
+    if (order.isReversePickup) {
+      await syncReversePickupFromShipping(order, shipping);
+    }
 
     // =========================================
     // Response

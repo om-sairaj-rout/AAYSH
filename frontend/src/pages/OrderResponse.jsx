@@ -1,5 +1,5 @@
 import { X, CheckCircle2, XCircle, Package, Copy } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '../utils/toast';
 
 const OrderResponse = ({ isOpen, onClose, responseData }) => {
   if (!isOpen || !responseData) return null;

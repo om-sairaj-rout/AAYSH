@@ -21,7 +21,7 @@ import {
   getAllUsers,
   updateUserAccount
 } from "../api/authAPI";
-import { toast } from "react-hot-toast"; // Imported for toast notifications
+import { toast } from '../utils/toast'; // Imported for toast notifications
 
 const EditAccount = () => {
   const [usersList, setUsersList] = useState([]);

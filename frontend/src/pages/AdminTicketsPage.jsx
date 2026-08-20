@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Headphones, RefreshCw, Eye } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from '../utils/toast';
 import DocumentPreviewDialog from "../components/DocumentPreviewDialog";
 import useDocumentPreview from "../utils/useDocumentPreview";
 import {

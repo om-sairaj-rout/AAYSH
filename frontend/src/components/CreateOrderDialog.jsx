@@ -12,7 +12,7 @@ import {
   Upload,
   CheckCircle2,
 } from "lucide-react";
-import { toast } from "react-hot-toast";
+import { toast } from '../utils/toast';
 import { createOrder, getNextOrderId, getOrderIdSequences } from "../api/ordersAPI";
 import { getProducts } from "../api/productsAPI";
 import { todayISODateOnly } from "../utils/dateTime";
@@ -126,9 +126,66 @@ const formatCompanyAddress = (source = {}) => {
   return [line1, cityState, pincode].filter(Boolean).join(", ");
 };
 
+const normalizeName = (value) => String(value || "").trim().toLowerCase();
+
+const resolveConsignorPhone = (company, consignorName) => {
+  if (!company) return "";
+
+  const target = normalizeName(consignorName);
+  const contacts = Array.isArray(company.consignorContacts)
+    ? company.consignorContacts
+    : [];
+
+  if (target) {
+    const matchedContact = contacts.find(
+      (contact) =>
+        normalizeName(contact.name) === target ||
+        normalizeName(contact.companyName) === target
+    );
+
+    if (matchedContact?.phone) {
+      return String(matchedContact.phone).trim();
+    }
+  }
+
+  if (company.consignorPhone) {
+    return String(company.consignorPhone).trim();
+  }
+
+  if (company.owner?.mobile_number) {
+    return String(company.owner.mobile_number).trim();
+  }
+
+  return "";
+};
+
+const resolveConsignorDefaults = (company, user, isAdmin = false) => {
+  const consignorName =
+    String(company?.consignorName || company?.companyName || "").trim() ||
+    (!isAdmin ? String(user?.companyName || "").trim() : "");
+
+  let consignor_phone = resolveConsignorPhone(company, consignorName);
+
+  if (!consignor_phone && !isAdmin && user?.mobile_number) {
+    consignor_phone = String(user.mobile_number).trim();
+  }
+
+  return {
+    consignor_name: consignorName,
+    consignor_phone,
+  };
+};
+
+const normalizeCompanyId = (companyId) => {
+  const value = String(companyId || "").trim();
+  return value && value !== "ALL" ? value : "";
+};
+
 const resolveCompanyForForm = (user, isAdmin, companiesList, selectedCompanyId) => {
-  if (isAdmin && selectedCompanyId && selectedCompanyId !== "ALL") {
-    return companiesList.find((item) => item.companyID === selectedCompanyId) || null;
+  const companyId = normalizeCompanyId(selectedCompanyId);
+
+  if (isAdmin && companyId) {
+    return companiesList.find((item) => item.companyID === companyId) || null;
   }
 
   if (user?.company) {
@@ -142,27 +199,32 @@ const resolveCompanyForForm = (user, isAdmin, companiesList, selectedCompanyId) 
     state: user?.state || "",
     zip_code: user?.zip_code || "",
     country: user?.country || "India",
+    consignorPhone: user?.mobile_number || "",
   };
 };
 
 const buildDefaultForm = (user, isAdmin, companiesList, selectedCompanyId) => {
-  const company = resolveCompanyForForm(user, isAdmin, companiesList, selectedCompanyId);
+  const companyId = isAdmin
+    ? normalizeCompanyId(selectedCompanyId)
+    : user?.companyID || "";
+  const company = resolveCompanyForForm(user, isAdmin, companiesList, companyId);
   const pickupLocation = formatCompanyAddress(company);
   const orderIdSequence = resolveDefaultSequence(
     user,
     isAdmin,
     companiesList,
-    selectedCompanyId
+    companyId
   );
+  const consignorDefaults = resolveConsignorDefaults(company, user, isAdmin);
 
   return {
     order_id: "",
     order_id_mode: "auto",
     order_id_sequence: orderIdSequence,
     order_date: todayISODateOnly(),
-    company_id: isAdmin ? selectedCompanyId || "" : user?.companyID || "",
-    consignor_name: company?.companyName || user?.companyName || "",
-    consignor_phone: user?.mobile_number || "",
+    company_id: companyId,
+    consignor_name: consignorDefaults.consignor_name,
+    consignor_phone: consignorDefaults.consignor_phone,
     pickup_location: pickupLocation,
     billing_customer_name: "",
     billing_last_name: "",
@@ -427,15 +489,36 @@ const CreateOrderDialog = ({
   };
 
   const handleCompanyChange = (companyId) => {
-    const company = companiesList.find((item) => item.companyID === companyId);
-    const sequence = resolveDefaultSequence(user, isAdmin, companiesList, companyId);
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    const company = companiesList.find(
+      (item) => item.companyID === normalizedCompanyId
+    );
+    const sequence = resolveDefaultSequence(
+      user,
+      isAdmin,
+      companiesList,
+      normalizedCompanyId
+    );
+    const consignorDefaults = resolveConsignorDefaults(company, user, isAdmin);
+
     setSequenceLocked(Boolean(company?.orderIdSequenceLocked));
     setForm((prev) => ({
       ...prev,
-      company_id: companyId,
-      consignor_name: company?.companyName || prev.consignor_name,
+      company_id: normalizedCompanyId,
+      consignor_name: consignorDefaults.consignor_name,
+      consignor_phone: consignorDefaults.consignor_phone,
       pickup_location: formatCompanyAddress(company),
       order_id_sequence: sequence,
+    }));
+  };
+
+  const handleConsignorNameChange = (consignorName) => {
+    const company = companiesList.find((item) => item.companyID === form.company_id);
+
+    setForm((prev) => ({
+      ...prev,
+      consignor_name: consignorName,
+      consignor_phone: resolveConsignorPhone(company, consignorName),
     }));
   };
 
@@ -448,40 +531,41 @@ const CreateOrderDialog = ({
   };
 
   const validateForm = () => {
-    if (isAdmin && !form.company_id) {
-      toast.error("Please select a company");
+    if (isAdmin && !normalizeCompanyId(form.company_id)) {
+      toast.validation("Please select a company");
       return false;
     }
     if (form.order_id_mode === "manual" && !form.order_id.trim()) {
-      toast.error("Order ID is required");
+      toast.validation("Order ID is required");
       return false;
     }
     if (form.order_id_mode === "auto" && isAdmin && !activeCompanyId) {
-      toast.error("Please select a company before creating an order");
+      toast.validation("Please select a company before creating an order");
       return false;
     }
     if (!form.pickup_location.trim()) {
-      toast.error("Pickup location is required");
+      toast.validation("Pickup location is required");
       return false;
     }
     if (!form.billing_customer_name.trim()) {
-      toast.error("Customer name is required");
+      toast.validation("Customer name is required");
       return false;
     }
-    if (!/^\d{10}$/.test(String(form.billing_phone || "").trim())) {
-      toast.error("Enter a valid 10-digit customer phone number");
+    const phone = String(form.billing_phone || "").trim();
+    if (phone && !/^\d{10}$/.test(phone)) {
+      toast.validation("Enter a valid 10-digit customer phone number, or leave it blank");
       return false;
     }
     if (!form.billing_address.trim()) {
-      toast.error("Customer address is required");
+      toast.validation("Customer address is required");
       return false;
     }
     if (!form.billing_city.trim() || !form.billing_state.trim()) {
-      toast.error("Customer city and state are required");
+      toast.validation("Customer city and state are required");
       return false;
     }
     if (!/^\d{6}$/.test(String(form.billing_pincode || "").trim())) {
-      toast.error("Enter a valid 6-digit pincode");
+      toast.validation("Enter a valid 6-digit pincode");
       return false;
     }
     if (
@@ -490,14 +574,14 @@ const CreateOrderDialog = ({
         ["INVOICE", "EWAYBILL"].includes(doc.documentType)
       )
     ) {
-      toast.error(
+      toast.validation(
         "Orders with invoice value ≥ ₹50,000 require an Invoice or E-Way Bill document"
       );
       return false;
     }
     const boxes = Number(form.no_of_boxes);
     if (form.no_of_boxes !== "" && form.no_of_boxes !== undefined && (!Number.isFinite(boxes) || boxes <= 0)) {
-      toast.error("No. of Boxes must be a valid positive number");
+      toast.validation("No. of Boxes must be a valid positive number");
       return false;
     }
     return true;
@@ -781,7 +865,7 @@ const CreateOrderDialog = ({
                   <label className={labelClass}>Consignor Name</label>
                   <input
                     value={form.consignor_name}
-                    onChange={(e) => updateField("consignor_name", e.target.value)}
+                    onChange={(e) => handleConsignorNameChange(e.target.value)}
                     className={inputClass}
                   />
                 </div>
@@ -793,6 +877,11 @@ const CreateOrderDialog = ({
                     onChange={(e) => updateField("consignor_phone", e.target.value)}
                     className={inputClass}
                   />
+                  <p className="mt-1.5 text-[11px] text-slate-400">
+                    {isAdmin
+                      ? "Prefilled from the selected company and consignor name. You can edit this before creating the order."
+                      : "Prefilled from your account. You can edit this before creating the order."}
+                  </p>
                 </div>
 
                 <div className="md:col-span-2">
@@ -830,7 +919,7 @@ const CreateOrderDialog = ({
                   className={inputClass}
                 />
                 <input
-                  placeholder="Phone *"
+                  placeholder="Phone no."
                   value={form.billing_phone}
                   onChange={(e) => updateField("billing_phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
                   className={inputClass}

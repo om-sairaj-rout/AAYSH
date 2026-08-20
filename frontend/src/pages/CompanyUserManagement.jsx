@@ -9,7 +9,8 @@ import {
   Pencil,
   ArrowLeft,
 } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "../utils/toast";
+import { useConfirm } from "../components/ConfirmDialog";
 import {
   getCompanyDetail,
   registerCompanyUser,
@@ -93,6 +94,7 @@ const RoleBadge = ({ role }) => {
 };
 
 const CompanyUserManagement = ({ companyID, backPath, backLabel }) => {
+  const { confirm } = useConfirm();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
@@ -179,7 +181,14 @@ const CompanyUserManagement = ({ companyID, backPath, backLabel }) => {
   };
 
   const handleDelete = async (user) => {
-    if (!window.confirm(`Remove ${user.email} from this company?`)) return;
+    const confirmed = await confirm({
+      title: "Remove user",
+      message: `Remove ${user.email} from this company?`,
+      confirmLabel: "Remove user",
+      cancelLabel: "Keep user",
+      variant: "danger",
+    });
+    if (!confirmed) return;
     try {
       await deleteCompanyUser(companyID, user._id);
       toast.success("User removed");

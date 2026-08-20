@@ -286,7 +286,7 @@ const getOrdersController = async (req, res) => {
           orderId: { $in: reversePickupOrderIds },
         })
           .select(
-            "orderId requestId status awbNumber supportingDocumentName supportingDocumentS3Key supportingDocumentPath"
+            "orderId requestId status awbNumber supportingDocumentName supportingDocumentS3Key supportingDocumentPath fromName fromPhone fromEmail fromAddress fromAddress2 fromCity fromState fromPincode toName toPhone toAddress toCity toState toPincode"
           )
           .lean()
       : [];

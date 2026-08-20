@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { toast } from 'react-hot-toast';
+import { toast } from '../utils/toast';
+import { useConfirm } from '../components/ConfirmDialog';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { pickupOrdersAPI, reschedulePickupAPI, cancelPickupAPI } from "../api/shipingAPI";
 import {
@@ -62,19 +63,19 @@ const ReschedulePickupModal = ({ isOpen, onClose, pickup, onConfirmReschedule })
 
     // 1. Check if same-day scheduling is attempted after 5:00 PM
     if (isToday && currentMinutes >= endLimit) {
-      toast.error('Pickups for today are closed as it is past 5:00 PM. Please select a future date.');
+      toast.validation('Pickups for today are closed as it is past 5:00 PM. Please select a future date.');
       return;
     }
 
     // 2. Check general 11:00 AM to 5:00 PM boundary
     if (selectedMinutes < startLimit || selectedMinutes > endLimit) {
-      toast.error('Pickup time must be between 11:00 AM and 5:00 PM.');
+      toast.validation('Pickup time must be between 11:00 AM and 5:00 PM.');
       return;
     }
 
     // 3. Check if time is in the past for today
     if (isToday && selectedMinutes <= currentMinutes) {
-      toast.error('Pickup time must be later than the current time.');
+      toast.validation('Pickup time must be later than the current time.');
       return;
     }
 
@@ -218,6 +219,7 @@ const TAB_TO_QUERY = {
 
 /* ================= MAIN PICKUP PAGE COMPONENT ================= */
 const UserPickupPage = () => {
+  const { confirm } = useConfirm();
   const { user } = useSelector((state) => state.auth);
   const canWrite = canAccess(user, "pickup", "write");
   const [activeTab, setActiveTab] = useState("Today's Pickups");
@@ -295,9 +297,14 @@ const UserPickupPage = () => {
   };
 
   const handleCancelPickup = async (pickupId) => {
-    if (!window.confirm("Are you sure you want to cancel this pickup request?")) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: "Cancel pickup",
+      message: "Are you sure you want to cancel this pickup request?",
+      confirmLabel: "Cancel pickup",
+      cancelLabel: "Keep pickup",
+      variant: "danger",
+    });
+    if (!confirmed) return;
 
     try {
       await cancelPickupAPI(pickupId);

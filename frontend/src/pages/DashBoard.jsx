@@ -19,7 +19,7 @@ import {
   Map,
   AlertTriangle,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from '../utils/toast';
 
 const NAVY = '#1B2B4B';
 const NAVY_LIGHT = '#E8ECF4';

@@ -8,6 +8,7 @@ const approveReversePickup = require("../controllers/reversePickupControllers/ap
 const rejectReversePickup = require("../controllers/reversePickupControllers/rejectReversePickup.controllers");
 const getReversePickupDocumentUrl = require("../controllers/reversePickupControllers/getReversePickupDocumentUrl.controllers");
 const getReversePickupDocumentByOrder = require("../controllers/reversePickupControllers/getReversePickupDocumentByOrder.controllers");
+const searchReversePickupCustomers = require("../controllers/reversePickupControllers/searchReversePickupCustomers.controllers");
 
 reversePickupRouter.post(
   "/reverse-pickups",
@@ -21,6 +22,12 @@ reversePickupRouter.get(
   checkAuth,
   checkPermission("pickup", "read"),
   getReversePickups
+);
+reversePickupRouter.get(
+  "/reverse-pickups/customers/search",
+  checkAuth,
+  checkPermission("pickup", "read"),
+  searchReversePickupCustomers
 );
 reversePickupRouter.get(
   "/reverse-pickups/order/:orderId/document-url",

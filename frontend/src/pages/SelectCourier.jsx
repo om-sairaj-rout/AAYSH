@@ -9,7 +9,7 @@ import {
   CheckCircle2,
   Package,
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '../utils/toast';
 import { todayISODateOnly } from '../utils/dateTime';
 import { shipOrdersAPI } from '../api/shipingAPI';
 import OrderResponse from './OrderResponse';
@@ -73,7 +73,7 @@ const SelectCourier = () => {
 
   useEffect(() => {
     if (!orders.length) {
-      toast.error('No orders selected for shipping');
+      toast.validation('No orders selected for shipping');
       navigate('/reports/all-orders', { replace: true });
     }
   }, [orders.length, navigate]);
@@ -94,7 +94,7 @@ const SelectCourier = () => {
     e.preventDefault();
 
     if (!selectedServiceType) {
-      toast.error('Please select a service type.');
+      toast.validation('Please select a service type.');
       return;
     }
 
@@ -107,19 +107,19 @@ const SelectCourier = () => {
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
     if (isToday && currentMinutes >= endLimit) {
-      toast.error(
+      toast.validation(
         'Pickups for today are closed as it is past 5:00 PM. Please select a future date.'
       );
       return;
     }
 
     if (selectedMinutes < startLimit || selectedMinutes > endLimit) {
-      toast.error('Pickup time must be between 11:00 AM and 5:00 PM.');
+      toast.validation('Pickup time must be between 11:00 AM and 5:00 PM.');
       return;
     }
 
     if (isToday && selectedMinutes <= currentMinutes) {
-      toast.error('Pickup time must be later than the current time.');
+      toast.validation('Pickup time must be later than the current time.');
       return;
     }
 

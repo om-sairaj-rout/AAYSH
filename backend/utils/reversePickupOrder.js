@@ -42,13 +42,13 @@ const createOrderFromReversePickup = async (request, user) => {
     `Reverse Pickup${request.originalAwbNumber ? ` (${request.originalAwbNumber})` : ""}`;
   const remarks = request.remarks || request.notes || "";
 
-  let consignorName = user?.companyName || "";
+  let companyName = user?.companyName || "";
   if (request.companyID) {
     const company = await Company.findOne({ companyID: request.companyID })
       .select("companyName")
       .lean();
     if (company?.companyName) {
-      consignorName = company.companyName;
+      companyName = company.companyName;
     }
   }
 
@@ -59,9 +59,9 @@ const createOrderFromReversePickup = async (request, user) => {
     companyID: request.companyID,
     externalOrderId,
     orderDate: now(),
-    consignorName,
-    consignorPhone: String(request.toPhone || user?.mobile_number || "").trim(),
-    consigneeName: request.fromName,
+    consignorName: request.fromName,
+    consignorPhone: String(request.fromPhone || "").trim(),
+    consigneeName: request.toName,
     consigneeLastName: "",
     address: request.toAddress,
     address2: "",
@@ -69,11 +69,13 @@ const createOrderFromReversePickup = async (request, user) => {
     destinationState: request.toState,
     destinationPincode: String(request.toPincode),
     destinationCountry: request.toCountry || "India",
-    consigneeEmail: request.fromEmail || "",
-    billingPhone: request.fromPhone,
+    consigneeEmail: "",
+    billingPhone: String(request.toPhone || "").trim(),
     paymentMethod: request.paymentMethod || "Prepaid",
     comment: [
       `Reverse pickup: ${request.requestId}`,
+      companyName ? `Company: ${companyName}` : "",
+      request.fromEmail ? `Pickup email: ${request.fromEmail}` : "",
       request.originalAwbNumber ? `Original AWB: ${request.originalAwbNumber}` : "",
       remarks,
     ]
@@ -106,7 +108,7 @@ const createOrderFromReversePickup = async (request, user) => {
     reversePickupId: request._id,
   });
 
-  await Shipping.create({
+  const shipping = await Shipping.create({
     orderId: order._id,
     shipmentId,
     pickupLocation,
@@ -118,7 +120,7 @@ const createOrderFromReversePickup = async (request, user) => {
     pickupInstructions: remarks,
   });
 
-  return { order, pickupLocation };
+  return { order, shipping, pickupLocation };
 };
 
 module.exports = {

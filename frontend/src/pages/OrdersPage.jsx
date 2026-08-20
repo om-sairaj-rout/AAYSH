@@ -1,20 +1,35 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { getOrders } from '../api/ordersAPI';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Eye,
+  FileText,
+  ClipboardList,
+  Tag,
+  Paperclip,
+  Ban,
+} from 'lucide-react';
+import { getOrders, cancelOrder, cancelShipments } from '../api/ordersAPI';
+import { useConfirm } from '../components/ConfirmDialog';
 import { getCompanies } from '../api/companyAPI';
 import { getDashboardData } from '../api/dashboardAPI';
-import { toast } from 'react-hot-toast';
+import { generateLabelAPI, generateInvoiceAPI, generateManifestAPI } from '../api/labelAPI';
+import { getReversePickupDocumentByOrderId } from '../api/reversePickupAPI';
+import { toast } from '../utils/toast';
 import OrderTracker from '../components/OrderTracker';
 import OrdersAnalyticsPanel from '../components/OrdersAnalyticsPanel';
+import DocumentPreviewDialog from '../components/DocumentPreviewDialog';
 import {
   formatDisplayDate,
 } from '../utils/dateTime';
+import { getOrderPartySections } from '../utils/reversePickupOrderDisplay';
 import { useLatestRequestId } from '../utils/useLatestRequestId';
+import useDocumentPreview from '../utils/useDocumentPreview';
 import { canAccess } from '../utils/permissions';
 import CreateOrderDialog from '../components/CreateOrderDialog';
-import { Plus } from 'lucide-react';
 
 const SEARCH_TYPES = {
   orderId: {
@@ -26,7 +41,7 @@ const SEARCH_TYPES = {
   phone: {
     label: 'Phone',
     apiType: 'phone',
-    placeholder: '10-digit mobile number',
+    placeholder: 'Mobile number (optional)',
   },
   customer: {
     label: 'Customer',
@@ -56,6 +71,24 @@ const buildOrderSearchParams = (searchType, searchQuery) => {
 
 const isSearchActive = (searchType, searchQuery) =>
   Boolean(String(searchQuery || '').trim());
+
+const NON_CANCELLABLE_STATUSES = [
+  'Delivered',
+  'Out For Delivery',
+  'Returned',
+  'RTO',
+  'Cancelled',
+];
+
+const canCancelShipment = (order) => {
+  const status = order?.shipping?.shippingStatus || 'Pending';
+  if (NON_CANCELLABLE_STATUSES.includes(status)) return false;
+
+  const awb = order?.shipping?.awbNumber?.trim();
+  if (awb) return true;
+
+  return ['Pending', 'Booked'].includes(status);
+};
 
 
 /* ================= COPY BUTTON UI COMPONENT ================= */
@@ -100,6 +133,113 @@ const CopyButton = ({ text, label, e }) => {
   );
 };
 
+/* ================= ROW VIEW DROPDOWN (same as Shipment page) ================= */
+const ViewDropdown = ({
+  order,
+  onViewLabel,
+  onViewInvoice,
+  onViewManifest,
+  onViewReversePickupDoc,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const hasAwb = Boolean(order.shipping?.awbNumber?.trim());
+  const showReversePickupDoc = Boolean(order.reversePickup?.documentDownloadable);
+  const hasAnyView = hasAwb || showReversePickupDoc;
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  if (!hasAnyView) {
+    return <span className="text-[11px] text-slate-300 font-medium">—</span>;
+  }
+
+  return (
+    <div className="relative inline-block text-left" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors focus:outline-none"
+        title="View Documents"
+      >
+        <Eye className="w-3.5 h-3.5" />
+        <span>View</span>
+      </button>
+
+      {isOpen && (
+        <div className="origin-top-right absolute right-0 mt-1 w-52 rounded-xl shadow-lg bg-white ring-1 ring-black/5 divide-y divide-slate-100 z-50 animate-in fade-in zoom-in-95 duration-100">
+          <div className="py-1">
+            {hasAwb && (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsOpen(false);
+                    onViewLabel(order._id);
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-2 transition-colors"
+                >
+                  <Tag className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>View Shipping Label</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsOpen(false);
+                    onViewInvoice(order._id);
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5 text-blue-500" />
+                  <span>View Invoice</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsOpen(false);
+                    onViewManifest(order._id);
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-teal-50 hover:text-teal-600 flex items-center gap-2 transition-colors"
+                >
+                  <ClipboardList className="w-3.5 h-3.5 text-teal-500" />
+                  <span>View Manifest</span>
+                </button>
+              </>
+            )}
+            {showReversePickupDoc && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsOpen(false);
+                  onViewReversePickupDoc(order);
+                }}
+                className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-2 transition-colors"
+              >
+                <Paperclip className="w-3.5 h-3.5 text-amber-600" />
+                <span>View Reverse Pickup Doc</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ================= ORDER DETAILS & TRACKING MODAL ================= */
 const OrderDetailsModal = ({ isOpen, onClose, order }) => {
   if (!isOpen || !order) return null;
@@ -107,6 +247,9 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
   const awbNumber = order.shipping?.awbNumber;
   const currentStatus = order.shipping?.shippingStatus || 'Pending';
   const trackingHistory = order.shipping?.trackingHistory || [];
+  const parties = getOrderPartySections(order);
+  const pickupParty = parties.pickup;
+  const deliveryParty = parties.delivery;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
@@ -152,30 +295,60 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="border border-slate-100 bg-slate-50/50 p-4 rounded-xl space-y-2">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Consignor (Sender)</h4>
-              <p className="text-sm font-semibold text-slate-800">{order.consignorName || 'N/A'}</p>
-              <p className="text-xs text-slate-500">Pickup Location: {order.shipping?.pickupLocation || 'Default Warehouse'}</p>
+            <div className="border border-emerald-100 bg-emerald-50/40 p-4 rounded-xl space-y-2">
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+                  {pickupParty.title}
+                </h4>
+                {pickupParty.subtitle && (
+                  <p className="text-[11px] text-emerald-600/80">{pickupParty.subtitle}</p>
+                )}
+              </div>
+              <p className="text-sm font-semibold text-slate-800">{pickupParty.name}</p>
+              {pickupParty.location && (
+                <p className="text-xs text-slate-600">
+                  Pickup Location: {pickupParty.location}
+                </p>
+              )}
+              {pickupParty.address && (
+                <p className="text-xs text-slate-600">{pickupParty.address}</p>
+              )}
+              {(pickupParty.city || pickupParty.state || pickupParty.pincode) && (
+                <p className="text-xs text-slate-600">
+                  {[pickupParty.city, pickupParty.state].filter(Boolean).join(", ")}
+                  {pickupParty.pincode ? ` - ${pickupParty.pincode}` : ""}
+                </p>
+              )}
               <p className="text-xs font-medium text-slate-700">
-                📞 {order.consignorPhone || 'N/A'}
+                📞 {pickupParty.phone || 'N/A'}
               </p>
+              {pickupParty.email && (
+                <p className="text-xs font-medium text-slate-700">✉️ {pickupParty.email}</p>
+              )}
             </div>
 
-            <div className="border border-slate-100 bg-slate-50/50 p-4 rounded-xl space-y-2">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Consignee (Receiver)</h4>
-              <p className="text-sm font-semibold text-slate-800">
-                {`${order.consigneeName || ''} ${order.consigneeLastName || ''}`.trim() || 'N/A'}
-              </p>
-              <p className="text-xs text-slate-600">
-                {order.address} {order.address2 ? `, ${order.address2}` : ''}
-              </p>
-              <p className="text-xs text-slate-600">
-                {order.destinationCity ? `${order.destinationCity}, ` : ''}
-                {order.destinationState || ''} {order.destinationPincode ? `- ${order.destinationPincode}` : ''}, {order.destinationCountry || 'India'}
-              </p>
+            <div className="border border-blue-100 bg-blue-50/40 p-4 rounded-xl space-y-2">
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-blue-700">
+                  {deliveryParty.title}
+                </h4>
+                {deliveryParty.subtitle && (
+                  <p className="text-[11px] text-blue-600/80">{deliveryParty.subtitle}</p>
+                )}
+              </div>
+              <p className="text-sm font-semibold text-slate-800">{deliveryParty.name}</p>
+              {deliveryParty.address && (
+                <p className="text-xs text-slate-600">{deliveryParty.address}</p>
+              )}
+              {(deliveryParty.city || deliveryParty.state || deliveryParty.pincode) && (
+                <p className="text-xs text-slate-600">
+                  {[deliveryParty.city, deliveryParty.state].filter(Boolean).join(", ")}
+                  {deliveryParty.pincode ? ` - ${deliveryParty.pincode}` : ""}
+                </p>
+              )}
               <div className="text-xs font-medium text-slate-700 mt-1 space-y-0.5">
-                <p>📞 {order.billingPhone || order.contactNo || 'N/A'} {order.billingAlternatePhone ? `/ ${order.billingAlternatePhone}` : ''}</p>
-                {order.consigneeEmail && <p>✉️ {order.consigneeEmail}</p>}
+                <p>📞 {deliveryParty.phone || 'N/A'}</p>
+                {deliveryParty.email && <p>✉️ {deliveryParty.email}</p>}
               </div>
             </div>
           </div>
@@ -300,6 +473,8 @@ const OrdersPage = () => {
     total_pages: 1,
   });
   const { startRequest, isLatestRequest } = useLatestRequestId();
+  const { preview, openPreviewWithLoader, closePreview } = useDocumentPreview();
+  const { confirm } = useConfirm();
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -428,6 +603,86 @@ const OrdersPage = () => {
     navigate('/select-courier', { state: { orders: [order] } });
   };
 
+  const handleViewLabel = (orderId) => {
+    openPreviewWithLoader(
+      async () => {
+        const blob = await generateLabelAPI({ orderIds: [orderId] });
+        const url = window.URL.createObjectURL(
+          new Blob([blob], { type: 'application/pdf' })
+        );
+        return { url, fileName: `shipping-label-${orderId}.pdf` };
+      },
+      { title: 'Shipping Label', fileName: `shipping-label-${orderId}.pdf` }
+    );
+  };
+
+  const handleViewInvoice = (orderId) => {
+    openPreviewWithLoader(
+      async () => {
+        const blob = await generateInvoiceAPI({ orderIds: [orderId] });
+        const url = window.URL.createObjectURL(
+          new Blob([blob], { type: 'application/pdf' })
+        );
+        return { url, fileName: `tax-invoice-${orderId}.pdf` };
+      },
+      { title: 'Tax Invoice', fileName: `tax-invoice-${orderId}.pdf` }
+    );
+  };
+
+  const handleViewManifest = (orderId) => {
+    openPreviewWithLoader(
+      async () => {
+        const blob = await generateManifestAPI({ orderIds: [orderId] });
+        const url = window.URL.createObjectURL(
+          new Blob([blob], { type: 'application/pdf' })
+        );
+        return { url, fileName: `dispatch-manifest-${orderId}.pdf` };
+      },
+      { title: 'Dispatch Manifest', fileName: `dispatch-manifest-${orderId}.pdf` }
+    );
+  };
+
+  const handleViewReversePickupDoc = (order) => {
+    openPreviewWithLoader(
+      () => getReversePickupDocumentByOrderId(order._id),
+      {
+        title: `${order.externalOrderId || order._id} — Reverse Pickup Document`,
+        fileName:
+          order.reversePickup?.documentName || 'reverse-pickup-document.pdf',
+      }
+    );
+  };
+
+  const handleCancelShipment = async (order) => {
+    if (!canCancelShipment(order)) {
+      toast.error('This shipment cannot be cancelled');
+      return;
+    }
+
+    const label = order.externalOrderId || order._id;
+    const confirmed = await confirm({
+      title: "Cancel shipment",
+      message: `Cancel shipment for order #${label}? This cannot be undone.`,
+      confirmLabel: "Cancel shipment",
+      cancelLabel: "Keep shipment",
+      variant: "danger",
+    });
+    if (!confirmed) return;
+
+    try {
+      const awb = order.shipping?.awbNumber?.trim();
+      if (awb) {
+        await cancelShipments([awb]);
+      } else {
+        await cancelOrder([order.externalOrderId]);
+      }
+      toast.success(`Order #${label} cancelled`);
+      fetchOrders();
+    } catch (error) {
+      toast.error(error.message || 'Failed to cancel shipment');
+    }
+  };
+
   const handleBulkShipClick = () => {
     const matchingSelectedDetails = allOrders.filter((o) =>
       selectedOrders.includes(o._id)
@@ -473,11 +728,12 @@ const OrdersPage = () => {
   }, [isAdmin, selectedCompany, companiesList, user]);
 
   const headers = [
-    'Order ID & Info', 
+    'Order ID & Info',
     'Order Items',
-    'Customer Details', 
+    'Customer Details',
     'AWB No.',
-    'Status & Actions'
+    'Status',
+    'Actions',
   ];
 
   return (
@@ -847,7 +1103,7 @@ const OrdersPage = () => {
                       </div>
                     </td>
 
-                    {/* SECTION 5: STATUS & ACTIONS */}
+                    {/* SECTION 5: STATUS */}
                     <td className="p-4 sm:p-5 align-top whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       <div className="pt-0.5">
                         {canWrite && order.shipping?.shippingStatus === 'Pending' && (
@@ -895,6 +1151,33 @@ const OrdersPage = () => {
                         )}
                         {!['Pending', 'Booked', 'Cancelled','RTO','Delivered','In Transit','Shipped'].includes(order.shipping?.shippingStatus) && (
                           <span className="text-slate-400 italic text-xs">{order.shipping?.shippingStatus || "No Actions"}</span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* SECTION 6: VIEW ACTIONS */}
+                    <td
+                      className="p-4 sm:p-5 align-top whitespace-nowrap text-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="inline-flex flex-col items-center gap-1.5">
+                        <ViewDropdown
+                          order={order}
+                          onViewLabel={handleViewLabel}
+                          onViewInvoice={handleViewInvoice}
+                          onViewManifest={handleViewManifest}
+                          onViewReversePickupDoc={handleViewReversePickupDoc}
+                        />
+                        {canWrite && canCancelShipment(order) && (
+                          <button
+                            type="button"
+                            onClick={() => handleCancelShipment(order)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors"
+                            title="Cancel shipment"
+                          >
+                            <Ban className="w-3 h-3" />
+                            Cancel
+                          </button>
                         )}
                       </div>
                     </td>
@@ -973,6 +1256,16 @@ const OrdersPage = () => {
         companiesList={companiesList}
         defaultCompanyId={selectedCompany}
         onSuccess={fetchOrders}
+      />
+
+      <DocumentPreviewDialog
+        open={preview.open}
+        onClose={closePreview}
+        title={preview.title}
+        fileName={preview.fileName}
+        url={preview.url}
+        loading={preview.loading}
+        error={preview.error}
       />
 
     </div>

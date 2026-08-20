@@ -9,30 +9,34 @@ const {
 const buildTabMatch = (tab) => {
   const todayStart = startOfDayIST(new Date());
   const todayEnd = endOfDayIST(new Date());
+  const activePickup = {
+    shippingStatus: { $ne: "Cancelled" },
+    pickupStatus: { $nin: ["Failed", "Cancelled"] },
+  };
 
   switch (tab) {
     case "today":
       return {
         pickupDate: { $gte: todayStart, $lte: todayEnd },
-        pickupStatus: { $ne: "Failed" },
+        ...activePickup,
       };
     case "future":
       return {
         pickupDate: { $gt: todayEnd },
-        pickupStatus: { $ne: "Failed" },
+        ...activePickup,
       };
     case "failed":
-      return { pickupStatus: "Failed" };
+      return { pickupStatus: "Failed", shippingStatus: { $ne: "Cancelled" } };
     case "completed":
       return { pickupStatus: "Completed" };
     case "scheduled":
-      return { pickupStatus: "Scheduled" };
+      return { pickupStatus: "Scheduled", shippingStatus: { $ne: "Cancelled" } };
     case "all":
       return {};
     default:
       return {
         pickupDate: { $gte: todayStart, $lte: todayEnd },
-        pickupStatus: { $ne: "Failed" },
+        ...activePickup,
       };
   }
 };
@@ -123,7 +127,7 @@ const getAdminPickups = async (req, res) => {
 
     const baseMatch = {
       awbNumber: { $ne: "" },
-      pickupStatus: { $in: ["Scheduled", "Failed", "Completed"] },
+      pickupStatus: { $in: ["Scheduled", "Failed", "Completed", "Cancelled"] },
       ...buildTabMatch(tab),
     };
 
@@ -202,7 +206,7 @@ const getAdminPickups = async (req, res) => {
       {
         $match: {
           awbNumber: { $ne: "" },
-          pickupStatus: { $in: ["Scheduled", "Failed", "Completed"] },
+          pickupStatus: { $in: ["Scheduled", "Failed", "Completed", "Cancelled"] },
         },
       },
       {
@@ -228,7 +232,8 @@ const getAdminPickups = async (req, res) => {
           {
             $match: {
               pickupDate: { $gte: todayStart, $lte: todayEnd },
-              pickupStatus: { $ne: "Failed" },
+              shippingStatus: { $ne: "Cancelled" },
+              pickupStatus: { $nin: ["Failed", "Cancelled"] },
             },
           },
           { $count: "count" },
@@ -237,18 +242,32 @@ const getAdminPickups = async (req, res) => {
           {
             $match: {
               pickupDate: { $gt: todayEnd },
-              pickupStatus: { $ne: "Failed" },
+              shippingStatus: { $ne: "Cancelled" },
+              pickupStatus: { $nin: ["Failed", "Cancelled"] },
             },
           },
           { $count: "count" },
         ],
-        failed: [{ $match: { pickupStatus: "Failed" } }, { $count: "count" }],
+        failed: [
+          {
+            $match: {
+              pickupStatus: "Failed",
+              shippingStatus: { $ne: "Cancelled" },
+            },
+          },
+          { $count: "count" },
+        ],
         completed: [
           { $match: { pickupStatus: "Completed" } },
           { $count: "count" },
         ],
         scheduled: [
-          { $match: { pickupStatus: "Scheduled" } },
+          {
+            $match: {
+              pickupStatus: "Scheduled",
+              shippingStatus: { $ne: "Cancelled" },
+            },
+          },
           { $count: "count" },
         ],
         all: [{ $count: "count" }],
@@ -261,7 +280,8 @@ const getAdminPickups = async (req, res) => {
       {
         $match: {
           awbNumber: { $ne: "" },
-          pickupStatus: { $in: ["Scheduled", "Failed", "Completed"] },
+          pickupStatus: { $in: ["Scheduled", "Failed", "Completed", "Cancelled"] },
+          shippingStatus: { $ne: "Cancelled" },
         },
       },
       {

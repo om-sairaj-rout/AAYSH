@@ -32,9 +32,27 @@ export const createReversePickup = async (payload) => {
   return data;
 };
 
+export const searchReversePickupCustomers = async (query) => {
+  const params = new URLSearchParams({ q: String(query || "").trim() });
+  const res = await fetch(
+    `${BASE}/api/reverse-pickups/customers/search?${params.toString()}`,
+    {
+      method: "GET",
+      ...defaultFetchOptions,
+    }
+  );
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to search customers");
+  }
+  return data;
+};
+
 export const getReversePickups = async ({
   status,
   companyId,
+  search,
   page = 1,
   perPage = 20,
 } = {}) => {
@@ -48,6 +66,9 @@ export const getReversePickups = async ({
   }
   if (companyId && companyId !== "ALL") {
     params.append("company_id", companyId);
+  }
+  if (search && String(search).trim()) {
+    params.append("search", String(search).trim());
   }
 
   const res = await fetch(`${BASE}/api/reverse-pickups?${params.toString()}`, {

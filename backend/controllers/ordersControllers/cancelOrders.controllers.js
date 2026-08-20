@@ -1,14 +1,13 @@
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const Tracking = require("../../models/upload/tracking.model");
+const Awb = require("../../models/awb/awb.model");
+const { userOwnsOrder } = require("../../utils/companyScope");
+const { applyShipmentCancellation } = require("../../utils/applyShipmentCancellation");
 
 const cancelOrder = async (req, res) => {
   try {
     const { order_id } = req.body;
-
-    // ============================
-    // Validation
-    // ============================
 
     if (!Array.isArray(order_id) || order_id.length === 0) {
       return res.status(400).json({
@@ -20,19 +19,23 @@ const cancelOrder = async (req, res) => {
     const cancelledOrders = [];
     const failedOrders = [];
 
-    // ============================
-    // Cancel Orders
-    // ============================
-
     for (const id of order_id) {
       const order = await Order.findOne({
-        externalOrderId: id,
+        externalOrderId: String(id).trim(),
       });
 
       if (!order) {
         failedOrders.push({
           order_id: id,
           reason: "Order not found",
+        });
+        continue;
+      }
+
+      if (!userOwnsOrder(order, req)) {
+        failedOrders.push({
+          order_id: id,
+          reason: "Unauthorized",
         });
         continue;
       }
@@ -59,19 +62,28 @@ const cancelOrder = async (req, res) => {
 
       const cancellableStatuses = ["Pending", "Booked"];
 
-if (!cancellableStatuses.includes(shipping.shippingStatus)) {
-  failedOrders.push({
-    order_id: id,
-    reason: `Order cannot be cancelled because shipping status is '${shipping.shippingStatus}'.`,
-  });
-  continue;
-}
+      if (!cancellableStatuses.includes(shipping.shippingStatus)) {
+        failedOrders.push({
+          order_id: id,
+          reason: `Order cannot be cancelled because shipping status is '${shipping.shippingStatus}'.`,
+        });
+        continue;
+      }
 
-shipping.shippingStatus = "Cancelled";
-shipping.cancelledAt = new Date();
+      const awbNumber = String(shipping.awbNumber || "").trim();
 
-      await order.save();
+      applyShipmentCancellation(shipping);
       await shipping.save();
+
+      if (awbNumber) {
+        await Awb.findOneAndUpdate(
+          { awbNumber },
+          {
+            status: "available",
+            assignedOrder: null,
+          }
+        );
+      }
 
       await Tracking.create({
         shippingId: shipping._id,
@@ -84,23 +96,22 @@ shipping.cancelledAt = new Date();
     }
 
     if (cancelledOrders.length === 0) {
-  return res.status(400).json({
-    success: false,
-    message: "No orders were cancelled.",
-    failed_orders: failedOrders,
-  });
-}
+      return res.status(400).json({
+        success: false,
+        message: "No orders were cancelled.",
+        failed_orders: failedOrders,
+      });
+    }
 
-return res.status(200).json({
-  success: true,
-  message:
-    failedOrders.length > 0
-      ? "Some orders were cancelled and some failed."
-      : "Order cancelled successfully.",
-  cancelled_orders: cancelledOrders,
-  failed_orders: failedOrders,
-});
-
+    return res.status(200).json({
+      success: true,
+      message:
+        failedOrders.length > 0
+          ? "Some orders were cancelled and some failed."
+          : "Order cancelled successfully.",
+      cancelled_orders: cancelledOrders,
+      failed_orders: failedOrders,
+    });
   } catch (error) {
     console.error(error);
 

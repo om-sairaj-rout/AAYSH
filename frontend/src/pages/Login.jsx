@@ -18,7 +18,7 @@ import { loginUser } from "../api/authAPI";
 import { useNavigate, Link, Navigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { authVerify } from "../store/slice/checkAuth";
-import { toast } from "react-hot-toast";
+import { toast } from '../utils/toast';
 
 const THEME_KEY = "aaysh-home-theme";
 

@@ -3,7 +3,7 @@ import aayshlogo from "../assets/aaysh_logo.png";
 import { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { resetPasswordAPI } from "../api/authAPI";
-import { toast } from "react-hot-toast";
+import { toast } from '../utils/toast';
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -24,7 +24,7 @@ const ResetPassword = () => {
       confirmPasswordRef.current.value
     ) {
       setErrorMsg("Passwords do not match");
-      toast.error("Passwords do not match");
+      toast.validation("Passwords do not match");
       return;
     }
 

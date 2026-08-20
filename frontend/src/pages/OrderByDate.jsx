@@ -4,7 +4,7 @@ import { getOrdersByDate } from "../api/ordersAPI";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useSelector } from "react-redux";
-import { toast } from "react-hot-toast";
+import { toast } from '../utils/toast';
 import { formatDisplayDate } from "../utils/dateTime";
 
 const HIDDEN_TABLE_KEYS = new Set([
@@ -67,7 +67,7 @@ const OrderByDateInfo = () => {
 
   const loadOrders = async (page = currentPage) => {
     if (!fromDate || !toDate) {
-      toast.error("Please select both dates");
+      toast.validation("Please select both dates");
       return;
     }
 
@@ -84,7 +84,7 @@ const OrderByDateInfo = () => {
     }
 
     if (new Date(formattedFrom) > new Date(formattedTo)) {
-      toast.error("From date cannot be greater than To date");
+      toast.validation("From date cannot be greater than To date");
       return;
     }
 
@@ -190,7 +190,7 @@ const OrderByDateInfo = () => {
 
   const handleExport = async () => {
     if (!fromDate || !toDate) {
-      toast.error("Please select both dates");
+      toast.validation("Please select both dates");
       return;
     }
 

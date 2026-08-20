@@ -5,7 +5,7 @@ import {
   downloadCompanyOrdersExcel,
   uploadAndUpdateStatusExcel,
 } from "../api/uploadAPI";
-import { toast } from 'react-hot-toast';
+import { toast } from '../utils/toast';
 
 const ExcelReportsPage = () => {
   const [companies, setCompanies] = useState([]);
@@ -64,7 +64,7 @@ const ExcelReportsPage = () => {
     if (!file) return;
 
     if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
-      toast.error("Invalid format! Please upload .xlsx file");
+      toast.validation("Invalid format! Please upload .xlsx file");
       e.target.value = "";
       return;
     }

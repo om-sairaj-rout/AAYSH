@@ -12,7 +12,7 @@ import {
   addCourierPartnerAPI,
   uploadAwbSheetAPI
 } from "../api/courierAPI";
-import { toast } from 'react-hot-toast';
+import { toast } from '../utils/toast';
 
 const AwbManagement = () => {
   const [couriers, setCouriers] = useState([]);
@@ -66,7 +66,7 @@ const AwbManagement = () => {
   const handleUploadSheet = async (e) => {
     e.preventDefault();
     if (!selectedCourierId || !selectedFile) {
-      toast.error('Please select a courier company and attach an AWB tracking sheet.'); 
+      toast.validation('Please select a courier company and attach an AWB tracking sheet.'); 
       return;
     }
 

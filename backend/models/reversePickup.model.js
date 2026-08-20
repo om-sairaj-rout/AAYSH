@@ -100,6 +100,7 @@ const reversePickupSchema = new mongoose.Schema(
     },
     externalOrderId: { type: String, default: "", trim: true },
     awbNumber: { type: String, default: "", trim: true },
+    courierName: { type: String, default: "", trim: true },
     assignedServiceType: {
       type: String,
       enum: ["surface", "air", "prime", null],

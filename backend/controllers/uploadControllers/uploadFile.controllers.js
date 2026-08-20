@@ -14,6 +14,7 @@ const {
 } = require("../../utils/invoiceCalculations");
 const { resolveOrderWeights } = require("../../utils/weightCalculations");
 const { parseNoOfBoxes } = require("../../utils/parseNoOfBoxes");
+const { validateOptionalPhone } = require("../../utils/phone");
 const {
   parseISODateOnly,
   parseISODateTime,
@@ -321,16 +322,8 @@ destinationCountry:
 consigneeEmail:
   row["Email"]?.toString().trim() || "",
 
-billingPhone:
-  String(row["Phone"] || "").trim(),
-
-billingAlternatePhone:
-  String(row["Alternate Phone"] || "").trim(),
-
-
-        // ==========================
-        // Order
-        // ==========================
+billingPhone: "",
+billingAlternatePhone: "",
 
         paymentMethod:
           row["Payment Method"]?.toString().trim() === "Prepaid"
@@ -395,6 +388,30 @@ invoiceValue: invoiceFields.invoiceValue,
         expectedHours,
         documents: [],
       };
+
+      const phoneCheck = validateOptionalPhone(
+        row["Phone"],
+        "Customer phone number"
+      );
+      if (!phoneCheck.ok) {
+        return res.status(400).json({
+          success: false,
+          message: `Row ${index + 2}: ${phoneCheck.message}`,
+        });
+      }
+      orderDoc.billingPhone = phoneCheck.value;
+
+      const alternatePhoneCheck = validateOptionalPhone(
+        row["Alternate Phone"],
+        "Alternate phone number"
+      );
+      if (!alternatePhoneCheck.ok) {
+        return res.status(400).json({
+          success: false,
+          message: `Row ${index + 2}: ${alternatePhoneCheck.message}`,
+        });
+      }
+      orderDoc.billingAlternatePhone = alternatePhoneCheck.value;
 
       orderDocs.push(orderDoc);
 

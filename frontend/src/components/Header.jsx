@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { logoutUser } from "../api/authAPI";
 import { logout } from "../store/slice/checkAuth";
 import { getOrderByAwb } from "../api/ordersAPI";
-import { toast } from "react-hot-toast";
+import { toast } from '../utils/toast';
 
 const TIMEZONE = "Asia/Kolkata";
 

@@ -1,21 +1,21 @@
 import { useEffect, useState } from "react";
 import { ArrowLeftRight, CheckCircle2, RefreshCw, XCircle } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from '../utils/toast';
 import {
   getReversePickups,
   approveReversePickup,
   rejectReversePickup,
 } from "../api/reversePickupAPI";
 import { getCompanies } from "../api/companyAPI";
+import { fetchCourierPartnersAPI } from "../api/courierAPI";
 import { formatDisplayDate } from "../utils/dateTime";
-
-const STATUS_STYLES = {
-  pending: "bg-amber-50 text-amber-700 border-amber-200",
-  approved: "bg-blue-50 text-blue-700 border-blue-200",
-  awb_assigned: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  rejected: "bg-rose-50 text-rose-700 border-rose-200",
-  failed: "bg-rose-50 text-rose-700 border-rose-200",
-};
+import ReversePickupRouteCell from "../components/ReversePickupRouteCell";
+import {
+  getReversePickupAwb,
+  getReversePickupCourier,
+  getReversePickupStatusClass,
+  getReversePickupStatusDisplay,
+} from "../utils/reversePickupDisplay";
 
 const AdminReversePickupPage = () => {
   const [requests, setRequests] = useState([]);
@@ -26,6 +26,9 @@ const AdminReversePickupPage = () => {
   const [selected, setSelected] = useState(null);
   const [modalMode, setModalMode] = useState(null);
   const [serviceType, setServiceType] = useState("surface");
+  const [awbNumber, setAwbNumber] = useState("");
+  const [courierName, setCourierName] = useState("");
+  const [couriersList, setCouriersList] = useState([]);
   const [rejectReason, setRejectReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -51,6 +54,11 @@ const AdminReversePickupPage = () => {
         if (res.success) setCompaniesList(res.companies || []);
       })
       .catch(() => {});
+    fetchCourierPartnersAPI()
+      .then((res) => {
+        if (res.success) setCouriersList(res.data || []);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -66,6 +74,8 @@ const AdminReversePickupPage = () => {
           ? "prime"
           : item.preferredServiceType || "surface"
     );
+    setAwbNumber("");
+    setCourierName("");
     setModalMode("approve");
   };
 
@@ -79,16 +89,36 @@ const AdminReversePickupPage = () => {
     setSelected(null);
     setModalMode(null);
     setRejectReason("");
+    setAwbNumber("");
+    setCourierName("");
   };
 
   const handleApprove = async () => {
     if (!selected) return;
+
+    const trimmedAwb = awbNumber.trim();
+    const trimmedCourier = courierName.trim();
+
+    if (!trimmedAwb) {
+      toast.validation("AWB number is required");
+      return;
+    }
+
+    if (!trimmedCourier) {
+      toast.validation("Courier name is required");
+      return;
+    }
+
     try {
       setActionLoading(true);
-      const res = await approveReversePickup(selected._id, { serviceType });
+      const res = await approveReversePickup(selected._id, {
+        serviceType,
+        awbNumber: trimmedAwb,
+        courierName: trimmedCourier,
+      });
       toast.success(
         res.order?.awbNumber
-          ? `Approved · AWB ${res.order.awbNumber}`
+          ? `Approved · AWB ${res.order.awbNumber} (${res.order.courier})`
           : "Request approved"
       );
       setSelected(null);
@@ -104,7 +134,7 @@ const AdminReversePickupPage = () => {
 
   const handleReject = async () => {
     if (!selected || !rejectReason.trim()) {
-      toast.error("Rejection reason is required");
+      toast.validation("Rejection reason is required");
       return;
     }
     try {
@@ -130,7 +160,7 @@ const AdminReversePickupPage = () => {
             Reverse Pickup Requests
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Review company requests, approve to create order and assign AWB automatically.
+            Review company requests, approve to create order, and enter AWB and courier manually.
           </p>
         </div>
         <button
@@ -201,13 +231,21 @@ const AdminReversePickupPage = () => {
                   </td>
                 </tr>
               ) : (
-                requests.map((item) => (
+                requests.map((item) => {
+                  const statusDisplay = getReversePickupStatusDisplay(item);
+                  const awb = getReversePickupAwb(item);
+                  const courier = getReversePickupCourier(item);
+
+                  return (
                   <tr key={item._id} className="hover:bg-slate-50/70 align-top">
                     <td className="px-4 py-4">
                       <p className="font-bold text-[#1B2B4B]">{item.requestId}</p>
                       <p className="text-xs text-slate-400">{formatDisplayDate(item.createdAt)}</p>
-                      {item.awbNumber && (
-                        <p className="text-xs font-mono text-indigo-600 mt-1">{item.awbNumber}</p>
+                      {awb !== "—" && (
+                        <p className="text-xs font-mono text-indigo-600 mt-1">{awb}</p>
+                      )}
+                      {courier && (
+                        <p className="text-xs text-slate-500 mt-0.5">{courier}</p>
                       )}
                     </td>
                     <td className="px-4 py-4 font-mono text-xs">
@@ -220,15 +258,14 @@ const AdminReversePickupPage = () => {
                       </p>
                     </td>
                     <td className="px-4 py-4">
-                      <p className="font-medium">{item.fromName}</p>
-                      <p className="text-xs text-slate-500">
-                        {item.fromCity}, {item.fromPincode}
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1">↓</p>
-                      <p className="font-medium">{item.toName}</p>
-                      <p className="text-xs text-slate-500">
-                        {item.toCity}, {item.toPincode}
-                      </p>
+                      <ReversePickupRouteCell
+                        fromName={item.fromName}
+                        fromCity={item.fromCity}
+                        fromPincode={item.fromPincode}
+                        toName={item.toName}
+                        toCity={item.toCity}
+                        toPincode={item.toPincode}
+                      />
                     </td>
                     <td className="px-4 py-4 text-xs text-slate-600">
                       {item.itemDescription || "—"}
@@ -238,13 +275,13 @@ const AdminReversePickupPage = () => {
                       {item.modeType || item.preferredServiceType}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-xs">
-                      {formatDisplayDate(item.pickupDate)}
+                      {formatDisplayDate(item.livePickupDate || item.pickupDate)}
                       <br />
-                      {item.pickupTime}
+                      {item.livePickupTime || item.pickupTime}
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold border ${STATUS_STYLES[item.status] || ""}`}>
-                        {item.status.replace("_", " ")}
+                      <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold border ${getReversePickupStatusClass(statusDisplay)}`}>
+                        {statusDisplay.label}
                       </span>
                       {item.failureReason && (
                         <p className="text-xs text-rose-500 mt-1 max-w-[200px]">
@@ -277,7 +314,8 @@ const AdminReversePickupPage = () => {
                       )}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -289,9 +327,37 @@ const AdminReversePickupPage = () => {
           <div className="bg-white rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
             <h3 className="text-lg font-bold text-[#1B2B4B]">Approve Reverse Pickup</h3>
             <p className="text-sm text-slate-500">
-              This will create an order, assign AWB, and schedule pickup for{" "}
-              <strong>{selected.requestId}</strong>.
+              This will create an order and schedule pickup for{" "}
+              <strong>{selected.requestId}</strong>. Enter AWB and courier before confirming.
             </p>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                AWB Number
+              </label>
+              <input
+                value={awbNumber}
+                onChange={(e) => setAwbNumber(e.target.value)}
+                placeholder="Enter AWB number"
+                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                Courier Name
+              </label>
+              <input
+                list="reverse-pickup-couriers"
+                value={courierName}
+                onChange={(e) => setCourierName(e.target.value)}
+                placeholder="Enter courier name"
+                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
+              />
+              <datalist id="reverse-pickup-couriers">
+                {couriersList.map((courier) => (
+                  <option key={courier._id} value={courier.name} />
+                ))}
+              </datalist>
+            </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                 Service Type
@@ -316,7 +382,7 @@ const AdminReversePickupPage = () => {
                 onClick={handleApprove}
                 className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50"
               >
-                {actionLoading ? "Processing..." : "Approve & Assign AWB"}
+                {actionLoading ? "Processing..." : "Approve & Process"}
               </button>
             </div>
           </div>

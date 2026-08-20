@@ -46,12 +46,34 @@ const buildReversePickupDocumentPayload = async (request) => {
 const buildReversePickupSummary = (request) => {
   if (!request) return null;
 
+  const pickup = {
+    name: request.fromName || "",
+    phone: request.fromPhone || "",
+    email: request.fromEmail || "",
+    address: request.fromAddress || "",
+    address2: request.fromAddress2 || "",
+    city: request.fromCity || "",
+    state: request.fromState || "",
+    pincode: request.fromPincode || "",
+  };
+
+  const delivery = {
+    name: request.toName || "",
+    phone: request.toPhone || "",
+    address: request.toAddress || "",
+    city: request.toCity || "",
+    state: request.toState || "",
+    pincode: request.toPincode || "",
+  };
+
   return {
     requestId: request.requestId,
     status: request.status,
     awbNumber: request.awbNumber || "",
     documentName: request.supportingDocumentName || "",
     documentDownloadable: isReversePickupDocumentDownloadable(request),
+    pickup,
+    delivery,
   };
 };
 
