@@ -584,7 +584,7 @@ const updateOrder = async (req, res) => {
 
     order.subTotal = calculateItemsSubTotal(order.orderItems || []);
 
-    if (invoice_no !== undefined && String(invoice_no).trim()) {
+    if (invoice_no !== undefined) {
       order.invoiceNo = String(invoice_no).trim();
     }
 

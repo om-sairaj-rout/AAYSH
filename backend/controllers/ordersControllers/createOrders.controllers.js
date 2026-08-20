@@ -13,6 +13,10 @@ const {
   validateHighValueDocuments,
   uploadOrderDocuments,
 } = require("../../utils/orderDocuments");
+const {
+  normalizeCreateOrderPayload,
+  validateNormalizedCreateOrder,
+} = require("../../utils/normalizeCreateOrderPayload");
 
 const generateId = () =>
   Math.floor(10000000 + Math.random() * 90000000).toString();
@@ -21,7 +25,7 @@ const generateUniqueShipmentId = async () => {
   let id;
   while (true) {
     id = generateId();
-    const exists = await Shipping.findOne({ shipmentId: id });
+    const exists = await Shipping.exists({ shipmentId: id });
     if (!exists) return id;
   }
 };
@@ -44,17 +48,19 @@ const parseCreateOrderBody = (req) => {
 
 const createCustomOrder = async (req, res) => {
   try {
-    const body = parseCreateOrderBody(req);
+    const rawBody = parseCreateOrderBody(req);
+    const body = normalizeCreateOrderPayload(rawBody);
 
-    if (!body.pickup_location) {
+    const validationError = validateNormalizedCreateOrder(body);
+    if (validationError) {
       return res.status(400).json({
         success: false,
-        error: "Missing required field: pickup_location",
+        error: validationError,
       });
     }
 
     const companyID = String(
-      body.company_id || body.companyID || req.user.companyID || ""
+      body.company_id || req.user.companyID || ""
     )
       .trim()
       .toUpperCase();
@@ -68,7 +74,14 @@ const createCustomOrder = async (req, res) => {
 
     let externalOrderId;
     try {
-      externalOrderId = await resolveOrderExternalId({ body, companyID });
+      externalOrderId = await resolveOrderExternalId({
+        body: {
+          order_id: body.order_id,
+          order_id_mode: body.order_id_mode,
+          order_id_sequence: body.order_id_sequence,
+        },
+        companyID,
+      });
     } catch (error) {
       return res.status(400).json({
         success: false,
@@ -76,7 +89,7 @@ const createCustomOrder = async (req, res) => {
       });
     }
 
-    const existingOrder = await Order.findOne({ externalOrderId });
+    const existingOrder = await Order.exists({ externalOrderId });
     if (existingOrder) {
       return res.status(400).json({
         success: false,
@@ -84,11 +97,10 @@ const createCustomOrder = async (req, res) => {
       });
     }
 
-    const orderItemsInput = Array.isArray(body.order_items) ? body.order_items : [];
     const invoiceFields = resolveInvoiceFields({
       invoiceNo: body.invoice_no,
       invoiceValue: body.invoice_value,
-      orderItems: orderItemsInput,
+      orderItems: body.orderItems,
       shippingCharges: body.shipping_charges,
       giftwrapCharges: body.giftwrap_charges,
       transactionCharges: body.transaction_charges,
@@ -96,7 +108,7 @@ const createCustomOrder = async (req, res) => {
     });
 
     const documentTypes = parseDocumentTypes(
-      body.document_types || req.body.document_types
+      body.document_types || rawBody.document_types || req.body.document_types
     );
     const files = Array.isArray(req.files) ? req.files : [];
 
@@ -135,8 +147,7 @@ const createCustomOrder = async (req, res) => {
       });
     }
 
-    const shipmentId = await generateUniqueShipmentId();
-    const category = getCategory(body.billing_city, body.billing_state);
+    const category = getCategory(body.destinationCity, body.destinationState);
     const serviceType = "surface";
     const expectedHours = getExpectedHours(category, serviceType);
 
@@ -144,13 +155,16 @@ const createCustomOrder = async (req, res) => {
     if (!consignorName) {
       consignorName = String(req.user.companyName || "").trim();
     }
-    if (!consignorName && companyID) {
-      const company = await Company.findOne({ companyID })
-        .select("companyName")
-        .lean();
-      if (company?.companyName) {
-        consignorName = String(company.companyName).trim();
-      }
+
+    const [shipmentId, company] = await Promise.all([
+      generateUniqueShipmentId(),
+      !consignorName && companyID
+        ? Company.findOne({ companyID }).select("companyName").lean()
+        : Promise.resolve(null),
+    ]);
+
+    if (!consignorName && company?.companyName) {
+      consignorName = String(company.companyName).trim();
     }
 
     const order = await Order.create({
@@ -164,19 +178,19 @@ const createCustomOrder = async (req, res) => {
       consignorPhone: String(
         body.consignor_phone || req.user.mobile_number || ""
       ).trim(),
-      consigneeName: body.billing_customer_name || "",
-      consigneeLastName: body.billing_last_name || "",
-      address: body.billing_address || "",
-      address2: body.billing_address_2 || "",
-      destinationCity: body.billing_city || "",
-      destinationState: body.billing_state || "",
-      destinationPincode: String(body.billing_pincode || ""),
-      destinationCountry: body.billing_country || "India",
-      consigneeEmail: body.billing_email || "",
-      billingPhone: body.billing_phone || "",
-      billingAlternatePhone: body.billing_alternate_phone || "",
-      paymentMethod: body.payment_method || "COD",
-      comment: body.comment || "",
+      consigneeName: body.consigneeName,
+      consigneeLastName: body.consigneeLastName,
+      address: body.address,
+      address2: body.address2,
+      destinationCity: body.destinationCity,
+      destinationState: body.destinationState,
+      destinationPincode: body.destinationPincode,
+      destinationCountry: body.destinationCountry,
+      consigneeEmail: body.consigneeEmail,
+      billingPhone: body.billingPhone,
+      billingAlternatePhone: body.billingAlternatePhone,
+      paymentMethod: body.paymentMethod,
+      comment: body.comment,
       orderItems: invoiceFields.orderItems,
       subTotal: invoiceFields.subTotal,
       shippingCharges: Number(body.shipping_charges || 0),
@@ -232,9 +246,19 @@ const createCustomOrder = async (req, res) => {
       chargeable_weight: order.chargeableWeight,
       no_of_boxes: order.noOfBoxes,
       documents_count: order.documents?.length || 0,
+      destination_pincode: order.destinationPincode,
+      consignee_name: `${order.consigneeName} ${order.consigneeLastName}`.trim(),
     });
   } catch (error) {
     console.error(error);
+
+    if (error?.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        error: "Duplicate Order ID already exists",
+      });
+    }
+
     return res.status(500).json({
       success: false,
       error: "Failed to create order",

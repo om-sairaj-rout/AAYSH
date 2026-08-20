@@ -115,6 +115,20 @@ const assignAwbCore = async ({
     }
 
     const serviceabilityPincode = getServiceabilityPincode(order);
+
+    if (!serviceabilityPincode) {
+      updatedOrders.push({
+        orderId: order._id,
+        orderNumber: order.externalOrderId,
+        consigneeName: order.consigneeName,
+        destinationPincode: "",
+        error: order.isReversePickup
+          ? "Order missing pickup pincode"
+          : "Order missing destination pincode",
+      });
+      continue;
+    }
+
     const serviceability = serviceabilityMap.get(serviceabilityPincode);
 
     if (!serviceability) {
@@ -123,7 +137,9 @@ const assignAwbCore = async ({
         orderNumber: order.externalOrderId,
         consigneeName: order.consigneeName,
         destinationPincode: serviceabilityPincode,
-        error: "Pickup pincode is not serviceable",
+        error: order.isReversePickup
+          ? "Pickup pincode is not serviceable"
+          : "Destination pincode is not serviceable",
       });
       continue;
     }

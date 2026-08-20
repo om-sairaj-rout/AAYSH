@@ -107,9 +107,9 @@ const generateAwbExternal = async (req, res) => {
 
     const pincodes = [
       ...new Set(
-        orderDocs.map(
-          (o) => o.destinationPincode
-        )
+        orderDocs
+          .map((o) => String(o.destinationPincode || "").trim())
+          .filter(Boolean)
       ),
     ];
 
@@ -168,10 +168,23 @@ const generateAwbExternal = async (req, res) => {
         continue;
       }
 
+      const destinationPincode = String(
+        order.destinationPincode || ""
+      ).trim();
+
+      if (!destinationPincode) {
+        updatedShipments.push({
+          shipmentId,
+          orderId: order.externalOrderId,
+          consigneeName: order.consigneeName,
+          destinationPincode: "",
+          error: "Order missing destination pincode",
+        });
+        continue;
+      }
+
       const serviceability =
-        serviceabilityMap.get(
-          order.destinationPincode
-        );
+        serviceabilityMap.get(destinationPincode);
 
       if (!serviceability) {
         updatedShipments.push({
@@ -179,8 +192,7 @@ const generateAwbExternal = async (req, res) => {
           orderId: order.externalOrderId,
           consigneeName:
             order.consigneeName,
-          destinationPincode:
-            order.destinationPincode,
+          destinationPincode,
           error:
             "Destination pincode is not serviceable",
         });

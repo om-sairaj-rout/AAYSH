@@ -531,7 +531,7 @@ const UpdateOrdersPage = () => {
                   orderDate: formData.order_date,
                   comment: formData.comment,
                   invoiceValue: data.invoice_value ?? o.invoiceValue,
-                  invoiceNo: formData.invoice_no || o.invoiceNo,
+                  invoiceNo: formData.invoice_no ?? "",
                   subTotal: data.sub_total ?? previewSubTotal,
                   shipping: {
                     ...(o.shipping || {}),

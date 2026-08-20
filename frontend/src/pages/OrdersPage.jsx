@@ -213,7 +213,13 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
               <div className="p-4 text-xs text-slate-400 italic">No itemized details recorded.</div>
             )}
 
-            <div className="border-t border-slate-100 bg-slate-50/50 p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+            <div className="border-t border-slate-100 bg-slate-50/50 p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-xs">
+              <div>
+                <span className="text-slate-400 block font-medium">Invoice No</span>
+                <span className="font-mono font-bold text-slate-900 break-all">
+                  {order.invoiceNo || "—"}
+                </span>
+              </div>
               <div>
                 <span className="text-slate-400 block font-medium">Invoice Value</span>
                 <span className="font-mono font-bold text-slate-900">₹{order.invoiceValue || 0}</span>
