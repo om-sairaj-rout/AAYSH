@@ -241,7 +241,7 @@ const generateInvoice = async (req, res) => {
             y += tableHeaderHeight;
 
             let itemsList = order.orderItems && order.orderItems.length > 0 ? order.orderItems : [
-                { name: "General Parcel Goods", units: order.qty || 1, sellingPrice: order.subTotal || order.invoiceValue || 0, discount: 0 }
+                { name: "General Parcel Goods", units: order.noOfBoxes || 1, sellingPrice: order.subTotal || order.invoiceValue || 0, discount: 0 }
             ];
 
             const itemRowHeight = 40;

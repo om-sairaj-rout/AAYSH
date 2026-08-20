@@ -62,6 +62,7 @@ const getTrackingByAwb = async (req, res) => {
             destination: `${order.destinationCity}, ${order.destinationState}`,
 
             weight: shipment.totalWeight,
+            no_of_boxes: order.noOfBoxes || 1,
           },
         ],
 

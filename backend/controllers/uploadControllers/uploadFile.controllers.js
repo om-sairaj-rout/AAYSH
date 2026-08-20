@@ -10,7 +10,10 @@ const getExpectedHours = require("../../utils/tatMapper");
 const {
   calculateInvoiceValue,
   calculateItemsSubTotal,
+  resolveInvoiceFields,
 } = require("../../utils/invoiceCalculations");
+const { resolveOrderWeights } = require("../../utils/weightCalculations");
+const { parseNoOfBoxes } = require("../../utils/parseNoOfBoxes");
 const {
   parseISODateOnly,
   parseISODateTime,
@@ -183,10 +186,9 @@ const uploadFileController = async (req, res) => {
 
     const orderIdsInFile = rowOrderIds.map((row) => row.externalOrderId);
     const existingOrders = await Order.find({
-      companyID,
       externalOrderId: { $in: orderIdsInFile },
     })
-      .select("externalOrderId")
+      .select("externalOrderId companyID")
       .lean();
 
     if (existingOrders.length > 0) {
@@ -195,7 +197,7 @@ const uploadFileController = async (req, res) => {
       );
       return res.status(400).json({
         success: false,
-        message: `Duplicate Order ID already exists for your company: ${duplicateOrderIds.join(", ")}`,
+        message: `Duplicate Order ID already exists: ${duplicateOrderIds.join(", ")}`,
         duplicateOrderIds,
       });
     }
@@ -224,6 +226,45 @@ const uploadFileController = async (req, res) => {
 
       const externalOrderId =
         row["Order ID"]?.toString().trim() || "";
+
+      const providedInvoiceNo =
+        row["Invoice No"] || row["Invoice Number"] || "";
+      const resolvedInvoiceNo =
+        providedInvoiceNo?.toString().trim() ||
+        (await generateUniqueInvoiceNo());
+
+      const invoiceFields = resolveInvoiceFields({
+        invoiceNo: resolvedInvoiceNo,
+        invoiceValue: row["Invoice Value"],
+        orderItems: [
+          {
+            units: Number(row["Units"]) || 1,
+            selling_price: Number(row["Selling Price"]) || 0,
+            discount: Number(row["Discount"]) || 0,
+            tax: Number(row["Tax"]) || 0,
+          },
+        ],
+        shippingCharges: Number(row["Shipping Charges"]) || 0,
+        giftwrapCharges: Number(row["Giftwrap Charges"]) || 0,
+        transactionCharges: Number(row["Transaction Charges"]) || 0,
+      });
+
+      const weights = resolveOrderWeights({
+        weight: Number(row["Weight"]) || 0,
+        length: Number(row["Length"]) || 0,
+        breadth: Number(row["Breadth"]) || 0,
+        height: Number(row["Height"]) || 0,
+      });
+
+      let noOfBoxes;
+      try {
+        noOfBoxes = parseNoOfBoxes(row["No. of Boxes"]);
+      } catch (error) {
+        return res.status(400).json({
+          success: false,
+          message: `Row ${index + 2}: ${error.message}`,
+        });
+      }
 
       const orderDoc = {
         // ==========================
@@ -315,16 +356,7 @@ orderItems: [
   },
 ],
 
-qty: Number(row["Units"]) || 0,
-
-subTotal: calculateItemsSubTotal([
-  {
-    units: Number(row["Units"]) || 1,
-    sellingPrice: Number(row["Selling Price"]) || 0,
-    discount: Number(row["Discount"]) || 0,
-    tax: Number(row["Tax"]) || 0,
-  },
-]),
+subTotal: invoiceFields.subTotal,
 
 shippingCharges:
   Number(row["Shipping Charges"]) || 0,
@@ -335,31 +367,17 @@ giftwrapCharges:
 transactionCharges:
   Number(row["Transaction Charges"]) || 0,
 
-invoiceNo: await generateUniqueInvoiceNo(),
+invoiceNo: invoiceFields.invoiceNo,
 
-invoiceValue: calculateInvoiceValue({
-  orderItems: [
-    {
-      units: Number(row["Units"]) || 1,
-      sellingPrice: Number(row["Selling Price"]) || 0,
-      discount: Number(row["Discount"]) || 0,
-      tax: Number(row["Tax"]) || 0,
-    },
-  ],
-  shippingCharges: Number(row["Shipping Charges"]) || 0,
-  giftwrapCharges: Number(row["Giftwrap Charges"]) || 0,
-  transactionCharges: Number(row["Transaction Charges"]) || 0,
-}),
+invoiceValue: invoiceFields.invoiceValue,
 
         totalDiscount:
   Number(row["Total Discount"]) || 0,
 
-        // ==========================
-        // Package
-        // ==========================
-
-        weight:
-          Number(row["Weight"]) || 0,
+        weight: weights.actualWeight,
+        actualWeight: weights.actualWeight,
+        volumetricWeight: weights.volumetricWeight,
+        chargeableWeight: weights.chargeableWeight,
 
         length:
           Number(row["Length"]) || 0,
@@ -370,14 +388,12 @@ invoiceValue: calculateInvoiceValue({
         height:
           Number(row["Height"]) || 0,
 
-        // ==========================
-        // Dashboard
-        // ==========================
-
+        noOfBoxes,
 
         category,
 
         expectedHours,
+        documents: [],
       };
 
       orderDocs.push(orderDoc);
@@ -396,7 +412,7 @@ invoiceValue: calculateInvoiceValue({
           orderDoc.shippingCharges,
 
         totalWeight:
-          orderDoc.weight,
+          weights.chargeableWeight,
       });
     }
 

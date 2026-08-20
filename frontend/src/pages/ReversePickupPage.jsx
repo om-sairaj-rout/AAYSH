@@ -179,7 +179,7 @@ const ReversePickupPage = () => {
         toName: order.consignorName || prev.toName,
         toAddress: shipping?.pickupLocation || prev.toAddress,
         weight: String(order.weight || shipping?.totalWeight || prev.weight || ""),
-        pieces: String(order.qty || prev.pieces || "1"),
+        pieces: String(order.noOfBoxes || order.qty || prev.pieces || "1"),
         itemDescription: firstItem?.name || prev.itemDescription,
         invoiceValue: String(order.invoiceValue ?? prev.invoiceValue ?? ""),
         modeType:

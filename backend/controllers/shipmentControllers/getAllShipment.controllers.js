@@ -118,6 +118,7 @@ const getAllShipments = async (req, res) => {
       pickup_date: toISTDate(shipment.pickupDate),
       pickup_location: shipment.pickupLocation,
       payment_method: shipment.order.paymentMethod,
+      no_of_boxes: shipment.order.noOfBoxes || 1,
     }));
 
     return res.status(200).json({

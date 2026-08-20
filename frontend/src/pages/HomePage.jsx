@@ -473,7 +473,7 @@ const HomePage = () => {
                   </div>
                   <div className="grid grid-cols-3 divide-x divide-white/10 text-center">
                     {[
-                      { label: "Quantity", value: `${orderData.qty || 1} unit(s)` },
+                      { label: "No. of Boxes", value: `${orderData.noOfBoxes || 1}` },
                       { label: "Invoice No", value: orderData.invoiceNo || "—" },
                       { label: "Value", value: `₹${orderData.invoiceValue || "0"}` },
                     ].map((item) => (

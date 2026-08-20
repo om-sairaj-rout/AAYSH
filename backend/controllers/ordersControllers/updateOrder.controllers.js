@@ -7,8 +7,34 @@ const getExpectedHours = require("../../utils/tatMapper");
 const {
   calculateInvoiceValue,
   calculateItemsSubTotal,
+  resolveInvoiceFields,
 } = require("../../utils/invoiceCalculations");
 const { parseISODateOnly } = require("../../utils/dateTime");
+const { resolveOrderWeights } = require("../../utils/weightCalculations");
+const { parseNoOfBoxes } = require("../../utils/parseNoOfBoxes");
+
+const SHIPPING_STATUSES = [
+  "Pending",
+  "Booked",
+  "Shipped",
+  "In Transit",
+  "Out For Delivery",
+  "Delivered",
+  "Cancelled",
+  "RTO",
+  "Returned",
+  "Exchange",
+  "Delayed",
+  "Delivery Attempt Failed",
+];
+
+const PICKUP_STATUSES = [
+  "Pending",
+  "Scheduled",
+  "Failed",
+  "Completed",
+  "Cancelled",
+];
 
 // =========================================
 // Helpers
@@ -66,6 +92,9 @@ const updateOrder = async (req, res) => {
 
       order_items,
 
+      invoice_no,
+      invoice_value,
+
       shipping_charges,
       giftwrap_charges,
       transaction_charges,
@@ -75,6 +104,15 @@ const updateOrder = async (req, res) => {
       length,
       breadth,
       height,
+
+      no_of_boxes,
+
+      shipping_status,
+      awb_number,
+      pickup_date,
+      pickup_time,
+      pickup_status,
+      courier_name,
     } = req.body;
 
     // =========================================
@@ -102,11 +140,48 @@ const updateOrder = async (req, res) => {
       });
     }
 
+    if (
+      shipping_status !== undefined &&
+      shipping_status !== null &&
+      shipping_status !== "" &&
+      !SHIPPING_STATUSES.includes(shipping_status)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid shipping_status. Allowed values: ${SHIPPING_STATUSES.join(", ")}.`,
+      });
+    }
+
+    if (
+      pickup_status !== undefined &&
+      pickup_status !== null &&
+      pickup_status !== "" &&
+      !PICKUP_STATUSES.includes(pickup_status)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid pickup_status. Allowed values: ${PICKUP_STATUSES.join(", ")}.`,
+      });
+    }
+
+    if (
+      pickup_time !== undefined &&
+      pickup_time !== null &&
+      String(pickup_time).trim() !== "" &&
+      !/^\d{2}:\d{2}$/.test(String(pickup_time).trim())
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid pickup_time. Expected format HH:mm.",
+      });
+    }
+
     // =========================================
     // Date Validation
     // =========================================
 
     let parsedOrderDate = null;
+    let parsedPickupDate = null;
 
     if (order_date !== undefined && order_date !== null && order_date !== "") {
       parsedOrderDate = parseISODateOnly(order_date);
@@ -115,6 +190,17 @@ const updateOrder = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: "Invalid order_date. Expected format YYYY-MM-DD.",
+        });
+      }
+    }
+
+    if (pickup_date !== undefined && pickup_date !== null && pickup_date !== "") {
+      parsedPickupDate = parseISODateOnly(pickup_date);
+
+      if (!parsedPickupDate) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid pickup_date. Expected format YYYY-MM-DD.",
         });
       }
     }
@@ -132,6 +218,7 @@ const updateOrder = async (req, res) => {
     let parsedLength;
     let parsedBreadth;
     let parsedHeight;
+    let parsedNoOfBoxes;
 
     try {
       parsedShippingCharges = parseNumber(
@@ -165,6 +252,10 @@ const updateOrder = async (req, res) => {
       parsedBreadth = parseNumber(breadth, "breadth", { min: 0 });
 
       parsedHeight = parseNumber(height, "height", { min: 0 });
+
+      if (no_of_boxes !== undefined) {
+        parsedNoOfBoxes = parseNoOfBoxes(no_of_boxes);
+      }
     } catch (error) {
       return res.status(400).json({
         success: false,
@@ -177,10 +268,10 @@ const updateOrder = async (req, res) => {
     // =========================================
 
     if (order_items !== undefined) {
-      if (!Array.isArray(order_items) || order_items.length === 0) {
+      if (!Array.isArray(order_items)) {
         return res.status(400).json({
           success: false,
-          message: "order_items must be a non-empty array.",
+          message: "order_items must be an array.",
         });
       }
 
@@ -194,18 +285,11 @@ const updateOrder = async (req, res) => {
           });
         }
 
-        if (!item.name || !String(item.name).trim()) {
-          return res.status(400).json({
-            success: false,
-            message: `Item name is required at index ${i}.`,
-          });
-        }
-
         try {
           const units = parseNumber(
             item.units,
             `order_items[${i}].units`,
-            { min: 1 }
+            { min: 0 }
           );
 
           const sellingPrice = parseNumber(
@@ -226,8 +310,6 @@ const updateOrder = async (req, res) => {
             { min: 0 }
           );
 
-          // Just force validation.
-          // Values are parsed again when mapping below.
           void units;
           void sellingPrice;
           void discount;
@@ -395,7 +477,6 @@ const updateOrder = async (req, res) => {
 
     if (parsedWeight !== undefined && parsedWeight !== null) {
       order.weight = parsedWeight;
-      shipping.totalWeight = parsedWeight;
     }
 
     if (parsedLength !== undefined && parsedLength !== null) {
@@ -409,6 +490,21 @@ const updateOrder = async (req, res) => {
     if (parsedHeight !== undefined && parsedHeight !== null) {
       order.height = parsedHeight;
     }
+
+    if (parsedNoOfBoxes !== undefined && parsedNoOfBoxes !== null) {
+      order.noOfBoxes = parsedNoOfBoxes;
+    }
+
+    const weights = resolveOrderWeights({
+      weight: order.weight,
+      length: order.length,
+      breadth: order.breadth,
+      height: order.height,
+    });
+    order.actualWeight = weights.actualWeight;
+    order.volumetricWeight = weights.volumetricWeight;
+    order.chargeableWeight = weights.chargeableWeight;
+    shipping.totalWeight = weights.chargeableWeight;
 
     // =========================================
     // Order Items
@@ -448,30 +544,91 @@ const updateOrder = async (req, res) => {
     // Recalculate Subtotal & Invoice Value
     // =========================================
 
-    if (!order.orderItems?.length) {
-      return res.status(400).json({
-        success: false,
-        message: "Order must contain at least one item.",
-      });
+    order.subTotal = calculateItemsSubTotal(order.orderItems || []);
+
+    if (invoice_no !== undefined && String(invoice_no).trim()) {
+      order.invoiceNo = String(invoice_no).trim();
     }
 
-    order.subTotal = calculateItemsSubTotal(order.orderItems);
+    const invoiceValueProvided =
+      invoice_value !== undefined &&
+      invoice_value !== null &&
+      String(invoice_value).trim() !== "";
 
-    const invoiceValue = calculateInvoiceValue({
-      orderItems: order.orderItems,
-      shippingCharges: order.shippingCharges,
-      giftwrapCharges: order.giftwrapCharges,
-      transactionCharges: order.transactionCharges,
-    });
-
-    if (invoiceValue < 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Invoice value cannot be negative.",
+    if (invoiceValueProvided) {
+      const providedValue = Number(invoice_value);
+      if (!Number.isFinite(providedValue) || providedValue < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "invoice_value must be a valid non-negative number.",
+        });
+      }
+      order.invoiceValue = Number(providedValue.toFixed(2));
+    } else {
+      const calculatedInvoiceValue = calculateInvoiceValue({
+        orderItems: order.orderItems || [],
+        shippingCharges: order.shippingCharges,
+        giftwrapCharges: order.giftwrapCharges,
+        transactionCharges: order.transactionCharges,
       });
+
+      if (calculatedInvoiceValue < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invoice value cannot be negative.",
+        });
+      }
+
+      order.invoiceValue = calculatedInvoiceValue;
     }
 
-    order.invoiceValue = invoiceValue;
+    // =========================================
+    // Shipping & Logistics
+    // =========================================
+
+    if (shipping_status !== undefined && shipping_status !== null && shipping_status !== "") {
+      shipping.shippingStatus = shipping_status;
+    }
+
+    if (awb_number !== undefined) {
+      const trimmedAwb = String(awb_number).trim();
+
+      if (trimmedAwb) {
+        const existingAwb = await Shipping.findOne({
+          awbNumber: trimmedAwb,
+          _id: { $ne: shipping._id },
+        }).lean();
+
+        if (existingAwb) {
+          return res.status(400).json({
+            success: false,
+            message: "AWB number is already assigned to another shipment.",
+          });
+        }
+
+        shipping.awbNumber = trimmedAwb;
+      } else {
+        shipping.awbNumber = "";
+      }
+    }
+
+    if (pickup_date === "") {
+      shipping.pickupDate = null;
+    } else if (parsedPickupDate !== null) {
+      shipping.pickupDate = parsedPickupDate;
+    }
+
+    if (pickup_time !== undefined) {
+      shipping.pickupTime = String(pickup_time || "").trim();
+    }
+
+    if (pickup_status !== undefined && pickup_status !== null && pickup_status !== "") {
+      shipping.pickupStatus = pickup_status;
+    }
+
+    if (courier_name !== undefined) {
+      shipping.courierName = String(courier_name).trim();
+    }
 
     // =========================================
     // Unsupported Fields
@@ -521,6 +678,12 @@ const updateOrder = async (req, res) => {
       shipment_id: shipping.shipmentId,
 
       shipping_status: shipping.shippingStatus,
+      awb_number: shipping.awbNumber,
+      pickup_date: shipping.pickupDate,
+      pickup_time: shipping.pickupTime,
+      pickup_status: shipping.pickupStatus,
+      courier_name: shipping.courierName,
+      no_of_boxes: order.noOfBoxes,
 
       invoice_value: order.invoiceValue,
       sub_total: order.subTotal,

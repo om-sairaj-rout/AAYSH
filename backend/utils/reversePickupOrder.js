@@ -91,6 +91,7 @@ const createOrderFromReversePickup = async (request, user) => {
       },
     ],
     qty: request.pieces || 1,
+    noOfBoxes: request.pieces || 1,
     subTotal: request.invoiceValue || 0,
     invoiceNo: generateInvoiceNo(),
     invoiceValue: request.invoiceValue || 0,

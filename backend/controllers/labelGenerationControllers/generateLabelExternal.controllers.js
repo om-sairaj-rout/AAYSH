@@ -305,7 +305,7 @@ if (logoPath && fs.existsSync(logoPath)) {
 
             // Col 1: Quantity & Weight
             doc.font(fontBold).fontSize(6.5).fillColor("#475569").text("QTY & WEIGHT", margin + 4, y + 5);
-            doc.font(fontNormal).fontSize(8.5).fillColor("#000000").text(`${order.qty || 1} PKG | ${order.weight || 0.5} KG`, margin + 4, y + 20);
+            doc.font(fontNormal).fontSize(8.5).fillColor("#000000").text(`${order.noOfBoxes || 1} PKG | ${order.chargeableWeight || order.weight || 0.5} KG`, margin + 4, y + 20);
 
             // Col 2: Invoice No
             doc.font(fontBold).fontSize(6.5).fillColor("#475569").text("INVOICE NO", margin + colWidth + 4, y + 5);

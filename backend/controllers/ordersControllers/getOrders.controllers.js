@@ -330,6 +330,12 @@ const getOrdersController = async (req, res) => {
           uploaderPhoneMap.get(String(order.uploadedBy)) ||
           "",
         reversePickup: buildReversePickupSummary(reversePickupRequest),
+        companyDocuments: (order.documents || []).map((document, index) => ({
+          index,
+          documentType: document.documentType,
+          fileName: document.fileName,
+          uploadedAt: document.uploadedAt,
+        })),
         shipping: {
           ...shippingData,
           trackingHistory,

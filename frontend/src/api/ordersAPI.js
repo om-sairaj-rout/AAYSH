@@ -216,12 +216,32 @@ export const updateOrder = async (formData) => {
   }
 };
 
-export const createOrder = async (payload) => {
+export const createOrder = async (payload, { documents = [] } = {}) => {
+  const hasDocuments = documents.length > 0;
+  let body;
+  let headers = {};
+
+  if (hasDocuments) {
+    const formData = new FormData();
+    formData.append("data", JSON.stringify(payload));
+    formData.append(
+      "document_types",
+      JSON.stringify(documents.map((item) => item.documentType))
+    );
+    documents.forEach((item) => {
+      formData.append("documents", item.file);
+    });
+    body = formData;
+  } else {
+    headers = { "Content-Type": "application/json" };
+    body = JSON.stringify(payload);
+  }
+
   const res = await fetch(`${BASE}/api/external/orders/create-order`, {
     method: "POST",
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    headers,
+    body,
   });
 
   const data = await res.json();
@@ -231,6 +251,26 @@ export const createOrder = async (payload) => {
   }
 
   return data;
+};
+
+export const getOrderDocumentUrl = async (orderId, documentIndex) => {
+  const res = await fetch(
+    `${BASE}/api/external/orders/${orderId}/documents/${documentIndex}/url`,
+    {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    }
+  );
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to fetch document URL");
+  }
+  return {
+    url: data.url || data.document?.downloadUrl,
+    document: data.document,
+  };
 };
 
 export const getOrderIdSequences = async () => {

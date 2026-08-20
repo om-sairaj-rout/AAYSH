@@ -52,6 +52,7 @@ const getTrackingByOrderId = async (req, res) => {
           customer_phone: order.billingPhone,
           destination: `${order.destinationCity}, ${order.destinationState}`,
           weight: order.weight,
+          no_of_boxes: order.noOfBoxes || 1,
           dimensions: `${order.length} x ${order.breadth} x ${order.height}`,
           products: order.orderItems.map((item) => ({
             name: item.name,

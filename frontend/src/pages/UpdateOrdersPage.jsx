@@ -12,15 +12,51 @@ import {
   CheckCircle,
   Phone,
   MapPin,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { getAllUsers } from "../api/authAPI";
 import { getOrdersByUser, updateOrder } from "../api/ordersAPI";
+import { getProducts } from "../api/productsAPI";
 import {
   formatDisplayDate,
   toDateInputValue,
   startOfDayIST,
   endOfDayIST,
 } from "../utils/dateTime";
+
+const EMPTY_ITEM = {
+  name: "",
+  sku: "",
+  units: 1,
+  selling_price: 0,
+  discount: 0,
+  tax: 0,
+  hsn: "",
+};
+
+const SHIPPING_STATUS_OPTIONS = [
+  "Pending",
+  "Booked",
+  "Shipped",
+  "In Transit",
+  "Out For Delivery",
+  "Delivered",
+  "Cancelled",
+  "RTO",
+  "Returned",
+  "Exchange",
+  "Delayed",
+  "Delivery Attempt Failed",
+];
+
+const PICKUP_STATUS_OPTIONS = [
+  "Pending",
+  "Scheduled",
+  "Failed",
+  "Completed",
+  "Cancelled",
+];
 
 const calculateItemsSubTotal = (orderItems = []) => {
   const itemsTotal = orderItems.reduce((sum, item) => {
@@ -141,10 +177,19 @@ const buildUpdatePayload = (formData) => ({
   transaction_charges: Number(formData.transaction_charges || 0),
   total_discount: Number(formData.total_discount || 0),
 
+  invoice_no: formData.invoice_no || "",
+  ...(String(formData.invoice_value ?? "").trim() !== ""
+    ? { invoice_value: Number(formData.invoice_value) }
+    : {}),
+
   weight: Number(formData.weight || 0),
   length: Number(formData.length || 0),
   breadth: Number(formData.breadth || 0),
   height: Number(formData.height || 0),
+  no_of_boxes:
+    formData.no_of_boxes !== undefined && String(formData.no_of_boxes).trim() !== ""
+      ? Number(formData.no_of_boxes)
+      : 1,
 
   order_items: (formData.order_items || []).map((item) => ({
     name: item.name?.trim(),
@@ -155,6 +200,13 @@ const buildUpdatePayload = (formData) => ({
     tax: Number(item.tax) || 0,
     hsn: item.hsn?.trim() || "",
   })),
+
+  shipping_status: formData.shipping_status,
+  awb_number: formData.awb_number,
+  pickup_date: formData.pickup_date || "",
+  pickup_time: formData.pickup_time || "",
+  pickup_status: formData.pickup_status,
+  courier_name: formData.courier_name,
 });
 
 const UpdateOrdersPage = () => {
@@ -172,6 +224,8 @@ const UpdateOrdersPage = () => {
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
+  const [products, setProducts] = useState([]);
+  const [productSearch, setProductSearch] = useState("");
 
   const previewSubTotal = useMemo(
     () => calculateItemsSubTotal(formData.order_items || []),
@@ -210,6 +264,27 @@ const UpdateOrdersPage = () => {
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    if (!editingOrder || !selectedUser) return undefined;
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await getProducts({
+          search: productSearch || undefined,
+          companyId: editingOrder.companyID || selectedUser.companyID,
+        });
+
+        if (res.success) {
+          setProducts(res.products || []);
+        }
+      } catch (error) {
+        console.error("Failed to load products:", error);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [editingOrder, productSearch, selectedUser]);
+
   const handleSelectUser = async (user) => {
     setSelectedUser(user);
     setOrders([]);
@@ -245,8 +320,11 @@ const UpdateOrdersPage = () => {
   // Open Edit Modal with Pre-filled Form
   const handleOpenEditModal = (order) => {
     setEditingOrder(order);
+    setProductSearch("");
+    setProducts([]);
     setFormData({
       order_id: order.externalOrderId,
+      company_id: order.companyID || selectedUser?.companyID || "",
     
       order_date: order.orderDate
         ? toDateInputValue(order.orderDate)
@@ -254,6 +332,15 @@ const UpdateOrdersPage = () => {
     
       pickup_location: order.shipping?.pickupLocation || "",
       comment: order.comment || "",
+
+      shipping_status: order.shipping?.shippingStatus || "Pending",
+      awb_number: order.shipping?.awbNumber || "",
+      pickup_date: order.shipping?.pickupDate
+        ? toDateInputValue(order.shipping.pickupDate)
+        : "",
+      pickup_time: order.shipping?.pickupTime || "",
+      pickup_status: order.shipping?.pickupStatus || "Pending",
+      courier_name: order.shipping?.courierName || "",
     
       billing_customer_name: order.consigneeName || "",
       billing_last_name: order.consigneeLastName || "",
@@ -284,11 +371,18 @@ const UpdateOrdersPage = () => {
       giftwrap_charges: order.giftwrapCharges ?? 0,
       transaction_charges: order.transactionCharges ?? 0,
       total_discount: order.totalDiscount ?? 0,
-    
-      weight: order.weight ?? 0,
+
+      invoice_no: order.invoiceNo || "",
+      invoice_value:
+        order.invoiceValue !== undefined && order.invoiceValue !== null
+          ? order.invoiceValue
+          : "",
+
+      weight: order.weight ?? order.actualWeight ?? 0,
       length: order.length ?? 0,
       breadth: order.breadth ?? 0,
       height: order.height ?? 0,
+      no_of_boxes: order.noOfBoxes ?? 1,
     
       order_items: order.orderItems
         ? order.orderItems.map((item) => ({
@@ -322,27 +416,69 @@ const UpdateOrdersPage = () => {
     }));
   };
 
+  const addItem = () => {
+    setFormData((prev) => ({
+      ...prev,
+      order_items: [...(prev.order_items || []), { ...EMPTY_ITEM }],
+    }));
+  };
+
+  const removeItem = (index) => {
+    const updatedItems = (formData.order_items || []).filter((_, itemIndex) => itemIndex !== index);
+    setFormData((prev) => ({
+      ...prev,
+      order_items: updatedItems,
+      sub_total: calculateItemsSubTotal(updatedItems),
+    }));
+  };
+
+  const addProductToItems = (product) => {
+    setFormData((prev) => {
+      const nextItems = [
+        ...(prev.order_items || []),
+        {
+          name: product.name || "",
+          sku: product.sku || "",
+          units: product.defaultUnits || 1,
+          selling_price: product.sellingPrice || 0,
+          discount: product.discount || 0,
+          tax: product.tax || 0,
+          hsn: product.hsn || "",
+        },
+      ];
+
+      return {
+        ...prev,
+        order_items: nextItems,
+        sub_total: calculateItemsSubTotal(nextItems),
+        weight:
+          Number(prev.weight || 0) +
+          Number(product.weight || 0) * Number(product.defaultUnits || 1),
+        length: Math.max(Number(prev.length || 0), Number(product.length || 0)),
+        breadth: Math.max(Number(prev.breadth || 0), Number(product.breadth || 0)),
+        height: Math.max(
+          Number(prev.height || 0),
+          Number(product.height || 0) * Number(product.defaultUnits || 1)
+        ),
+      };
+    });
+    setProductSearch("");
+  };
+
   // Submit Updated Order to Backend Controller
   const handleSubmitUpdate = async (e) => {
     e.preventDefault();
     setMessage({ type: "", text: "" });
 
-    if (!formData.order_items?.length) {
+    const boxes = Number(formData.no_of_boxes);
+    if (
+      formData.no_of_boxes !== undefined &&
+      String(formData.no_of_boxes).trim() !== "" &&
+      (!Number.isFinite(boxes) || boxes <= 0)
+    ) {
       setMessage({
         type: "error",
-        text: "Order must contain at least one item.",
-      });
-      return;
-    }
-
-    const hasInvalidItem = formData.order_items.some(
-      (item) => !item.name?.trim() || Number(item.units) < 1
-    );
-
-    if (hasInvalidItem) {
-      setMessage({
-        type: "error",
-        text: "Each item needs a name and at least 1 unit.",
+        text: "No. of Boxes must be a valid positive number.",
       });
       return;
     }
@@ -367,12 +503,20 @@ const UpdateOrdersPage = () => {
                   orderDate: formData.order_date,
                   comment: formData.comment,
                   invoiceValue: data.invoice_value ?? o.invoiceValue,
+                  invoiceNo: formData.invoice_no || o.invoiceNo,
                   subTotal: data.sub_total ?? previewSubTotal,
                   shipping: {
                     ...(o.shipping || {}),
                     pickupLocation: formData.pickup_location,
                     shippingCharges: Number(formData.shipping_charges),
                     totalWeight: Number(formData.weight),
+                    shippingStatus:
+                      data.shipping_status ?? formData.shipping_status,
+                    awbNumber: data.awb_number ?? formData.awb_number,
+                    pickupDate: formData.pickup_date || o.shipping?.pickupDate,
+                    pickupTime: data.pickup_time ?? formData.pickup_time,
+                    pickupStatus: data.pickup_status ?? formData.pickup_status,
+                    courierName: data.courier_name ?? formData.courier_name,
                   },
   
                   consigneeName: formData.billing_customer_name,
@@ -404,6 +548,7 @@ const UpdateOrdersPage = () => {
                   length: Number(formData.length),
                   breadth: Number(formData.breadth),
                   height: Number(formData.height),
+                  noOfBoxes: data.no_of_boxes ?? (Number(formData.no_of_boxes) || 1),
   
                   orderItems: formData.order_items?.map((item) => ({
                     name: item.name,
@@ -661,6 +806,8 @@ const UpdateOrdersPage = () => {
                             ))}
                             <p className="text-slate-400 font-medium">
                               Weight: <span className="text-slate-600">{order.weight} kg</span>
+                              {" · "}
+                              Boxes: <span className="text-slate-600">{order.noOfBoxes || 1}</span>
                             </p>
                           </td>
 
@@ -965,6 +1112,99 @@ const UpdateOrdersPage = () => {
                 </div>
               </div>
 
+              {/* Shipping & Logistics */}
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+                  Shipping & Logistics
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <label className="block text-slate-600 font-medium mb-1">
+                      Shipping Status
+                    </label>
+                    <select
+                      name="shipping_status"
+                      value={formData.shipping_status || "Pending"}
+                      onChange={handleChange}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:border-indigo-500"
+                    >
+                      {SHIPPING_STATUS_OPTIONS.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 font-medium mb-1">
+                      Pickup Status
+                    </label>
+                    <select
+                      name="pickup_status"
+                      value={formData.pickup_status || "Pending"}
+                      onChange={handleChange}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:border-indigo-500"
+                    >
+                      {PICKUP_STATUS_OPTIONS.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 font-medium mb-1">
+                      AWB Number
+                    </label>
+                    <input
+                      type="text"
+                      name="awb_number"
+                      value={formData.awb_number || ""}
+                      onChange={handleChange}
+                      placeholder="Enter AWB number"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:border-indigo-500 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 font-medium mb-1">
+                      Courier Name
+                    </label>
+                    <input
+                      type="text"
+                      name="courier_name"
+                      value={formData.courier_name || ""}
+                      onChange={handleChange}
+                      placeholder="Courier name"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 font-medium mb-1">
+                      Pickup Date
+                    </label>
+                    <input
+                      type="date"
+                      name="pickup_date"
+                      value={formData.pickup_date || ""}
+                      onChange={handleChange}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 font-medium mb-1">
+                      Pickup Time
+                    </label>
+                    <input
+                      type="time"
+                      name="pickup_time"
+                      value={formData.pickup_time || ""}
+                      onChange={handleChange}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Package & Logistics Dimensions */}
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
@@ -978,6 +1218,18 @@ const UpdateOrdersPage = () => {
                       step="0.1"
                       name="weight"
                       value={formData.weight}
+                      onChange={handleChange}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 font-medium mb-1">No. of Boxes</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      name="no_of_boxes"
+                      value={formData.no_of_boxes ?? 1}
                       onChange={handleChange}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:border-indigo-500"
                     />
@@ -1047,6 +1299,28 @@ const UpdateOrdersPage = () => {
                     </p>
                   </div>
                   <div>
+                    <label className="block text-slate-600 font-medium mb-1">Invoice No</label>
+                    <input
+                      type="text"
+                      name="invoice_no"
+                      value={formData.invoice_no || ""}
+                      onChange={handleChange}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 font-medium mb-1">Invoice Value (₹)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="invoice_value"
+                      value={formData.invoice_value ?? ""}
+                      onChange={handleChange}
+                      placeholder="Auto-calculated if blank"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-slate-600 font-medium mb-1">Shipping Charges (₹)</label>
                     <input
                       type="number"
@@ -1108,9 +1382,53 @@ const UpdateOrdersPage = () => {
 
               {/* Items Section */}
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-                  Order Items
-                </h4>
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Order Items
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={addItem}
+                    className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700"
+                  >
+                    <Plus size={14} />
+                    Add Item
+                  </button>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-slate-600 font-medium mb-1 text-xs">
+                    Quick add from catalog
+                  </label>
+                  <input
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    placeholder="Search products by name or SKU"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs focus:border-indigo-500"
+                  />
+                  {products.length > 0 && productSearch.trim() && (
+                    <div className="mt-2 max-h-40 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100 bg-white">
+                      {products.slice(0, 8).map((product) => (
+                        <button
+                          key={product._id}
+                          type="button"
+                          onClick={() => addProductToItems(product)}
+                          className="w-full px-3 py-2 text-left text-xs hover:bg-slate-50 flex items-center justify-between gap-3"
+                        >
+                          <span className="font-semibold text-slate-700">{product.name}</span>
+                          <span className="text-slate-400">{product.sku || "No SKU"}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {formData.order_items?.length === 0 && (
+                  <p className="text-xs text-slate-400 italic mb-3">
+                    No items yet. Add manually or search the product catalog.
+                  </p>
+                )}
+
                 {formData.order_items?.map((item, idx) => (
                   <div
                     key={idx}
@@ -1124,6 +1442,16 @@ const UpdateOrdersPage = () => {
                         onChange={(e) => handleItemChange(idx, "name", e.target.value)}
                         className="w-full bg-white border border-slate-200 rounded-lg p-1.5"
                       />
+                    </div>
+                    <div className="flex items-end justify-end">
+                      <button
+                        type="button"
+                        onClick={() => removeItem(idx)}
+                        className="inline-flex items-center justify-center rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 p-2"
+                        title="Remove item"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                     <div>
                       <label className="block text-slate-500 text-[10px]">SKU</label>

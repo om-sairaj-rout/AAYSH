@@ -6,12 +6,6 @@ const {
   isValidOrderIdSequence,
 } = require("../constants/orderIdSequences");
 
-const buildCounterId = (companyID) =>
-  String(companyID).trim().toUpperCase();
-
-const buildLegacyCounterId = (companyID, sequenceType) =>
-  `${buildCounterId(companyID)}:${sequenceType}`;
-
 const getSequenceConfig = (sequenceType) => {
   if (!isValidOrderIdSequence(sequenceType)) {
     throw new Error(`Unsupported order ID sequence: ${sequenceType}`);
@@ -24,52 +18,59 @@ const formatOrderId = (sequenceType, seq) => {
   return config.format(seq);
 };
 
-const inferSequenceFromOrders = async (companyID) => {
-  const normalizedCompanyID = buildCounterId(companyID);
-  const orders = await Order.find({ companyID: normalizedCompanyID })
-    .select("externalOrderId")
-    .lean();
+const buildCounterId = (sequenceType) =>
+  String(sequenceType || "").trim().toLowerCase();
 
-  let numericMax = 0;
-  let alphaMax = 0;
-  let numericCount = 0;
-  let alphaCount = 0;
+const ensureGlobalCounter = async (sequenceType) => {
+  const counterId = buildCounterId(sequenceType);
+  const config = getSequenceConfig(sequenceType);
 
-  for (const order of orders) {
-    const numericSeq = ORDER_ID_SEQUENCES.numeric.parse(order.externalOrderId);
-    const alphaSeq = ORDER_ID_SEQUENCES.alphanumeric.parse(
-      order.externalOrderId
-    );
+  const existing = await OrderIdCounter.findById(counterId).lean();
+  if (existing) {
+    return existing;
+  }
 
-    if (numericSeq >= ORDER_ID_SEQUENCES.numeric.startAt) {
-      numericCount += 1;
-      numericMax = Math.max(numericMax, numericSeq);
-    }
-
-    if (alphaSeq >= ORDER_ID_SEQUENCES.alphanumeric.startAt) {
-      alphaCount += 1;
-      alphaMax = Math.max(alphaMax, alphaSeq);
+  try {
+    await OrderIdCounter.create({
+      _id: counterId,
+      sequenceType: counterId,
+      seq: config.startAt - 1,
+    });
+  } catch (error) {
+    if (error?.code !== 11000) {
+      throw error;
     }
   }
 
-  if (numericCount > 0 && alphaCount === 0) {
-    return "numeric";
+  return OrderIdCounter.findById(counterId).lean();
+};
+
+const readGlobalCounter = async (sequenceType) => {
+  const counterId = buildCounterId(sequenceType);
+  return OrderIdCounter.findById(counterId).lean();
+};
+
+const orderIdExists = async (orderId) =>
+  Boolean(await Order.exists({ externalOrderId: String(orderId || "").trim() }));
+
+const findNextAvailableOrderId = async (sequenceType, startSeq, maxScan = 1000) => {
+  const config = getSequenceConfig(sequenceType);
+  let seq = Math.max(startSeq, config.startAt);
+
+  for (let scanned = 0; scanned < maxScan; scanned += 1) {
+    const orderId = formatOrderId(sequenceType, seq);
+    if (!(await orderIdExists(orderId))) {
+      return { orderId, seq };
+    }
+    seq += 1;
   }
 
-  if (alphaCount > 0 && numericCount === 0) {
-    return "alphanumeric";
-  }
-
-  if (numericCount > 0 && alphaCount > 0) {
-    return alphaMax >= numericMax ? "alphanumeric" : "numeric";
-  }
-
-  return null;
+  throw new Error("Unable to find an available order ID preview");
 };
 
 const lockCompanyOrderIdSequence = async (companyID, sequenceType) => {
-  const normalizedCompanyID = buildCounterId(companyID);
-  const normalizedSequence = String(sequenceType || "").trim().toLowerCase();
+  const normalizedCompanyID = String(companyID || "").trim().toUpperCase();
+  const normalizedSequence = buildCounterId(sequenceType);
 
   if (!isValidOrderIdSequence(normalizedSequence)) {
     throw new Error(`Unsupported order ID sequence: ${sequenceType}`);
@@ -91,7 +92,7 @@ const resolveCompanyOrderIdSequence = async ({
   companyID,
   requestedSequence = "",
 }) => {
-  const normalizedCompanyID = buildCounterId(companyID);
+  const normalizedCompanyID = String(companyID || "").trim().toUpperCase();
   if (!normalizedCompanyID) {
     throw new Error("Company ID is required to generate an order ID");
   }
@@ -101,7 +102,7 @@ const resolveCompanyOrderIdSequence = async ({
     throw new Error("Company not found");
   }
 
-  const requested = String(requestedSequence || "").trim().toLowerCase();
+  const requested = buildCounterId(requestedSequence);
   const lockedSequence = company.defaultOrderIdSequence || "alphanumeric";
 
   if (company.orderIdSequenceLocked) {
@@ -117,23 +118,6 @@ const resolveCompanyOrderIdSequence = async ({
     };
   }
 
-  const inferredSequence = await inferSequenceFromOrders(normalizedCompanyID);
-  if (inferredSequence) {
-    await lockCompanyOrderIdSequence(normalizedCompanyID, inferredSequence);
-
-    if (requested && requested !== inferredSequence) {
-      throw new Error(
-        `This company already has orders using the ${ORDER_ID_SEQUENCES[inferredSequence].label} sequence.`
-      );
-    }
-
-    return {
-      companyID: normalizedCompanyID,
-      sequenceType: inferredSequence,
-      sequenceLocked: true,
-    };
-  }
-
   const sequenceType = isValidOrderIdSequence(requested)
     ? requested
     : lockedSequence;
@@ -145,130 +129,34 @@ const resolveCompanyOrderIdSequence = async ({
   };
 };
 
-const migrateLegacyCounter = async (companyID, sequenceType) => {
-  const counterId = buildCounterId(companyID);
-  const existing = await OrderIdCounter.findById(counterId).lean();
-  if (existing) {
-    return existing;
-  }
-
-  const legacyId = buildLegacyCounterId(companyID, sequenceType);
-  const legacy = await OrderIdCounter.findById(legacyId).lean();
-  if (!legacy) {
-    return null;
-  }
-
-  await OrderIdCounter.findByIdAndUpdate(
-    counterId,
-    {
-      companyID,
-      sequenceType,
-      seq: legacy.seq,
-    },
-    { upsert: true }
-  );
-
-  return OrderIdCounter.findById(counterId).lean();
-};
-
-const syncOrderIdCounter = async (companyID, sequenceType) => {
-  const normalizedCompanyID = buildCounterId(companyID);
-  if (!normalizedCompanyID) {
-    return;
-  }
-
-  const config = getSequenceConfig(sequenceType);
-  const orders = await Order.find({ companyID: normalizedCompanyID })
-    .select("externalOrderId")
-    .lean();
-
-  const maxSeq = orders.reduce((max, order) => {
-    const parsed = config.parse(order.externalOrderId);
-    return Math.max(max, parsed);
-  }, 0);
-
-  if (maxSeq <= 0) {
-    return;
-  }
-
-  const counterId = buildCounterId(normalizedCompanyID);
-  let counter = await migrateLegacyCounter(normalizedCompanyID, sequenceType);
-  if (!counter) {
-    counter = await OrderIdCounter.findById(counterId).lean();
-  }
-
-  if (!counter || counter.seq < maxSeq) {
-    await OrderIdCounter.findByIdAndUpdate(
-      counterId,
-      {
-        companyID: normalizedCompanyID,
-        sequenceType,
-        seq: maxSeq,
-      },
-      { upsert: true }
-    );
-  }
-};
-
 const getNextOrderIdPreview = async (companyID, requestedSequence = "") => {
   const resolved = await resolveCompanyOrderIdSequence({
     companyID,
     requestedSequence,
   });
   const { sequenceType, sequenceLocked } = resolved;
-  const normalizedCompanyID = resolved.companyID;
-
   const config = getSequenceConfig(sequenceType);
-  await syncOrderIdCounter(normalizedCompanyID, sequenceType);
-
-  const counterId = buildCounterId(normalizedCompanyID);
-  const counter = await migrateLegacyCounter(normalizedCompanyID, sequenceType);
-  const currentCounter =
-    counter || (await OrderIdCounter.findById(counterId).lean());
-  const nextSeq = Math.max((currentCounter?.seq || 0) + 1, config.startAt);
+  const counter = await readGlobalCounter(sequenceType);
+  const startSeq = Math.max((counter?.seq || 0) + 1, config.startAt);
+  const next = await findNextAvailableOrderId(sequenceType, startSeq);
 
   return {
-    companyID: normalizedCompanyID,
+    companyID: resolved.companyID,
     sequenceType,
     sequenceLocked,
-    nextSeq,
-    orderId: formatOrderId(sequenceType, nextSeq),
+    nextSeq: next.seq,
+    orderId: next.orderId,
   };
 };
 
-const allocateOrderExternalId = async (companyID, sequenceType) => {
-  const normalizedCompanyID = buildCounterId(companyID);
-  if (!normalizedCompanyID) {
-    throw new Error("Company ID is required to generate an order ID");
-  }
+const allocateOrderExternalId = async (_companyID, sequenceType) => {
+  const normalizedSequence = buildCounterId(sequenceType);
+  const config = getSequenceConfig(normalizedSequence);
+  await ensureGlobalCounter(normalizedSequence);
 
-  const config = getSequenceConfig(sequenceType);
-  await syncOrderIdCounter(normalizedCompanyID, sequenceType);
+  const counterId = buildCounterId(normalizedSequence);
 
-  const counterId = buildCounterId(normalizedCompanyID);
-  await migrateLegacyCounter(normalizedCompanyID, sequenceType);
-
-  const existingCounter = await OrderIdCounter.findById(counterId).lean();
-  if (!existingCounter) {
-    try {
-      await OrderIdCounter.create({
-        _id: counterId,
-        companyID: normalizedCompanyID,
-        sequenceType,
-        seq: config.startAt - 1,
-      });
-    } catch (error) {
-      if (error?.code !== 11000) {
-        throw error;
-      }
-    }
-  } else if (existingCounter.sequenceType !== sequenceType) {
-    throw new Error(
-      `Order ID counter is configured for ${ORDER_ID_SEQUENCES[existingCounter.sequenceType].label}, not ${ORDER_ID_SEQUENCES[sequenceType].label}.`
-    );
-  }
-
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
     let counter = await OrderIdCounter.findByIdAndUpdate(
       counterId,
       { $inc: { seq: 1 } },
@@ -279,8 +167,8 @@ const allocateOrderExternalId = async (companyID, sequenceType) => {
       throw new Error("Order ID counter is unavailable");
     }
 
-    let allocatedSeq = counter.seq;
-    if (allocatedSeq < config.startAt) {
+    let allocatedSeq = Math.max(counter.seq, config.startAt);
+    if (counter.seq < config.startAt) {
       counter = await OrderIdCounter.findByIdAndUpdate(
         counterId,
         { $set: { seq: config.startAt } },
@@ -289,13 +177,8 @@ const allocateOrderExternalId = async (companyID, sequenceType) => {
       allocatedSeq = config.startAt;
     }
 
-    const orderId = formatOrderId(sequenceType, allocatedSeq);
-    const exists = await Order.exists({
-      companyID: normalizedCompanyID,
-      externalOrderId: orderId,
-    });
-
-    if (!exists) {
+    const orderId = formatOrderId(normalizedSequence, allocatedSeq);
+    if (!(await orderIdExists(orderId))) {
       return orderId;
     }
   }
@@ -332,12 +215,11 @@ const resolveOrderExternalId = async ({ body = {}, companyID }) => {
 };
 
 module.exports = {
-  inferSequenceFromOrders,
   resolveCompanyOrderIdSequence,
   lockCompanyOrderIdSequence,
-  syncOrderIdCounter,
   getNextOrderIdPreview,
   allocateOrderExternalId,
   resolveOrderExternalId,
   formatOrderId,
+  orderIdExists,
 };

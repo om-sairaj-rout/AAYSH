@@ -218,7 +218,7 @@ const generateAwbExternal = async (req, res) => {
 
       const category =
         getAwbCategory(
-          order.weight,
+          order.chargeableWeight || order.weight,
           service
         );
 
@@ -302,7 +302,7 @@ shippingUpdates.push({
       pickupStatus: "Scheduled",
       shippingStatus: "Booked",
       bookedAt: now(),
-      totalWeight: order.weight || 0,
+      totalWeight: order.chargeableWeight || order.weight || 0,
     },
   },
 });

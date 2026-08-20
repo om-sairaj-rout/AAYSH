@@ -74,10 +74,17 @@ const formatOrder = (order) => {
 
     package: {
       weight: order.weight,
+      actual_weight: order.actualWeight,
+      volumetric_weight: order.volumetricWeight,
+      chargeable_weight: order.chargeableWeight || order.weight,
       length: order.length,
       breadth: order.breadth,
       height: order.height,
+      no_of_boxes: order.noOfBoxes || 1,
     },
+
+    invoice_no: order.invoiceNo,
+    invoice_value: order.invoiceValue,
 
     products: (order.orderItems || []).map((item) => ({
       name: item.name,

@@ -8,6 +8,8 @@ import {
   User,
   MapPin,
   Sparkles,
+  FileText,
+  Upload,
   CheckCircle2,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
@@ -52,6 +54,35 @@ const calculateInvoiceValue = ({
       Number(transactionCharges || 0)
     ).toFixed(2)
   );
+
+const VOLUMETRIC_DIVISOR = 4000;
+const HIGH_VALUE_INVOICE_THRESHOLD = 50000;
+
+const DOCUMENT_TYPE_OPTIONS = [
+  { value: "INVOICE", label: "Invoice" },
+  { value: "EWAYBILL", label: "E-Way Bill" },
+  { value: "DELIVERY_CHALLAN", label: "Delivery Challan" },
+  { value: "OTHER", label: "Other" },
+];
+
+const calculateVolumetricWeight = (length, breadth, height) => {
+  const l = Number(length) || 0;
+  const b = Number(breadth) || 0;
+  const h = Number(height) || 0;
+  if (l > 0 && b > 0 && h > 0) {
+    return Number(((l * b * h) / VOLUMETRIC_DIVISOR).toFixed(3));
+  }
+  return 0;
+};
+
+const calculateChargeableWeight = (actualWeight, length, breadth, height) => {
+  const actual = Number(actualWeight) || 0;
+  const volumetric = calculateVolumetricWeight(length, breadth, height);
+  if (volumetric > 0) {
+    return Number(Math.max(actual, volumetric).toFixed(3));
+  }
+  return Number(actual.toFixed(3));
+};
 
 const resolveDefaultSequence = (user, isAdmin, companiesList, selectedCompanyId) => {
   const company = resolveCompanyForForm(user, isAdmin, companiesList, selectedCompanyId);
@@ -145,6 +176,8 @@ const buildDefaultForm = (user, isAdmin, companiesList, selectedCompanyId) => {
     billing_country: "India",
     payment_method: "COD",
     comment: "",
+    invoice_no: "",
+    invoice_value: "",
     shipping_charges: 0,
     giftwrap_charges: 0,
     transaction_charges: 0,
@@ -152,6 +185,7 @@ const buildDefaultForm = (user, isAdmin, companiesList, selectedCompanyId) => {
     length: 0,
     breadth: 0,
     height: 0,
+    no_of_boxes: 1,
     order_items: [{ ...EMPTY_ITEM }],
   };
 };
@@ -180,6 +214,8 @@ const CreateOrderDialog = ({
   const [sequences, setSequences] = useState([]);
   const [loadingOrderId, setLoadingOrderId] = useState(false);
   const [sequenceLocked, setSequenceLocked] = useState(false);
+  const [orderDocuments, setOrderDocuments] = useState([]);
+  const [pendingDocumentType, setPendingDocumentType] = useState("INVOICE");
 
   const activeCompanyId = useMemo(
     () => resolveActiveCompanyId(form, isAdmin, user, defaultCompanyId),
@@ -230,6 +266,8 @@ const CreateOrderDialog = ({
     setForm(buildDefaultForm(user, isAdmin, companiesList, defaultCompanyId));
     setSuccessMessage("");
     setProductSearch("");
+    setOrderDocuments([]);
+    setPendingDocumentType("INVOICE");
     setSequenceLocked(
       isCompanySequenceLocked(user, isAdmin, companiesList, defaultCompanyId)
     );
@@ -293,6 +331,31 @@ const CreateOrderDialog = ({
     ]
   );
 
+  const effectiveInvoiceValue = useMemo(() => {
+    const manual = String(form.invoice_value ?? "").trim();
+    if (manual !== "" && Number.isFinite(Number(manual))) {
+      return Number(manual);
+    }
+    return invoiceValue;
+  }, [form.invoice_value, invoiceValue]);
+
+  const volumetricWeight = useMemo(
+    () =>
+      calculateVolumetricWeight(form.length, form.breadth, form.height),
+    [form.length, form.breadth, form.height]
+  );
+
+  const chargeableWeight = useMemo(
+    () =>
+      calculateChargeableWeight(
+        form.weight,
+        form.length,
+        form.breadth,
+        form.height
+      ),
+    [form.weight, form.length, form.breadth, form.height]
+  );
+
   if (!open) return null;
 
   const updateField = (key, value) => {
@@ -315,16 +378,25 @@ const CreateOrderDialog = ({
   };
 
   const removeItem = (index) => {
-    setForm((prev) => {
-      if (prev.order_items.length === 1) {
-        toast.error("At least one order item is required");
-        return prev;
-      }
-      return {
-        ...prev,
-        order_items: prev.order_items.filter((_, itemIndex) => itemIndex !== index),
-      };
-    });
+    setForm((prev) => ({
+      ...prev,
+      order_items: prev.order_items.filter((_, itemIndex) => itemIndex !== index),
+    }));
+  };
+
+  const handleDocumentSelect = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setOrderDocuments((prev) => [
+      ...prev,
+      { file, documentType: pendingDocumentType },
+    ]);
+    event.target.value = "";
+  };
+
+  const removeDocument = (index) => {
+    setOrderDocuments((prev) => prev.filter((_, itemIndex) => itemIndex !== index));
   };
 
   const addProductToItems = (product) => {
@@ -412,12 +484,20 @@ const CreateOrderDialog = ({
       toast.error("Enter a valid 6-digit pincode");
       return false;
     }
-    if (form.order_items.some((item) => !item.name.trim())) {
-      toast.error("Each order item must have a product name");
+    if (
+      effectiveInvoiceValue >= HIGH_VALUE_INVOICE_THRESHOLD &&
+      !orderDocuments.some((doc) =>
+        ["INVOICE", "EWAYBILL"].includes(doc.documentType)
+      )
+    ) {
+      toast.error(
+        "Orders with invoice value ≥ ₹50,000 require an Invoice or E-Way Bill document"
+      );
       return false;
     }
-    if (Number(form.weight) <= 0) {
-      toast.error("Package weight must be greater than 0");
+    const boxes = Number(form.no_of_boxes);
+    if (form.no_of_boxes !== "" && form.no_of_boxes !== undefined && (!Number.isFinite(boxes) || boxes <= 0)) {
+      toast.error("No. of Boxes must be a valid positive number");
       return false;
     }
     return true;
@@ -436,6 +516,7 @@ const CreateOrderDialog = ({
         order_id_mode: form.order_id_mode,
         order_id_sequence: form.order_id_sequence,
         pickup_location: form.pickup_location.trim(),
+        invoice_no: form.invoice_no.trim(),
         order_items: form.order_items.map((item) => ({
           name: item.name.trim(),
           sku: item.sku.trim(),
@@ -449,10 +530,15 @@ const CreateOrderDialog = ({
         length: Number(form.length) || 0,
         breadth: Number(form.breadth) || 0,
         height: Number(form.height) || 0,
+        no_of_boxes: Number(form.no_of_boxes) > 0 ? Number(form.no_of_boxes) : 1,
         shipping_charges: Number(form.shipping_charges) || 0,
         giftwrap_charges: Number(form.giftwrap_charges) || 0,
         transaction_charges: Number(form.transaction_charges) || 0,
       };
+
+      if (String(form.invoice_value).trim() !== "") {
+        payload.invoice_value = Number(form.invoice_value);
+      }
 
       if (!isAdmin) {
         delete payload.company_id;
@@ -465,7 +551,7 @@ const CreateOrderDialog = ({
         delete payload.order_id_sequence;
       }
 
-      const response = await createOrder(payload);
+      const response = await createOrder(payload, { documents: orderDocuments });
       setSuccessMessage(`Order ${response.order_id} created successfully`);
       toast.success(`Order ${response.order_id} created`);
       onSuccess?.();
@@ -481,6 +567,7 @@ const CreateOrderDialog = ({
         form.company_id || defaultCompanyId
       );
       setForm(nextForm);
+      setOrderDocuments([]);
       if (nextForm.order_id_mode === "auto") {
         fetchNextOrderId(
           nextForm.order_id_sequence,
@@ -655,8 +742,9 @@ const CreateOrderDialog = ({
                   </div>
                   {form.order_id_mode === "auto" && (
                     <p className="mt-1.5 text-[11px] text-slate-400">
-                      Order IDs are generated securely on the server and continue from the last
-                      used ID for your company.
+                      Order IDs are generated on the server using a global sequence for the
+                      selected format. Your company&apos;s format is locked after the first
+                      auto-generated order.
                     </p>
                   )}
                 </div>
@@ -843,7 +931,7 @@ const CreateOrderDialog = ({
                     className="grid grid-cols-1 md:grid-cols-12 gap-3 rounded-xl bg-slate-50 border border-slate-100 p-3"
                   >
                     <input
-                      placeholder="Product name *"
+                      placeholder="Product name"
                       value={item.name}
                       onChange={(e) => updateItem(index, "name", e.target.value)}
                       className={`${inputClass} md:col-span-3`}
@@ -909,6 +997,89 @@ const CreateOrderDialog = ({
 
             <section className="rounded-2xl border border-slate-100 p-5 space-y-4">
               <div className="flex items-center gap-2 text-sm font-bold text-[#1B2B4B]">
+                <FileText size={16} />
+                Invoice Details
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  placeholder="Invoice No (optional)"
+                  value={form.invoice_no}
+                  onChange={(e) => updateField("invoice_no", e.target.value)}
+                  className={inputClass}
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Invoice Value (optional — auto-calculated from the product price if left blank)"
+                  value={form.invoice_value}
+                  onChange={(e) => updateField("invoice_value", e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-100 p-5 space-y-4">
+              <div className="flex items-center gap-2 text-sm font-bold text-[#1B2B4B]">
+                <Upload size={16} />
+                Order Documents
+              </div>
+              <p className="text-xs text-slate-500">
+                Upload supporting documents. Orders with invoice value ≥ ₹50,000 require an Invoice or E-Way Bill.
+              </p>
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="min-w-[180px]">
+                  <label className={labelClass}>Document Type</label>
+                  <select
+                    value={pendingDocumentType}
+                    onChange={(e) => setPendingDocumentType(e.target.value)}
+                    className={inputClass}
+                  >
+                    {DOCUMENT_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <label className="inline-flex items-center gap-2 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40 px-4 py-2.5 text-sm font-semibold text-indigo-700 cursor-pointer hover:bg-indigo-50">
+                  <Upload size={16} />
+                  Add Document
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={handleDocumentSelect}
+                  />
+                </label>
+              </div>
+              {orderDocuments.length > 0 && (
+                <div className="space-y-2">
+                  {orderDocuments.map((doc, index) => (
+                    <div
+                      key={`${doc.file.name}-${index}`}
+                      className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm"
+                    >
+                      <div>
+                        <p className="font-semibold text-slate-800">{doc.file.name}</p>
+                        <p className="text-xs text-slate-500">
+                          {DOCUMENT_TYPE_OPTIONS.find((option) => option.value === doc.documentType)?.label || doc.documentType}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeDocument(index)}
+                        className="rounded-lg border border-rose-200 px-2 py-1 text-rose-500 hover:bg-rose-50"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-slate-100 p-5 space-y-4">
+              <div className="flex items-center gap-2 text-sm font-bold text-[#1B2B4B]">
                 <MapPin size={16} />
                 Package & Charges
               </div>
@@ -918,9 +1089,18 @@ const CreateOrderDialog = ({
                   type="number"
                   min="0"
                   step="0.01"
-                  placeholder="Weight (kg) *"
+                  placeholder="Weight (kg)"
                   value={form.weight}
                   onChange={(e) => updateField("weight", e.target.value)}
+                  className={inputClass}
+                />
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="No. of Boxes"
+                  value={form.no_of_boxes}
+                  onChange={(e) => updateField("no_of_boxes", e.target.value)}
                   className={inputClass}
                 />
                 <input
@@ -985,10 +1165,16 @@ const CreateOrderDialog = ({
                 />
               </div>
 
+              <div className="flex flex-wrap items-center gap-4 rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-600">
+                <span>Actual: <strong>{Number(form.weight || 0).toFixed(3)} kg</strong></span>
+                <span>Volumetric: <strong>{volumetricWeight.toFixed(3)} kg</strong></span>
+                <span>Chargeable: <strong className="text-indigo-700">{chargeableWeight.toFixed(3)} kg</strong></span>
+              </div>
+
               <div className="flex flex-wrap items-center gap-4 rounded-xl bg-[#1B2B4B] text-white px-4 py-3 text-sm">
                 <span>Subtotal: ₹{subTotal.toLocaleString("en-IN")}</span>
                 <span className="opacity-60">|</span>
-                <span className="font-bold">Invoice Value: ₹{invoiceValue.toLocaleString("en-IN")}</span>
+                <span className="font-bold">Invoice Value: ₹{effectiveInvoiceValue.toLocaleString("en-IN")}</span>
               </div>
             </section>
           </div>

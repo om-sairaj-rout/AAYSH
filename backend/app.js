@@ -45,7 +45,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-require("./cron/pickupCron");
+// require("./cron/pickupCron");
 
 // Public AWB tracking (no login) — registered before authenticated routers
 const getOrderByAwbController = require("./controllers/ordersControllers/getOrdersByAwb.controllers");

@@ -183,7 +183,9 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
           <div className="border border-slate-100 rounded-xl overflow-hidden">
             <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-100 flex justify-between items-center">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Order Items</h4>
-              <span className="text-xs font-semibold text-slate-500">Total Items: {order.qty || 1}</span>
+              <span className="text-xs font-semibold text-slate-500">
+                Boxes: {order.noOfBoxes || 1} | Items: {(order.orderItems || []).reduce((sum, item) => sum + (Number(item.units) || 0), 0) || 1}
+              </span>
             </div>
             
             {order.orderItems && order.orderItems.length > 0 ? (
@@ -225,10 +227,11 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
                 <span className="font-mono font-bold text-slate-700">₹{order.shippingCharges || 0}</span>
               </div>
               <div>
-                <span className="text-slate-400 block font-medium">Package Weight & Box</span>
+                <span className="text-slate-400 block font-medium">Package Weight & Boxes</span>
                 <span className="font-mono font-bold text-slate-700">
-                  {order.weight ? `${order.weight} kg` : 'N/A'}
+                  {order.chargeableWeight || order.weight ? `${order.chargeableWeight || order.weight} kg` : 'N/A'}
                   {order.length ? ` (${order.length}x${order.breadth}x${order.height} cm)` : ''}
+                  {` · ${order.noOfBoxes || 1} box(es)`}
                 </span>
               </div>
             </div>
@@ -704,7 +707,11 @@ const OrdersPage = () => {
                 const fullAddress = `${order.address || ''} ${order.address2 ? `, ${order.address2}` : ''}`.trim();
                 const destination = `${order.destinationCity || ''}${order.destinationState ? `, ${order.destinationState}` : ''} ${order.destinationPincode ? `- ${order.destinationPincode}` : ''}`.trim();
                 const awbNo = order.shipping?.awbNumber || '';
-                const pkgWeight = order.shipping?.totalWeight || order.weight || '-';
+                const pkgWeight =
+                  order.shipping?.totalWeight ||
+                  order.chargeableWeight ||
+                  order.weight ||
+                  '-';
 
                 // Identify Repeat Customer based on Phone Frequency (> 1 occurrence across all orders)
                 const isRepeatCustomer = phone && phone !== '-' && (phoneCounts.get(phone) || 0) > 1;
@@ -769,6 +776,10 @@ const OrdersPage = () => {
                         ) : (
                           <p className="text-slate-400 italic text-xs">No item breakdown</p>
                         )}
+                        <div className="text-xs font-semibold text-slate-700 pt-1 flex items-center justify-between border-t border-slate-100">
+                          <span className="text-slate-500">Boxes:</span>
+                          <span className="font-mono font-bold text-slate-700 text-xs">{order.noOfBoxes || 1}</span>
+                        </div>
                         <div className="text-xs font-semibold text-slate-700 pt-1 flex items-center justify-between border-t border-slate-100">
                           <span className="text-slate-500">Weight:</span>
                           <span className="font-mono font-bold text-indigo-600 text-xs">{pkgWeight !== '-' ? `${pkgWeight} kg` : '-'}</span>

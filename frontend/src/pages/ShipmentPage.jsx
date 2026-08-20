@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSelector } from "react-redux";
 import { ChevronLeft, ChevronRight, FileText, ClipboardList, Tag, Paperclip, Eye } from 'lucide-react';
 import { getReversePickupDocumentByOrderId } from '../api/reversePickupAPI';
-import { getOrders } from '../api/ordersAPI';
+import { getOrders, getOrderDocumentUrl } from '../api/ordersAPI';
 import { generateLabelAPI, generateInvoiceAPI, generateManifestAPI } from "../api/labelAPI";
 import { useLatestRequestId } from '../utils/useLatestRequestId';
 import useDocumentPreview from '../utils/useDocumentPreview';
@@ -304,6 +304,48 @@ const ShipmentPage = () => {
     );
   };
 
+  const handleViewCompanyDocument = async (order, document) => {
+    openPreviewWithLoader(
+      async () => {
+        const data = await getOrderDocumentUrl(order._id, document.index);
+        return {
+          url: data.url,
+          fileName: document.fileName || "company-document",
+        };
+      },
+      {
+        title: `${order.externalOrderId || order._id} — ${document.documentType}`,
+        fileName: document.fileName || "company-document",
+      }
+    );
+  };
+
+  const handleDownloadCompanyDocument = async (order, doc) => {
+    try {
+      const data = await getOrderDocumentUrl(order._id, doc.index);
+      const link = window.document.createElement("a");
+      link.href = data.url;
+      link.download = doc.fileName || "company-document";
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      window.document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      toast.error(error.message || "Failed to download document");
+    }
+  };
+
+  const formatDocumentType = (type) => {
+    const labels = {
+      INVOICE: "Invoice",
+      EWAYBILL: "E-Way Bill",
+      DELIVERY_CHALLAN: "Delivery Challan",
+      OTHER: "Other",
+    };
+    return labels[type] || type || "Document";
+  };
+
   // Bulk Actions
   const handleBulkPrintLabels = async () => {
     try {
@@ -527,7 +569,11 @@ const ShipmentPage = () => {
                 const fullAddress = `${order.address || ''} ${order.address2 ? `, ${order.address2}` : ''}`.trim();
                 const destination = `${order.destinationCity || ''}${order.destinationState ? `, ${order.destinationState}` : ''} ${order.destinationPincode ? `- ${order.destinationPincode}` : ''}`.trim();
                 const awbNo = order.shipping?.awbNumber || '';
-                const pkgWeight = order.shipping?.totalWeight || order.weight || '-';
+                const pkgWeight =
+                  order.shipping?.totalWeight ||
+                  order.chargeableWeight ||
+                  order.weight ||
+                  '-';
 
                 return (
                   <tr 
@@ -590,9 +636,52 @@ const ShipmentPage = () => {
                           <p className="text-slate-400 italic text-xs">No item breakdown</p>
                         )}
                         <div className="text-xs font-semibold text-slate-700 pt-1 flex items-center justify-between border-t border-slate-100">
-                          <span className="text-slate-500">Weight:</span>
+                          <span className="text-slate-500">Boxes:</span>
+                          <span className="font-mono font-bold text-slate-700 text-xs">{order.noOfBoxes || 1}</span>
+                        </div>
+                        <div className="text-xs font-semibold text-slate-700 pt-1 flex items-center justify-between border-t border-slate-100">
+                          <span className="text-slate-500">Chargeable Weight:</span>
                           <span className="font-mono font-bold text-indigo-600 text-xs">{pkgWeight !== '-' ? `${pkgWeight} kg` : '-'}</span>
                         </div>
+
+                        {(order.companyDocuments || []).length > 0 && (
+                          <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                              Company Documents
+                            </p>
+                            {order.companyDocuments.map((document) => (
+                              <div
+                                key={`${order._id}-${document.index}`}
+                                className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1.5"
+                              >
+                                <div className="min-w-0">
+                                  <p className="text-[11px] font-semibold text-slate-800 truncate">
+                                    {formatDocumentType(document.documentType)}
+                                  </p>
+                                  <p className="text-[10px] text-slate-500 truncate">
+                                    {document.fileName}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleViewCompanyDocument(order, document)}
+                                    className="px-2 py-1 text-[10px] font-semibold text-indigo-600 hover:bg-indigo-50 rounded"
+                                  >
+                                    View
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownloadCompanyDocument(order, document)}
+                                    className="px-2 py-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-100 rounded"
+                                  >
+                                    Download
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </td>
 

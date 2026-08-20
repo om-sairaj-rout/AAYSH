@@ -145,7 +145,10 @@ const assignAwbCore = async ({
       courierMap.set(c.courierId.toString(), c);
     });
 
-    const category = getAwbCategory(order.weight, service);
+    const category = getAwbCategory(
+      order.chargeableWeight || order.weight,
+      service
+    );
     let awb = null;
     let selectedCourier = null;
 
@@ -205,7 +208,7 @@ const assignAwbCore = async ({
           pickupStatus: "Scheduled",
           shippingStatus: "Booked",
           bookedAt: now(),
-          totalWeight: order.weight || 0,
+          totalWeight: order.chargeableWeight || order.weight || 0,
         },
         upsert: true,
       },

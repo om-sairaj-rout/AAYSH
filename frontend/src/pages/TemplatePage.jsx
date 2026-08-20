@@ -44,8 +44,11 @@ const TemplatePage = () => {
     "Giftwrap Charges": 0,
     "Transaction Charges": 0,
     "Total Discount": 100,
+    "Invoice No": "INV-CLIENT-10011",
+    "Invoice Value": 1448,
 
     "Weight": 0.5,
+    "No. of Boxes": 1,
     "Length": 20,
     "Breadth": 15,
     "Height": 10

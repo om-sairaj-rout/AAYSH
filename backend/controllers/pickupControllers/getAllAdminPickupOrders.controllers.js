@@ -106,7 +106,7 @@ const formatPickup = (pickup) => ({
   pickupLocation: pickup.pickupLocation,
   pickupStatus: pickup.pickupStatus,
   failureReason: pickup.failureReason,
-  packagesCount: 1,
+  packagesCount: pickup.order?.noOfBoxes || 1,
   userId: pickup.order?.uploadedBy
     ? {
         _id: String(pickup.order.uploadedBy._id),

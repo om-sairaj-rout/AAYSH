@@ -230,7 +230,7 @@ const AwbPage = () => {
             )}
             <div className="p-4">
               <span className="text-[11px] font-bold tracking-wider uppercase text-slate-400 block">Package Quantity</span>
-              <span className="text-lg font-bold text-slate-800 block mt-1">{order.qty || "1"} Unit(s)</span>
+              <span className="text-lg font-bold text-slate-800 block mt-1">{order.noOfBoxes || "1"} Box(es)</span>
             </div>
             <div className="p-4">
               <span className="text-[11px] font-bold tracking-wider uppercase text-slate-400 block">Invoice Reference</span>

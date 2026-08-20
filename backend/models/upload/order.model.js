@@ -65,14 +65,13 @@ const OrderSchema = new mongoose.Schema(
 
     companyID: {
       type: String,
-      index: true,
       default: "",
     },
 
     externalOrderId: {
       type: String,
       required: true,
-      index: true,
+      trim: true,
     },
 
 
@@ -245,6 +244,27 @@ const OrderSchema = new mongoose.Schema(
       default: 0,
     },
 
+    noOfBoxes: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+
+    actualWeight: {
+      type: Number,
+      default: 0,
+    },
+
+    volumetricWeight: {
+      type: Number,
+      default: 0,
+    },
+
+    chargeableWeight: {
+      type: Number,
+      default: 0,
+    },
+
     category: {
       type: String,
       default: "Rest of India",
@@ -274,12 +294,31 @@ const OrderSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+
+    documents: {
+      type: [
+        {
+          documentType: {
+            type: String,
+            enum: ["INVOICE", "EWAYBILL", "DELIVERY_CHALLAN", "OTHER"],
+            default: "OTHER",
+          },
+          fileName: { type: String, default: "" },
+          s3Key: { type: String, default: "" },
+          s3Bucket: { type: String, default: "" },
+          contentType: { type: String, default: "" },
+          uploadedAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true,
   }
 );
 
-OrderSchema.index({ companyID: 1, externalOrderId: 1 }, { unique: true });
+OrderSchema.index({ externalOrderId: 1 }, { unique: true });
+OrderSchema.index({ companyID: 1 });
 
 module.exports = mongoose.model("Order", OrderSchema);

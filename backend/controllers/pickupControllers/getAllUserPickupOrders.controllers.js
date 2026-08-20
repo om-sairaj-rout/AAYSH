@@ -48,11 +48,7 @@ const formatPickup = (item) => ({
   pickupLocation: item.pickupLocation || "",
   pickupDate: toISTDate(item.pickupDate),
   pickupTime: item.pickupTime,
-  packagesCount:
-    item.order?.orderItems?.reduce(
-      (total, product) => total + product.units,
-      0
-    ) || 0,
+  packagesCount: item.order?.noOfBoxes || 1,
   pickupStatus: item.pickupStatus,
   failureReason: item.pickupStatus === "Failed" ? item.failureReason : "",
 });

@@ -56,14 +56,14 @@ const dropLegacyOrderIndexes = async () => {
     const collection = mongoose.connection.collection("orders");
     const indexes = await collection.indexes();
 
-    const legacyExternalOrderIdIndex = indexes.find(
-      (index) => index.name === "externalOrderId_1" && index.unique
+    const compoundIndex = indexes.find(
+      (index) => index.name === "companyID_1_externalOrderId_1"
     );
 
-    if (legacyExternalOrderIdIndex) {
-      await collection.dropIndex("externalOrderId_1");
+    if (compoundIndex) {
+      await collection.dropIndex("companyID_1_externalOrderId_1");
       console.log(
-        "Removed legacy unique index on orders.externalOrderId (order IDs are unique per company)"
+        "Removed per-company unique index on orders (order IDs are globally unique)"
       );
     }
   } catch (error) {

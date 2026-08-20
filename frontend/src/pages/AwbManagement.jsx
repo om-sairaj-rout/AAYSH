@@ -153,7 +153,7 @@ const AwbManagement = () => {
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    Under 1 kg
+                    Under 3 kg
                   </button>
                   <button
                     type="button"
@@ -222,7 +222,7 @@ const AwbManagement = () => {
                 <thead>
                   <tr className="bg-[#FAFAFA] border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                     <th className="p-4">Courier Network Provider</th>
-                    <th className="p-4 text-center">Remaining (&lt; 1 kg)</th>
+                    <th className="p-4 text-center">Remaining (&lt; 3 kg)</th>
                     <th className="p-4 text-center">Remaining (&gt; 3 kg)</th>
                     <th className="p-4 text-center">Remaining (Prime)</th>
                     <th className="p-4 text-right">Combined Reserve</th>

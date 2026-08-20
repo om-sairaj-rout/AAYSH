@@ -57,7 +57,7 @@ const getShipmentDetails = async (req, res) => {
           country: order.destinationCountry,
         },
 
-        products: order.orderItems.map((item) => ({
+        products: (order.orderItems || []).map((item) => ({
           name: item.name,
           sku: item.sku,
           quantity: item.units,
@@ -65,6 +65,16 @@ const getShipmentDetails = async (req, res) => {
           discount: item.discount,
           tax: item.tax,
           hsn: item.hsn,
+        })),
+
+        invoice_no: order.invoiceNo,
+        invoice_value: order.invoiceValue,
+
+        company_documents: (order.documents || []).map((document, index) => ({
+          index,
+          documentType: document.documentType,
+          fileName: document.fileName,
+          uploadedAt: document.uploadedAt,
         })),
 
         awb: shipment.awbNumber,
@@ -86,6 +96,11 @@ const getShipmentDetails = async (req, res) => {
 
         package: {
           weight: order.weight,
+          actual_weight: order.actualWeight,
+          volumetric_weight: order.volumetricWeight,
+          chargeable_weight: order.chargeableWeight || order.weight,
+          no_of_boxes: order.noOfBoxes || 1,
+          total_weight: shipment.totalWeight,
           length: order.length,
           breadth: order.breadth,
           height: order.height,
