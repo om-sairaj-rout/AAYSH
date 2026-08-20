@@ -36,6 +36,9 @@ const PICKUP_STATUSES = [
   "Cancelled",
 ];
 
+/** Non-admin users may only update orders while shipping is still Pending. */
+const USER_EDITABLE_SHIPPING_STATUSES = ["Pending"];
+
 // =========================================
 // Helpers
 // =========================================
@@ -126,6 +129,28 @@ const updateOrder = async (req, res) => {
       });
     }
 
+    const isAdmin = req.user?.role === "admin";
+
+    const ADMIN_ONLY_UPDATE_FIELDS = [
+      "shipping_status",
+      "awb_number",
+      "pickup_date",
+      "pickup_time",
+      "pickup_status",
+      "courier_name",
+    ];
+
+    if (
+      !isAdmin &&
+      ADMIN_ONLY_UPDATE_FIELDS.some((field) => req.body[field] !== undefined)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Only admins can update shipping status, AWB number, pickup details, and courier name.",
+      });
+    }
+
     // =========================================
     // Payment Validation
     // =========================================
@@ -141,6 +166,7 @@ const updateOrder = async (req, res) => {
     }
 
     if (
+      isAdmin &&
       shipping_status !== undefined &&
       shipping_status !== null &&
       shipping_status !== "" &&
@@ -153,6 +179,7 @@ const updateOrder = async (req, res) => {
     }
 
     if (
+      isAdmin &&
       pickup_status !== undefined &&
       pickup_status !== null &&
       pickup_status !== "" &&
@@ -165,6 +192,7 @@ const updateOrder = async (req, res) => {
     }
 
     if (
+      isAdmin &&
       pickup_time !== undefined &&
       pickup_time !== null &&
       String(pickup_time).trim() !== "" &&
@@ -194,7 +222,7 @@ const updateOrder = async (req, res) => {
       }
     }
 
-    if (pickup_date !== undefined && pickup_date !== null && pickup_date !== "") {
+    if (isAdmin && pickup_date !== undefined && pickup_date !== null && pickup_date !== "") {
       parsedPickupDate = parseISODateOnly(pickup_date);
 
       if (!parsedPickupDate) {
@@ -338,8 +366,6 @@ const updateOrder = async (req, res) => {
       });
     }
 
-    const isAdmin = req.user?.role === "admin";
-
     if (!userOwnsOrder(order, req)) {
       return res.status(403).json({
         success: false,
@@ -360,6 +386,18 @@ const updateOrder = async (req, res) => {
         success: false,
         message: "Shipping record not found.",
       });
+    }
+
+    if (!isAdmin) {
+      const currentShippingStatus = shipping.shippingStatus || "Pending";
+
+      if (!USER_EDITABLE_SHIPPING_STATUSES.includes(currentShippingStatus)) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Orders can only be updated while status is Pending. This order has already been booked or shipped.",
+        });
+      }
     }
 
     // =========================================
@@ -583,51 +621,53 @@ const updateOrder = async (req, res) => {
     }
 
     // =========================================
-    // Shipping & Logistics
+    // Shipping & Logistics (admin only)
     // =========================================
 
-    if (shipping_status !== undefined && shipping_status !== null && shipping_status !== "") {
-      shipping.shippingStatus = shipping_status;
-    }
-
-    if (awb_number !== undefined) {
-      const trimmedAwb = String(awb_number).trim();
-
-      if (trimmedAwb) {
-        const existingAwb = await Shipping.findOne({
-          awbNumber: trimmedAwb,
-          _id: { $ne: shipping._id },
-        }).lean();
-
-        if (existingAwb) {
-          return res.status(400).json({
-            success: false,
-            message: "AWB number is already assigned to another shipment.",
-          });
-        }
-
-        shipping.awbNumber = trimmedAwb;
-      } else {
-        shipping.awbNumber = "";
+    if (isAdmin) {
+      if (shipping_status !== undefined && shipping_status !== null && shipping_status !== "") {
+        shipping.shippingStatus = shipping_status;
       }
-    }
 
-    if (pickup_date === "") {
-      shipping.pickupDate = null;
-    } else if (parsedPickupDate !== null) {
-      shipping.pickupDate = parsedPickupDate;
-    }
+      if (awb_number !== undefined) {
+        const trimmedAwb = String(awb_number).trim();
 
-    if (pickup_time !== undefined) {
-      shipping.pickupTime = String(pickup_time || "").trim();
-    }
+        if (trimmedAwb) {
+          const existingAwb = await Shipping.findOne({
+            awbNumber: trimmedAwb,
+            _id: { $ne: shipping._id },
+          }).lean();
 
-    if (pickup_status !== undefined && pickup_status !== null && pickup_status !== "") {
-      shipping.pickupStatus = pickup_status;
-    }
+          if (existingAwb) {
+            return res.status(400).json({
+              success: false,
+              message: "AWB number is already assigned to another shipment.",
+            });
+          }
 
-    if (courier_name !== undefined) {
-      shipping.courierName = String(courier_name).trim();
+          shipping.awbNumber = trimmedAwb;
+        } else {
+          shipping.awbNumber = "";
+        }
+      }
+
+      if (pickup_date === "") {
+        shipping.pickupDate = null;
+      } else if (parsedPickupDate !== null) {
+        shipping.pickupDate = parsedPickupDate;
+      }
+
+      if (pickup_time !== undefined) {
+        shipping.pickupTime = String(pickup_time || "").trim();
+      }
+
+      if (pickup_status !== undefined && pickup_status !== null && pickup_status !== "") {
+        shipping.pickupStatus = pickup_status;
+      }
+
+      if (courier_name !== undefined) {
+        shipping.courierName = String(courier_name).trim();
+      }
     }
 
     // =========================================

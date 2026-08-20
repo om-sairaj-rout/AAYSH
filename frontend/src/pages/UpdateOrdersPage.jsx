@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSelector } from "react-redux";
 import {
   Search,
   Calendar,
@@ -57,6 +58,15 @@ const PICKUP_STATUS_OPTIONS = [
   "Completed",
   "Cancelled",
 ];
+
+/** Non-admin users may only update orders while shipping is still Pending. */
+const USER_EDITABLE_SHIPPING_STATUSES = ["Pending"];
+
+const isOrderEditableByRole = (order, isAdmin) => {
+  if (isAdmin) return true;
+  const status = order?.shipping?.shippingStatus || "Pending";
+  return USER_EDITABLE_SHIPPING_STATUSES.includes(status);
+};
 
 const calculateItemsSubTotal = (orderItems = []) => {
   const itemsTotal = orderItems.reduce((sum, item) => {
@@ -210,6 +220,8 @@ const buildUpdatePayload = (formData) => ({
 });
 
 const UpdateOrdersPage = () => {
+  const { isAdmin } = useSelector((state) => state.auth);
+
   // State Management
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -319,6 +331,14 @@ const UpdateOrdersPage = () => {
 
   // Open Edit Modal with Pre-filled Form
   const handleOpenEditModal = (order) => {
+    if (!isOrderEditableByRole(order, isAdmin)) {
+      setMessage({
+        type: "error",
+        text: "This order can no longer be edited because it has been booked or shipped.",
+      });
+      return;
+    }
+
     setEditingOrder(order);
     setProductSearch("");
     setProducts([]);
@@ -469,6 +489,14 @@ const UpdateOrdersPage = () => {
   const handleSubmitUpdate = async (e) => {
     e.preventDefault();
     setMessage({ type: "", text: "" });
+
+    if (!isOrderEditableByRole(editingOrder, isAdmin)) {
+      setMessage({
+        type: "error",
+        text: "This order can no longer be edited because it has been booked or shipped.",
+      });
+      return;
+    }
 
     const boxes = Number(formData.no_of_boxes);
     if (
@@ -755,9 +783,8 @@ const UpdateOrdersPage = () => {
                     </tr>
                   ) : (
                     filteredOrders.map((order) => {
-                        const shippingStatus = order.shipping?.shippingStatus || "Not Shipped";
-
-                        const isEditable = true;
+                        const shippingStatus = order.shipping?.shippingStatus || "Pending";
+                        const isEditable = isOrderEditableByRole(order, isAdmin);
                       return (
                         <tr key={order.externalOrderId} className="hover:bg-slate-50/50 transition">
                           <td className="p-4">
@@ -872,7 +899,14 @@ const UpdateOrdersPage = () => {
 
                             <div>
                               <button
-                                onClick={() => handleOpenEditModal(order)}
+                                type="button"
+                                onClick={() => isEditable && handleOpenEditModal(order)}
+                                disabled={!isEditable}
+                                title={
+                                  isEditable
+                                    ? "Edit order"
+                                    : "Orders can only be edited before they are booked"
+                                }
                                 className={`mt-1 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm transition ${
                                   isEditable
                                     ? "bg-indigo-600 text-white hover:bg-indigo-700"
@@ -881,6 +915,11 @@ const UpdateOrdersPage = () => {
                               >
                                 <Edit3 size={12} /> Edit Order
                               </button>
+                              {!isEditable && !isAdmin && (
+                                <p className="text-[10px] text-slate-400 mt-1 max-w-[140px] mx-auto leading-snug">
+                                  Booked or shipped — editing disabled
+                                </p>
+                              )}
                             </div>
                           </td>
                         </tr>
