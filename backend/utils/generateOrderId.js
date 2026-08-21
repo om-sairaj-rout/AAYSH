@@ -3,6 +3,7 @@ const Company = require("../models/company.model");
 const OrderIdCounter = require("../models/orderIdCounter.model");
 const {
   ORDER_ID_SEQUENCES,
+  ORDER_ID_SEQUENCE_IDS,
   isValidOrderIdSequence,
 } = require("../constants/orderIdSequences");
 
@@ -186,6 +187,44 @@ const allocateOrderExternalId = async (_companyID, sequenceType) => {
   throw new Error("Unable to generate a unique order ID. Please try again.");
 };
 
+const syncOrderIdCounterFromExternalIds = async (externalOrderIds = []) => {
+  const ids = [
+    ...new Set(
+      (externalOrderIds || [])
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    ),
+  ];
+
+  if (ids.length === 0) return;
+
+  await Promise.all(
+    ORDER_ID_SEQUENCE_IDS.map(async (sequenceType) => {
+      const config = getSequenceConfig(sequenceType);
+      let maxSeq = 0;
+
+      for (const externalOrderId of ids) {
+        const parsed = config.parse(externalOrderId);
+        if (parsed > maxSeq) {
+          maxSeq = parsed;
+        }
+      }
+
+      if (maxSeq <= 0) return;
+
+      await ensureGlobalCounter(sequenceType);
+      const counter = await readGlobalCounter(sequenceType);
+      const currentSeq = Number(counter?.seq || 0);
+
+      if (maxSeq > currentSeq) {
+        await OrderIdCounter.findByIdAndUpdate(buildCounterId(sequenceType), {
+          $set: { seq: maxSeq },
+        });
+      }
+    })
+  );
+};
+
 const resolveOrderExternalId = async ({ body = {}, companyID }) => {
   const mode = String(body.order_id_mode || "").trim().toLowerCase();
   const manualOrderId = String(body.order_id || "").trim();
@@ -219,6 +258,7 @@ module.exports = {
   lockCompanyOrderIdSequence,
   getNextOrderIdPreview,
   allocateOrderExternalId,
+  syncOrderIdCounterFromExternalIds,
   resolveOrderExternalId,
   formatOrderId,
   orderIdExists,

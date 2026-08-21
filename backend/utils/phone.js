@@ -9,21 +9,12 @@ const normalizePhone = (value) => {
   return digits;
 };
 
-/**
- * Customer phone is optional. When provided, it must be a 10-digit mobile number.
- */
-const validateOptionalPhone = (value, fieldLabel = "Phone number") => {
+/** Customer phone is optional. When provided, store normalized digits without length validation. */
+const validateOptionalPhone = (value) => {
   const normalized = normalizePhone(value);
 
   if (!normalized) {
     return { ok: true, value: "" };
-  }
-
-  if (!/^\d{10}$/.test(normalized)) {
-    return {
-      ok: false,
-      message: `Invalid ${fieldLabel.toLowerCase()} (expected 10-digit mobile number when provided)`,
-    };
   }
 
   return { ok: true, value: normalized };

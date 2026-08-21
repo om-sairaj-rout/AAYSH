@@ -231,12 +231,6 @@ const ProductCatalogPage = () => {
   const handleShip = async (e) => {
     e.preventDefault();
 
-    const phone = String(shipForm.billing_phone || "").trim();
-    if (phone && !/^\d{10}$/.test(phone)) {
-      toast.validation("Enter a valid 10-digit customer phone number, or leave it blank");
-      return;
-    }
-
     try {
       setSubmitting(true);
 

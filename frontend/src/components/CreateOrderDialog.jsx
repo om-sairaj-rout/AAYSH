@@ -551,11 +551,6 @@ const CreateOrderDialog = ({
       toast.validation("Customer name is required");
       return false;
     }
-    const phone = String(form.billing_phone || "").trim();
-    if (phone && !/^\d{10}$/.test(phone)) {
-      toast.validation("Enter a valid 10-digit customer phone number, or leave it blank");
-      return false;
-    }
     if (!form.billing_address.trim()) {
       toast.validation("Customer address is required");
       return false;

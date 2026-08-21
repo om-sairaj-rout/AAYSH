@@ -19,6 +19,10 @@ const {
   parseISODateOnly,
   parseISODateTime,
 } = require("../../utils/dateTime");
+const {
+  resolveOrderExternalId,
+  syncOrderIdCounterFromExternalIds,
+} = require("../../utils/generateOrderId");
 
 // =========================================
 // Parse Excel Date
@@ -149,39 +153,41 @@ const uploadFileController = async (req, res) => {
       .trim()
       .toUpperCase();
 
-    const rowOrderIds = rawData.map((row, index) => ({
-      rowNumber: index + 1,
-      externalOrderId: row["Order ID"]?.toString().trim() || "",
-    }));
-
-    const missingOrderIdRows = rowOrderIds
-      .filter((row) => !row.externalOrderId)
-      .map((row) => row.rowNumber);
-
-    if (missingOrderIdRows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Missing Order ID on row(s): ${missingOrderIdRows.join(", ")}`,
-      });
-    }
-
+    const rowOrderIds = [];
     const seenInFile = new Set();
-    const duplicateInFile = [];
 
-    rowOrderIds.forEach((row) => {
-      if (seenInFile.has(row.externalOrderId)) {
-        duplicateInFile.push(row.externalOrderId);
-      } else {
-        seenInFile.add(row.externalOrderId);
+    for (let index = 0; index < rawData.length; index += 1) {
+      const row = rawData[index];
+      const providedOrderId = row["Order ID"]?.toString().trim() || "";
+      let externalOrderId = providedOrderId;
+
+      if (!externalOrderId) {
+        try {
+          externalOrderId = await resolveOrderExternalId({
+            body: { order_id_mode: "auto" },
+            companyID,
+          });
+        } catch (error) {
+          return res.status(400).json({
+            success: false,
+            message: `Row ${index + 2}: ${error.message}`,
+          });
+        }
       }
-    });
 
-    if (duplicateInFile.length > 0) {
-      const uniqueDuplicates = [...new Set(duplicateInFile)];
-      return res.status(400).json({
-        success: false,
-        message: `Duplicate Order ID in file: ${uniqueDuplicates.join(", ")}`,
-        duplicateOrderIds: uniqueDuplicates,
+      if (seenInFile.has(externalOrderId)) {
+        return res.status(400).json({
+          success: false,
+          message: `Duplicate Order ID in file: ${externalOrderId}`,
+          duplicateOrderIds: [externalOrderId],
+        });
+      }
+
+      seenInFile.add(externalOrderId);
+      rowOrderIds.push({
+        rowNumber: index + 1,
+        externalOrderId,
+        providedOrderId,
       });
     }
 
@@ -211,22 +217,22 @@ const uploadFileController = async (req, res) => {
     // =========================================
 
     for (const [index, row] of rawData.entries()) {
+      const externalOrderId = rowOrderIds[index].externalOrderId;
+
       const orderDate = parseExcelDate(
-  row["Order Date"]
-);
+        row["Order Date"]
+      );
 
       const category = getCategory(
-  row["City"],row["State"]
-);
+        row["City"],
+        row["State"]
+      );
 
       const expectedHours =
-        getExpectedHours(category, "surface"); 
+        getExpectedHours(category, "surface");
 
       const shipmentId =
         await generateUniqueShipmentId();
-
-      const externalOrderId =
-        row["Order ID"]?.toString().trim() || "";
 
       const providedInvoiceNo =
         row["Invoice No"] || row["Invoice Number"] || "";
@@ -514,6 +520,16 @@ try {
   insertedShipping =
     err.insertedDocs || [];
 }
+
+    // =========================================
+    // Sync Order ID sequence with imported manual IDs
+    // =========================================
+
+    const manualImportedOrderIds = rowOrderIds
+      .filter((row) => row.providedOrderId)
+      .map((row) => row.providedOrderId);
+
+    await syncOrderIdCounterFromExternalIds(manualImportedOrderIds);
 
     // =========================================
     // Upload History

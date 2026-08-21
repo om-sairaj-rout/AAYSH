@@ -15,6 +15,7 @@ const getSpecificOrderController = require("../controllers/ordersControllers/get
 const getOrderByAwbController = require("../controllers/ordersControllers/getOrdersByAwb.controllers");
 const createOrderController = require("../controllers/ordersControllers/createOrders.controllers");
 const getOrderDocumentUrlController = require("../controllers/ordersControllers/getOrderDocumentUrl.controllers");
+const uploadOrderDocumentsController = require("../controllers/ordersControllers/uploadOrderDocuments.controllers");
 const upload = require("../middlewares/upload.middleware");
 const {
   getOrderIdSequencesController,
@@ -69,6 +70,14 @@ orderRouter.get(
   checkAuth,
   checkPermission("orders", "read"),
   getOrderDocumentUrlController
+);
+
+orderRouter.post(
+  "/external/orders/:orderId/documents",
+  checkAuth,
+  checkPermission("orders", "write"),
+  upload.array("documents", 10),
+  uploadOrderDocumentsController
 );
 
 orderRouter.get(

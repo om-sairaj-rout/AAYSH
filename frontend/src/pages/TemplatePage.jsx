@@ -114,7 +114,7 @@ const TemplatePage = () => {
         <div className="bg-[#F8FAFC] px-8 py-4 border-t border-gray-100 flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-[#F97316]"></span>
               <p className="text-xs text-slate-500">
-                Do not modify or rename the column headers in the template file, as doing so will cause validation errors during processing. Phone and Alternate Phone are optional; when provided, use a 10-digit mobile number.
+                Do not modify or rename the column headers in the template file, as doing so will cause validation errors during processing. Phone and Alternate Phone are optional.
               </p>
         </div>
 

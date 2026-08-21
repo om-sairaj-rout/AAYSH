@@ -11,8 +11,9 @@ import {
   Tag,
   Paperclip,
   Ban,
+  Upload,
 } from 'lucide-react';
-import { getOrders, cancelOrder, cancelShipments } from '../api/ordersAPI';
+import { getOrders, cancelOrder, cancelShipments, getOrderDocumentUrl, uploadOrderDocuments } from '../api/ordersAPI';
 import { useConfirm } from '../components/ConfirmDialog';
 import { getCompanies } from '../api/companyAPI';
 import { getDashboardData } from '../api/dashboardAPI';
@@ -79,6 +80,17 @@ const NON_CANCELLABLE_STATUSES = [
   'RTO',
   'Cancelled',
 ];
+
+const DOCUMENT_TYPE_OPTIONS = [
+  { value: 'INVOICE', label: 'Invoice' },
+  { value: 'EWAYBILL', label: 'E-Way Bill' },
+  { value: 'DELIVERY_CHALLAN', label: 'Delivery Challan' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+const DOCUMENT_TYPE_LABELS = Object.fromEntries(
+  DOCUMENT_TYPE_OPTIONS.map((option) => [option.value, option.label])
+);
 
 const canCancelShipment = (order) => {
   const status = order?.shipping?.shippingStatus || 'Pending';
@@ -241,7 +253,17 @@ const ViewDropdown = ({
 };
 
 /* ================= ORDER DETAILS & TRACKING MODAL ================= */
-const OrderDetailsModal = ({ isOpen, onClose, order }) => {
+const OrderDetailsModal = ({
+  isOpen,
+  onClose,
+  order,
+  canWrite,
+  onDocumentsUpdated,
+  onViewDocument,
+}) => {
+  const [pendingDocumentType, setPendingDocumentType] = useState('INVOICE');
+  const [uploadingDocument, setUploadingDocument] = useState(false);
+
   if (!isOpen || !order) return null;
 
   const awbNumber = order.shipping?.awbNumber;
@@ -250,6 +272,25 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
   const parties = getOrderPartySections(order);
   const pickupParty = parties.pickup;
   const deliveryParty = parties.delivery;
+  const documents = order.companyDocuments || [];
+
+  const handleDocumentSelect = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file || !order?._id) return;
+
+    try {
+      setUploadingDocument(true);
+      const res = await uploadOrderDocuments(order._id, file, pendingDocumentType);
+      onDocumentsUpdated?.(order._id, res.documents || []);
+      toast.success('Document uploaded');
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
@@ -422,6 +463,75 @@ const OrderDetailsModal = ({ isOpen, onClose, order }) => {
               {order.comment}
             </div>
           )}
+
+          <div className="border border-slate-100 rounded-xl overflow-hidden">
+            <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-100 flex items-center justify-between gap-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Order Documents
+              </h4>
+              {canWrite && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={pendingDocumentType}
+                    onChange={(e) => setPendingDocumentType(e.target.value)}
+                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700"
+                  >
+                    {DOCUMENT_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <label className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 cursor-pointer hover:bg-indigo-100">
+                    <Upload size={14} />
+                    {uploadingDocument ? 'Uploading...' : 'Upload'}
+                    <input
+                      type="file"
+                      className="hidden"
+                      disabled={uploadingDocument}
+                      onChange={handleDocumentSelect}
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {documents.length > 0 ? (
+              <div className="divide-y divide-slate-100">
+                {documents.map((doc) => (
+                  <div
+                    key={`${order._id}-${doc.index}`}
+                    className="flex items-center justify-between gap-3 px-4 py-3 text-xs"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-800 truncate">
+                        {doc.fileName || 'Document'}
+                      </p>
+                      <p className="text-slate-500 mt-0.5">
+                        {DOCUMENT_TYPE_LABELS[doc.documentType] || doc.documentType}
+                        {doc.uploadedAt
+                          ? ` · ${formatDisplayDate(doc.uploadedAt)}`
+                          : ''}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onViewDocument?.(order, doc)}
+                      className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 font-semibold text-slate-600 hover:bg-slate-50"
+                    >
+                      <Eye size={14} />
+                      View
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="px-4 py-5 text-xs text-slate-400 italic">
+                No documents uploaded yet.
+                {canWrite ? ' Use Upload to attach Invoice, E-Way Bill, or other files.' : ''}
+              </div>
+            )}
+          </div>
 
         </div>
 
@@ -650,6 +760,27 @@ const OrdersPage = () => {
         fileName:
           order.reversePickup?.documentName || 'reverse-pickup-document.pdf',
       }
+    );
+  };
+
+  const handleViewCompanyDocument = (order, doc) => {
+    openPreviewWithLoader(
+      () => getOrderDocumentUrl(order._id, doc.index),
+      {
+        title: `${order.externalOrderId || order._id} — ${DOCUMENT_TYPE_LABELS[doc.documentType] || doc.documentType}`,
+        fileName: doc.fileName || 'order-document',
+      }
+    );
+  };
+
+  const handleOrderDocumentsUpdated = (orderId, documents) => {
+    setSelectedOrderDetails((prev) =>
+      prev?._id === orderId ? { ...prev, companyDocuments: documents } : prev
+    );
+    setAllOrders((prev) =>
+      prev.map((item) =>
+        item._id === orderId ? { ...item, companyDocuments: documents } : item
+      )
     );
   };
 
@@ -1246,6 +1377,9 @@ const OrdersPage = () => {
         isOpen={isDetailsModalOpen}
         onClose={() => { setIsDetailsModalOpen(false); setSelectedOrderDetails(null); }}
         order={selectedOrderDetails}
+        canWrite={canWrite}
+        onDocumentsUpdated={handleOrderDocumentsUpdated}
+        onViewDocument={handleViewCompanyDocument}
       />
 
       <CreateOrderDialog

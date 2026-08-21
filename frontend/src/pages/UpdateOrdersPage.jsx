@@ -511,24 +511,6 @@ const UpdateOrdersPage = () => {
       return;
     }
 
-    const phone = String(formData.billing_phone || "").trim();
-    if (phone && !/^\d{10}$/.test(phone)) {
-      setMessage({
-        type: "error",
-        text: "Enter a valid 10-digit customer phone number, or leave it blank.",
-      });
-      return;
-    }
-
-    const alternatePhone = String(formData.billing_alternate_phone || "").trim();
-    if (alternatePhone && !/^\d{10}$/.test(alternatePhone)) {
-      setMessage({
-        type: "error",
-        text: "Enter a valid 10-digit alternate phone number, or leave it blank.",
-      });
-      return;
-    }
-
     const payload = buildUpdatePayload(formData);
 
     try {

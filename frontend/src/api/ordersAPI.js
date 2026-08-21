@@ -273,6 +273,24 @@ export const getOrderDocumentUrl = async (orderId, documentIndex) => {
   };
 };
 
+export const uploadOrderDocuments = async (orderId, file, documentType) => {
+  const formData = new FormData();
+  formData.append("documents", file);
+  formData.append("document_types", JSON.stringify([documentType]));
+
+  const res = await fetch(`${BASE}/api/external/orders/${orderId}/documents`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to upload document");
+  }
+  return data;
+};
+
 export const getOrderIdSequences = async () => {
   const res = await fetch(`${BASE}/api/external/orders/order-id-sequences`, {
     method: "GET",
