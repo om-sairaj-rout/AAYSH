@@ -1,6 +1,7 @@
 const ReversePickup = require("../../models/reversePickup.model");
 const { parseISODateOnly } = require("../../utils/dateTime");
 const { uploadDocumentToS3 } = require("../../utils/s3");
+const { validateRequiredPhone } = require("../../utils/phone");
 
 const MODE_TO_SERVICE = {
   Surface: "surface",
@@ -68,6 +69,7 @@ const buildPayload = (body, documentMeta, user) => {
         ? body.preferredServiceType
         : "surface"),
     pickupDate,
+    requestedPickupDate: pickupDate,
     pickupTime: String(body.pickupTime || "11:00").trim(),
     notes: remarks,
     remarks,
@@ -106,6 +108,14 @@ const createReversePickup = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Invalid pickup date",
+      });
+    }
+
+    const fromPhoneCheck = validateRequiredPhone(body.fromPhone, "Pickup phone number");
+    if (!fromPhoneCheck.ok) {
+      return res.status(400).json({
+        success: false,
+        message: fromPhoneCheck.message,
       });
     }
 

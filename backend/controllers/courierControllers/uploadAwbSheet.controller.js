@@ -4,6 +4,14 @@ const Awb = require("../../models/awb/awb.model");
 const uploadAwbSheet = async (req, res) => {
   try {
     const { courierId, category } = req.body;
+    const allowedCategories = ["under3kg", "over3kg", "prime", "codToPay"];
+
+    if (!allowedCategories.includes(category)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid AWB category",
+      });
+    }
     console.log("COURIER ID:", courierId, "CATEGORY:", category);
 
     if (!req.file) {

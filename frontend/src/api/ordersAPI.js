@@ -8,7 +8,7 @@ const defaultFetchOptions = {
 export const getOrdersByDate = async (
   fromDate,
   toDate,
-  { page = 1, perPage = 20, all = false } = {}
+  { page = 1, perPage = 20, all = false, companyId } = {}
 ) => {
   const params = new URLSearchParams({
     fromDate,
@@ -19,6 +19,10 @@ export const getOrdersByDate = async (
 
   if (all) {
     params.append("all", "true");
+  }
+
+  if (companyId && companyId !== "ALL") {
+    params.append("company_id", companyId);
   }
 
   const res = await fetch(
@@ -183,6 +187,29 @@ export const getOrdersByUser = async (userId) => {
     return data;
   } catch (error) {
     console.error("Get orders by user error:", error);
+    throw error;
+  }
+};
+
+export const getOrdersByCompany = async (companyID) => {
+  try {
+    const response = await fetch(
+      `${BASE}/api/companies/${encodeURIComponent(companyID)}/orders`,
+      {
+        method: "GET",
+        credentials: "include",
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to fetch company orders");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Get orders by company error:", error);
     throw error;
   }
 };

@@ -68,7 +68,7 @@ const applyShipmentStatus = (bucket, status) => {
       bucket.captured += 1;
       break;
     case "Delayed":
-    case "Delivery Attempt Failed":
+    case "Undelivered":
       bucket.delayed += 1;
       bucket.captured += 1;
       break;
@@ -107,7 +107,7 @@ const getRiskLevel = (delayRatio) => {
 const getOrderRiskFlags = (order) => {
   const status = getShippingStatus(order);
   const explicitDelay =
-    status === "Delayed" || status === "Delivery Attempt Failed";
+    status === "Delayed" || status === "Undelivered";
 
   let slaBreach = false;
   if (!explicitDelay) {

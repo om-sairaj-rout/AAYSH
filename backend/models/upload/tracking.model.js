@@ -23,7 +23,7 @@ const TrackingSchema = new mongoose.Schema(
   "Returned",
   "Exchange",
   "Delayed",
-  "Delivery Attempt Failed",
+  "Undelivered",
 ],
       required: true,
     },

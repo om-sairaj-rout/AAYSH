@@ -20,10 +20,15 @@ const getCouriers = async (req, res) => {
           status: "available",
         });
 
-        // Added Prime category logic here
         const prime = await Awb.countDocuments({
           courierId: courier._id,
           category: "prime",
+          status: "available",
+        });
+
+        const codToPay = await Awb.countDocuments({
+          courierId: courier._id,
+          category: "codToPay",
           status: "available",
         });
 
@@ -35,6 +40,7 @@ const getCouriers = async (req, res) => {
   unbookedUnder1kg: under3kg,
   unbookedOver3kg: over3kg,
   unbookedPrime: prime,
+  unbookedCodToPay: codToPay,
 
   // Serviceability Counts
   totalPincodes: courier.totalPincodes || 0,

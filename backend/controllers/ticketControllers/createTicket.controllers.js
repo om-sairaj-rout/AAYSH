@@ -2,10 +2,47 @@ const Ticket = require("../../models/ticket.model");
 const User = require("../../models/user.model");
 const { uploadDocumentToS3 } = require("../../utils/s3");
 const { notifySupportTicket } = require("../../utils/notifySupportTicket");
+const { validateRequiredPhone } = require("../../utils/phone");
+
+const requirePartyField = (value, label) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return `${label} is required`;
+  }
+  return null;
+};
+
+const validateRequiredPincode = (value, label) => {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (!digits) {
+    return { ok: false, message: `${label} is required` };
+  }
+  if (!/^\d{6}$/.test(digits)) {
+    return { ok: false, message: `${label} must be a valid 6-digit pincode` };
+  }
+  return { ok: true, value: digits };
+};
 
 const createTicket = async (req, res) => {
   try {
-    const { subject, category, description, orderAwbNumber } = req.body;
+    const {
+      subject,
+      category,
+      description,
+      orderAwbNumber,
+      fromName,
+      fromPhone,
+      fromAddress,
+      fromCity,
+      fromState,
+      fromPincode,
+      toName,
+      toPhone,
+      toAddress,
+      toCity,
+      toState,
+      toPincode,
+    } = req.body;
 
     if (!String(subject || "").trim()) {
       return res.status(400).json({
@@ -25,6 +62,56 @@ const createTicket = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Description is required",
+      });
+    }
+
+    const partyErrors = [
+      requirePartyField(fromName, "From name"),
+      requirePartyField(fromAddress, "From address"),
+      requirePartyField(fromCity, "From city"),
+      requirePartyField(fromState, "From state"),
+      requirePartyField(toName, "To name"),
+      requirePartyField(toAddress, "To address"),
+      requirePartyField(toCity, "To city"),
+      requirePartyField(toState, "To state"),
+    ].filter(Boolean);
+
+    if (partyErrors.length) {
+      return res.status(400).json({
+        success: false,
+        message: partyErrors[0],
+      });
+    }
+
+    const fromPhoneError = validateRequiredPhone(fromPhone, "From phone number");
+    if (!fromPhoneError.ok) {
+      return res.status(400).json({
+        success: false,
+        message: fromPhoneError.message,
+      });
+    }
+
+    const toPhoneError = validateRequiredPhone(toPhone, "To phone number");
+    if (!toPhoneError.ok) {
+      return res.status(400).json({
+        success: false,
+        message: toPhoneError.message,
+      });
+    }
+
+    const fromPincodeError = validateRequiredPincode(fromPincode, "From pincode");
+    if (!fromPincodeError.ok) {
+      return res.status(400).json({
+        success: false,
+        message: fromPincodeError.message,
+      });
+    }
+
+    const toPincodeError = validateRequiredPincode(toPincode, "To pincode");
+    if (!toPincodeError.ok) {
+      return res.status(400).json({
+        success: false,
+        message: toPincodeError.message,
       });
     }
 
@@ -84,6 +171,20 @@ const createTicket = async (req, res) => {
       category,
       description: String(description).trim(),
       orderAwbNumber: String(orderAwbNumber || "").trim(),
+      fromName: String(fromName).trim(),
+      fromPhone: fromPhoneError.value,
+      fromAddress: String(fromAddress).trim(),
+      fromCity: String(fromCity).trim(),
+      fromState: String(fromState).trim(),
+      fromPincode: fromPincodeError.value,
+      toName: String(toName).trim(),
+      toPhone: toPhoneError.value,
+      toAddress: String(toAddress).trim(),
+      toCity: String(toCity).trim(),
+      toState: String(toState).trim(),
+      toPincode: toPincodeError.value,
+      unreadForAdmin: true,
+      unreadForUser: false,
       status: "pending",
       priority: "medium",
       submittedBy: req.user.id,
@@ -92,6 +193,14 @@ const createTicket = async (req, res) => {
       fullName: submitter.fullName || "",
       email: submitter.email || "",
       phone: submitter.mobile_number || "",
+      messages: [
+        {
+          sender: req.user.id,
+          senderRole: "user",
+          message: String(description).trim(),
+          createdAt: new Date(),
+        },
+      ],
       ...attachmentMeta,
     });
 

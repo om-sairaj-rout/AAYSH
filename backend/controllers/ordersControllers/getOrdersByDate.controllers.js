@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const Tracking = require("../../models/upload/tracking.model");
+const User = require("../../models/user.model");
 const {
   toISTDate,
   startOfDayIST,
@@ -127,7 +128,7 @@ const mapRowsToOrders = (rows, trackingMap) =>
 
 const getOrdersByDate = async (req, res) => {
   try {
-    const { fromDate, toDate, all } = req.query;
+    const { fromDate, toDate, all, company_id } = req.query;
 
     const startDate = startOfDayIST(fromDate);
     const endDate = endOfDayIST(toDate);
@@ -138,6 +139,24 @@ const getOrdersByDate = async (req, res) => {
         $lte: endDate,
       },
     });
+
+    if (req.user?.role === "admin" && company_id && company_id !== "ALL") {
+      const companyKey = String(company_id).trim();
+
+      if (companyKey.toUpperCase().startsWith("AAYSH-")) {
+        filter.companyID = companyKey.toUpperCase();
+      } else {
+        const companyUser = await User.findById(companyKey)
+          .select("companyID")
+          .lean();
+
+        if (companyUser?.companyID) {
+          filter.companyID = companyUser.companyID;
+        } else {
+          filter.uploadedBy = new mongoose.Types.ObjectId(companyKey);
+        }
+      }
+    }
 
     const fetchAll = all === "true";
     const { page, perPage, skip } = parsePagination(req.query, 20);

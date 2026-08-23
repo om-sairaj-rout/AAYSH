@@ -55,3 +55,43 @@ export const uploadServiceabilitySheetAPI = async (formData) => {
   });
   return res.json();
 };
+
+const jsonRequest = async (url, options = {}) => {
+  const res = await fetch(url, {
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options,
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Request failed");
+  }
+  return data;
+};
+
+export const updateCourierPartnerAPI = async (courierId, payload) =>
+  jsonRequest(`${BASE}/api/courier/${courierId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+
+export const deleteCourierPartnerAPI = async (courierId) =>
+  jsonRequest(`${BASE}/api/courier/${courierId}`, {
+    method: "DELETE",
+  });
+
+export const fetchCourierAwbsAPI = async (courierId, category) => {
+  const params = category ? `?category=${encodeURIComponent(category)}` : "";
+  return jsonRequest(`${BASE}/api/courier/${courierId}/awbs${params}`);
+};
+
+export const updateAwbAPI = async (awbId, payload) =>
+  jsonRequest(`${BASE}/api/awb/${awbId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+
+export const deleteAwbAPI = async (awbId) =>
+  jsonRequest(`${BASE}/api/awb/${awbId}`, {
+    method: "DELETE",
+  });

@@ -13,9 +13,9 @@ const assert = (condition, message) => {
 
 const tracking = [
   { status: "Out For Delivery", eventTime: new Date("2026-01-01T10:00:00Z"), failureReason: "" },
-  { status: "Delivery Attempt Failed", eventTime: new Date("2026-01-01T12:00:00Z"), failureReason: "Customer unavailable" },
+  { status: "Undelivered", eventTime: new Date("2026-01-01T12:00:00Z"), failureReason: "Customer unavailable" },
   { status: "Out For Delivery", eventTime: new Date("2026-01-02T10:00:00Z"), failureReason: "" },
-  { status: "Delivery Attempt Failed", eventTime: new Date("2026-01-02T12:00:00Z"), failureReason: "Address incorrect" },
+  { status: "Undelivered", eventTime: new Date("2026-01-02T12:00:00Z"), failureReason: "Address incorrect" },
   { status: "Out For Delivery", eventTime: new Date("2026-01-03T10:00:00Z"), failureReason: "" },
   { status: "Delivered", eventTime: new Date("2026-01-03T14:00:00Z"), failureReason: "" },
 ];
@@ -33,7 +33,7 @@ assert(zero.attempts.length === 0, "zero attempt list");
 
 const fallback = buildDeliveryAttempts([], {
   deliveryAttempts: 1,
-  shippingStatus: "Delivery Attempt Failed",
+  shippingStatus: "Undelivered",
   attemptFailureReason: "Gate locked",
 });
 assert(fallback.attempts[0].failure_reason === "Gate locked", "fallback failure reason");

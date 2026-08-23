@@ -32,6 +32,7 @@ const getAdminTickets = async (req, res) => {
         .populate("submittedBy", "companyName email fullName mobile_number")
         .populate("assignedTo", "email fullName companyName")
         .populate("resolvedBy", "email fullName")
+        .populate("messages.sender", "fullName email companyName")
         .lean(),
     ]);
 

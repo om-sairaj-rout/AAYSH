@@ -66,6 +66,16 @@ const ShippingSchema = new mongoose.Schema(  {
       default: null,
     },
 
+    requestedPickupDate: {
+      type: Date,
+      default: null,
+    },
+
+    actualPickupDate: {
+      type: Date,
+      default: null,
+    },
+
     pickupTime: {
       type: String,
       default: "",
@@ -123,7 +133,7 @@ pickupCancelledAt: {
   "Returned",
   "Exchange",
   "Delayed",
-  "Delivery Attempt Failed",
+  "Undelivered",
 ],
       default: "Pending",
       index: true,

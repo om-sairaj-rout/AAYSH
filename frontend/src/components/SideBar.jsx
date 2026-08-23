@@ -1,7 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { canViewPath } from "../utils/permissions";
+import {
+  getTicketUnreadCount,
+  getAdminTicketUnreadCount,
+} from "../api/ticketsAPI";
 import {
   LayoutDashboard,
   FileChartColumn,
@@ -18,6 +22,7 @@ import {
   Headphones,
   RefreshCw,
 } from "lucide-react";
+import { TICKET_UNREAD_CHANGED_EVENT } from "../utils/ticketHelpers";
 import aayshlogo from "../assets/aaysh_logo.png";
 
 const NAVY = "#1B2B4B";
@@ -25,8 +30,35 @@ const NAVY_DARK = "#152238";
 
 const SideBar = ({ isOpen, setIsOpen }) => {
   const [openMenus, setOpenMenus] = useState({});
+  const [ticketUnreadCount, setTicketUnreadCount] = useState(0);
   const { isAdmin, canManageTeam, user } = useSelector((state) => state.auth);
   const location = useLocation();
+
+  useEffect(() => {
+    const loadUnread = async () => {
+      try {
+        if (isAdmin) {
+          const res = await getAdminTicketUnreadCount();
+          setTicketUnreadCount(res.count || 0);
+        } else if (canViewPath(user, "/contact")) {
+          const res = await getTicketUnreadCount();
+          setTicketUnreadCount(res.count || 0);
+        } else {
+          setTicketUnreadCount(0);
+        }
+      } catch {
+        setTicketUnreadCount(0);
+      }
+    };
+
+    loadUnread();
+    const timer = setInterval(loadUnread, 30000);
+    window.addEventListener(TICKET_UNREAD_CHANGED_EVENT, loadUnread);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener(TICKET_UNREAD_CHANGED_EVENT, loadUnread);
+    };
+  }, [isAdmin, user, location.pathname]);
 
   const toggleMenu = (name) => {
     setOpenMenus((prev) => ({ ...prev, [name]: !prev[name] }));
@@ -195,6 +227,20 @@ const SideBar = ({ isOpen, setIsOpen }) => {
     }))
     .filter((group) => group.items.length > 0);
 
+  const getUnreadForPath = (path) => {
+    if (path === "/contact" && !isAdmin) return ticketUnreadCount;
+    if (path === "/admin/tickets" && isAdmin) return ticketUnreadCount;
+    return 0;
+  };
+
+  const renderUnreadBadge = (path) => {
+    const count = getUnreadForPath(path);
+    if (!count) return null;
+    return (
+      <span className="absolute top-2 right-2 inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-[#1B2B4B]" />
+    );
+  };
+
   const isSubItemActive = (subItems = []) =>
     subItems.some((sub) => location.pathname === sub.path);
 
@@ -318,6 +364,7 @@ const SideBar = ({ isOpen, setIsOpen }) => {
                               {item.icon}
                             </span>
                             <span className="text-[14px] font-medium truncate">{item.name}</span>
+                            {renderUnreadBadge(item.path)}
                           </>
                         )}
                       </NavLink>

@@ -5,6 +5,7 @@ import {
   getReversePickups,
   approveReversePickup,
   rejectReversePickup,
+  getReversePickupDocumentUrl,
 } from "../api/reversePickupAPI";
 import { getCompanies } from "../api/companyAPI";
 import { fetchCourierPartnersAPI } from "../api/courierAPI";
@@ -20,10 +21,11 @@ import {
 const AdminReversePickupPage = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("pending");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [companyFilter, setCompanyFilter] = useState("ALL");
   const [companiesList, setCompaniesList] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [detailRequest, setDetailRequest] = useState(null);
   const [modalMode, setModalMode] = useState(null);
   const [serviceType, setServiceType] = useState("surface");
   const [awbNumber, setAwbNumber] = useState("");
@@ -152,7 +154,7 @@ const AdminReversePickupPage = () => {
   };
 
   return (
-    <div className="w-full min-h-full bg-[#EFF2F6] -m-4 md:-m-6 p-5 md:p-8 space-y-6">
+    <div className="app-page bg-[#EFF2F6]">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[#1B2B4B] flex items-center gap-2">
@@ -179,11 +181,11 @@ const AdminReversePickupPage = () => {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#1B2B4B]"
         >
+          <option value="ALL">All</option>
           <option value="pending">Pending</option>
           <option value="awb_assigned">AWB Assigned</option>
           <option value="failed">Failed</option>
           <option value="rejected">Rejected</option>
-          <option value="ALL">All</option>
         </select>
         <select
           value={companyFilter}
@@ -237,7 +239,11 @@ const AdminReversePickupPage = () => {
                   const courier = getReversePickupCourier(item);
 
                   return (
-                  <tr key={item._id} className="hover:bg-slate-50/70 align-top">
+                  <tr
+                    key={item._id}
+                    className="hover:bg-slate-50/70 align-top cursor-pointer"
+                    onClick={() => setDetailRequest(item)}
+                  >
                     <td className="px-4 py-4">
                       <p className="font-bold text-[#1B2B4B]">{item.requestId}</p>
                       <p className="text-xs text-slate-400">{formatDisplayDate(item.createdAt)}</p>
@@ -289,7 +295,7 @@ const AdminReversePickupPage = () => {
                         </p>
                       )}
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                       {item.status === "pending" ? (
                         <div className="flex justify-end gap-2">
                           <button
@@ -323,7 +329,7 @@ const AdminReversePickupPage = () => {
       </div>
 
       {selected && modalMode === "approve" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+        <div className="modal-overlay">
           <div className="bg-white rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
             <h3 className="text-lg font-bold text-[#1B2B4B]">Approve Reverse Pickup</h3>
             <p className="text-sm text-slate-500">
@@ -390,7 +396,7 @@ const AdminReversePickupPage = () => {
       )}
 
       {selected && modalMode === "reject" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+        <div className="modal-overlay">
           <div className="bg-white rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
             <h3 className="text-lg font-bold text-[#1B2B4B]">Reject Request</h3>
             <textarea
@@ -412,6 +418,62 @@ const AdminReversePickupPage = () => {
               >
                 {actionLoading ? "Rejecting..." : "Reject"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {detailRequest && (
+        <div className="modal-overlay">
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-bold text-[#1B2B4B]">{detailRequest.requestId}</h3>
+                <p className="text-xs text-slate-400">Reverse pickup details</p>
+              </div>
+              <button type="button" className="text-slate-500" onClick={() => setDetailRequest(null)}>Close</button>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3 text-sm">
+              <p><span className="text-slate-400">Status:</span> {getReversePickupStatusDisplay(detailRequest).label}</p>
+              <p><span className="text-slate-400">Company:</span> {detailRequest.companyID}</p>
+              <p><span className="text-slate-400">Original AWB:</span> {detailRequest.originalAwbNumber || "—"}</p>
+              <p><span className="text-slate-400">AWB:</span> {detailRequest.awbNumber || detailRequest.liveAwbNumber || "—"}</p>
+              <p><span className="text-slate-400">Courier:</span> {detailRequest.courierName || "—"}</p>
+              <p><span className="text-slate-400">Requested pickup:</span> {formatDisplayDate(detailRequest.requestedPickupDate || detailRequest.pickupDate)}</p>
+              <p><span className="text-slate-400">From:</span> {detailRequest.fromName} · {detailRequest.fromPhone}<br />{detailRequest.fromAddress}, {detailRequest.fromCity} {detailRequest.fromPincode}</p>
+              <p><span className="text-slate-400">To:</span> {detailRequest.toName} · {detailRequest.toPhone}<br />{detailRequest.toAddress}, {detailRequest.toCity} {detailRequest.toPincode}</p>
+              <p className="sm:col-span-2"><span className="text-slate-400">Items:</span> {detailRequest.itemDescription} ({detailRequest.pieces} pc, {detailRequest.weight} kg)</p>
+              <p><span className="text-slate-400">Invoice value:</span> ₹{detailRequest.invoiceValue || 0}</p>
+              <p><span className="text-slate-400">Remarks:</span> {detailRequest.remarks || "—"}</p>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold uppercase text-slate-400 mb-2">Documents</h4>
+              <div className="flex flex-wrap gap-2">
+                {(detailRequest.supportingDocumentName || detailRequest.supportingDocumentPath || detailRequest.supportingDocumentS3Key) && (
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 rounded-lg border text-xs font-bold text-indigo-600"
+                    onClick={async () => {
+                      try {
+                        const url = await getReversePickupDocumentUrl(detailRequest._id);
+                        window.open(url, "_blank", "noopener,noreferrer");
+                      } catch (error) {
+                        toast.error(error.message);
+                      }
+                    }}
+                  >
+                    Open supporting document
+                  </button>
+                )}
+                {(detailRequest.orderId?.documents || []).map((doc, index) => (
+                  <span key={`${doc.fileName}-${index}`} className="px-3 py-1.5 rounded-lg border text-xs">
+                    {doc.documentType || "Document"}: {doc.fileName || `File ${index + 1}`}
+                  </span>
+                ))}
+                {!detailRequest.supportingDocumentName && !(detailRequest.orderId?.documents || []).length && (
+                  <p className="text-xs text-slate-400">No documents attached</p>
+                )}
+              </div>
             </div>
           </div>
         </div>

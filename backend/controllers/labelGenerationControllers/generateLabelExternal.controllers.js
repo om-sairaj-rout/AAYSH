@@ -132,69 +132,53 @@ doc.font(fontBold)
 let y = margin + strapHeight;
 
             // ================= 1. BRANDING & LOGO HEADER BOX (ENLARGED LOGO) =================
-            const headerHeight = 52; // Increased header height to fit larger logo safely
+            const headerHeight = 58;
             doc.rect(margin, y, printWidth, headerHeight)
    .strokeColor("#000000")
    .stroke();
 
-            // ================= USER BRANDING / LOGO =================
+            const seller = order.seller;
+            const courierNameStr = (order.shipping?.courierName || "SURFACE").toUpperCase();
+            const brandName = (seller?.companyName || "AAYSH EXPRESS").toUpperCase();
+            const logoFileName = seller?.logo ? path.basename(seller.logo) : null;
+            const logoPath = logoFileName ? path.join(__dirname, "../../assets", logoFileName) : null;
+            const brandWidth = printWidth - 100;
 
-const seller = order.seller;
+            if (logoPath && fs.existsSync(logoPath)) {
+                doc.image(logoPath, margin + 4, y + 4, {
+                    fit: [brandWidth - 8, headerHeight - 8],
+                    align: "center",
+                    valign: "center",
+                });
+            } else {
+                doc.font(fontBold).fontSize(12).fillColor("#1E293B").text(brandName, margin + 6, y + 18, {
+                    width: brandWidth - 12,
+                    align: "center",
+                });
+            }
 
-const logoWidth = 115;
-const logoHeight = 42;
-
-// User's logo filename from MongoDB
-const logoFileName = seller?.logo
-    ? path.basename(seller.logo)
-    : null;
-
-const logoPath = logoFileName
-    ? path.join(__dirname, "../../assets", logoFileName)
-    : null;
-
-if (logoPath && fs.existsSync(logoPath)) {
-
-    // User has a valid logo
-    doc.image(logoPath, margin + 5, y + 5, {
-        fit: [logoWidth, logoHeight],
-        align: "left",
-        valign: "center"
-    });
-
-} else {
-
-    // No logo -> show user's name
-    const sellerName = seller?.companyName || "AAYSH EXPRESS";
-
-    doc.font(fontBold)
-       .fontSize(14)
-       .fillColor("#1E293B")
-       .text(
-           sellerName,
-           margin + 6,
-           y + 15,
-           {
-               width: 115,
-               height: 25,
-               ellipsis: true
-           }
-       );
-}
-
-            // ORDER DATE ZONE (Right Header Box - Formerly COD location)
-            const rightHeaderX = margin + printWidth - 95;
+            const rightHeaderX = margin + brandWidth;
             doc.moveTo(rightHeaderX, y).lineTo(rightHeaderX, y + headerHeight).stroke();
 
-            doc.font(fontBold).fontSize(6.5).fillColor("#475569").text("ORDER DATE", rightHeaderX + 5, y + 8, {
-                width: 85,
-                align: "center"
+            doc.font(fontBold).fontSize(6).fillColor("#475569").text("ORDER DATE", rightHeaderX + 4, y + 6, {
+                width: 92,
+                align: "center",
             });
 
             const formattedOrderDate = order.orderDate ? formatDisplayDate(order.orderDate) : "N/A";
-            doc.font(fontBold).fontSize(9.5).fillColor("#000000").text(formattedOrderDate, rightHeaderX + 5, y + 22, {
-                width: 85,
-                align: "center"
+            doc.font(fontBold).fontSize(8.5).fillColor("#000000").text(formattedOrderDate, rightHeaderX + 4, y + 16, {
+                width: 92,
+                align: "center",
+            });
+
+            doc.font(fontBold).fontSize(6).fillColor("#475569").text("COURIER", rightHeaderX + 4, y + 32, {
+                width: 92,
+                align: "center",
+            });
+
+            doc.font(fontBold).fontSize(8).fillColor("#000000").text(courierNameStr, rightHeaderX + 4, y + 41, {
+                width: 92,
+                align: "center",
             });
 
             y += headerHeight;
@@ -337,16 +321,15 @@ if (logoPath && fs.existsSync(logoPath)) {
                 ellipsis: true
             });
 
-            // Courier Name + Destination City Strip
-            const courierNameStr = (order.shipping?.courierName || "SURFACE").toUpperCase();
+            // Destination strip (courier shown in header)
             const destCityStr = (order.destinationCity || "ROI").toUpperCase();
             const destStateStr = (order.destinationState || "IN").toUpperCase();
 
-            doc.font(fontBold).fontSize(8).fillColor("#000000").text(
-                `COURIER: ${courierNameStr} | DEST: ${destCityStr} (${destStateStr})`,
+            doc.font(fontBold).fontSize(7.5).fillColor("#000000").text(
+                `DEST: ${destCityStr} (${destStateStr})`,
                 margin + 6,
-                y + 22,
-                { width: printWidth - 80, ellipsis: true }
+                y + 24,
+                { width: printWidth - 80 }
             );
 
             // Payment Type Badge on Footer Right

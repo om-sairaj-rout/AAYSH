@@ -91,7 +91,7 @@ const addTracking = async (req, res) => {
         completeCurrentDeliveryAttempt(shipping, new Date());
         break;
 
-      case "Delivery Attempt Failed":
+      case "Undelivered":
         failCurrentDeliveryAttempt(
           shipping,
           req.body.failureReason || remarks.trim(),

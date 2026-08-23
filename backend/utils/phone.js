@@ -1,27 +1,47 @@
 const digitsOnly = (value) => String(value || "").replace(/\D/g, "");
 
-/** Normalize to last 10 digits when long enough; otherwise return digits found. */
-const normalizePhone = (value) => {
+const normalizePhone = (value) => digitsOnly(value);
+
+const validateRequiredPhone = (value, fieldLabel = "Phone number") => {
   const digits = digitsOnly(value);
-  if (digits.length >= 10) {
-    return digits.slice(-10);
+
+  if (!digits) {
+    return {
+      ok: false,
+      message: `${fieldLabel} is required`,
+    };
   }
-  return digits;
+
+  if (!/^\d{10}$/.test(digits)) {
+    return {
+      ok: false,
+      message: `${fieldLabel} must be exactly 10 digits`,
+    };
+  }
+
+  return { ok: true, value: digits };
 };
 
-/** Customer phone is optional. When provided, store normalized digits without length validation. */
-const validateOptionalPhone = (value) => {
-  const normalized = normalizePhone(value);
+const validateOptionalPhone = (value, fieldLabel = "Phone number") => {
+  const digits = digitsOnly(value);
 
-  if (!normalized) {
+  if (!digits) {
     return { ok: true, value: "" };
   }
 
-  return { ok: true, value: normalized };
+  if (!/^\d{10}$/.test(digits)) {
+    return {
+      ok: false,
+      message: `${fieldLabel} must be exactly 10 digits`,
+    };
+  }
+
+  return { ok: true, value: digits };
 };
 
 module.exports = {
   digitsOnly,
   normalizePhone,
+  validateRequiredPhone,
   validateOptionalPhone,
 };

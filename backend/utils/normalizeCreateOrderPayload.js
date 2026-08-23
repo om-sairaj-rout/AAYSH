@@ -1,4 +1,4 @@
-const { digitsOnly, normalizePhone, validateOptionalPhone } = require("./phone");
+const { digitsOnly, normalizePhone, validateRequiredPhone, validateOptionalPhone } = require("./phone");
 
 const normalizePaymentMethod = (value) => {
   const raw = String(value || "").trim().toLowerCase();
@@ -6,6 +6,9 @@ const normalizePaymentMethod = (value) => {
   if (!raw) return "COD";
   if (["cod", "cash_on_delivery"].includes(raw)) return "COD";
   if (["paid", "prepaid", "pre-paid", "online"].includes(raw)) return "Prepaid";
+  if (["to pay", "topay", "to-pay"].includes(raw) || value === "TO PAY") {
+    return "TO PAY";
+  }
   if (value === "COD" || value === "Prepaid") return value;
   return "COD";
 };
@@ -218,7 +221,7 @@ const validateNormalizedCreateOrder = (normalized) => {
     if (!normalized.destinationState) {
       return "Missing required field: shipping.province";
     }
-    const phoneCheck = validateOptionalPhone(
+    const phoneCheck = validateRequiredPhone(
       normalized.billingPhone,
       "Customer phone number"
     );
@@ -240,7 +243,7 @@ const validateNormalizedCreateOrder = (normalized) => {
       return "At least one lineItems entry is required";
     }
   } else {
-    const phoneCheck = validateOptionalPhone(
+    const phoneCheck = validateRequiredPhone(
       normalized.billingPhone,
       "Customer phone number"
     );

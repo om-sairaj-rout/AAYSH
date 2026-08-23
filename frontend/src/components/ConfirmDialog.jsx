@@ -65,7 +65,7 @@ const ConfirmDialog = ({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
@@ -78,7 +78,7 @@ const ConfirmDialog = ({
         onClick={onCancel}
       />
 
-      <div className="relative w-full max-w-md rounded-2xl border border-slate-200/80 bg-white shadow-[0_24px_60px_-20px_rgba(15,23,42,0.35)] animate-in fade-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-md rounded-t-2xl sm:rounded-2xl border border-slate-200/80 bg-white shadow-[0_24px_60px_-20px_rgba(15,23,42,0.35)] animate-in fade-in zoom-in-95 duration-150">
         <button
           type="button"
           onClick={onCancel}

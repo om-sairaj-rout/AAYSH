@@ -4,13 +4,7 @@ const Shipping = require("../../models/upload/shipping.model");
 const PincodeServiceability = require("../../models/upload/serviceability.model");
 const CourierPriority = require("../../models/upload/courierPriority.model");
 const { parseISODateOnly, now } = require("../../utils/dateTime");
-
-// ================= CATEGORY LOGIC =================
-const getAwbCategory = (weight, service) => {
-  if (service === "prime") return "prime";
-
-  return weight > 3 ? "over3kg" : "under3kg";
-};
+const { getAwbCategory } = require("../../utils/codToPay");
 
 const generateAwbExternal = async (req, res) => {
   try {
@@ -231,7 +225,8 @@ const generateAwbExternal = async (req, res) => {
       const category =
         getAwbCategory(
           order.chargeableWeight || order.weight,
-          service
+          service,
+          order.paymentMethod
         );
 
       let awb = null;
@@ -307,6 +302,7 @@ shippingUpdates.push({
       serviceType: service,
 
       pickupDate: parsedPickupDate,
+      requestedPickupDate: parsedPickupDate,
       pickupTime,
       pickupInstructions: notes,
       pickupLocation,

@@ -26,6 +26,7 @@ const updateDeliveryLocation = require("../controllers/ordersControllers/updateD
 const updateOrder = require("../controllers/ordersControllers/updateOrder.controllers");
 const cancelOrder = require("../controllers/ordersControllers/cancelOrders.controllers");
 const getOrdersByUserController = require("../controllers/orderUpdatesControllers/getOrdersByUser.controllers");
+const getOrdersByCompanyController = require("../controllers/orderUpdatesControllers/getOrdersByCompany.controllers");
 
 // ==========================
 // Existing Routes
@@ -139,6 +140,13 @@ orderRouter.get(
   checkAuth,
   authRoles("admin"),
   getOrdersByUserController
+);
+
+orderRouter.get(
+  "/companies/:companyID/orders",
+  checkAuth,
+  authRoles("admin"),
+  getOrdersByCompanyController
 );
 
 module.exports = orderRouter;

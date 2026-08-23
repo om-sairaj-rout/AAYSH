@@ -6,6 +6,7 @@ const getCompanyDetail = require("../controllers/companyControllers/getCompanyDe
 const registerCompanyUser = require("../controllers/companyControllers/registerCompanyUser.controllers");
 const updateCompanyUser = require("../controllers/companyControllers/updateCompanyUser.controllers");
 const deleteCompanyUser = require("../controllers/companyControllers/deleteCompanyUser.controllers");
+const deleteCompany = require("../controllers/companyControllers/deleteCompany.controllers");
 
 companyRouter.get("/companies", checkAuth, authRoles("admin"), getCompanies);
 companyRouter.get(
@@ -25,6 +26,12 @@ companyRouter.put(
   checkAuth,
   checkPermission("team", "write"),
   updateCompanyUser
+);
+companyRouter.delete(
+  "/companies/:companyID",
+  checkAuth,
+  authRoles("admin"),
+  deleteCompany
 );
 companyRouter.delete(
   "/companies/:companyID/users/:userId",

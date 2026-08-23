@@ -152,6 +152,63 @@ const formatAttemptDisplay = (attempt) => {
   return String(outcome);
 };
 
+const applyAdminDeliveryAttempts = (shipping, attempts = []) => {
+  if (!Array.isArray(attempts)) {
+    throw new Error("delivery_attempts must be an array.");
+  }
+
+  ensureHistoryArray(shipping);
+
+  const nextHistory = attempts
+    .map((item, index) => {
+      const attemptNumber = Number(
+        item.attempt_number ?? item.attemptNumber ?? index + 1
+      );
+      if (!Number.isFinite(attemptNumber) || attemptNumber < 1) {
+        throw new Error("Each delivery attempt must have a valid attempt number.");
+      }
+
+      const rawStatus = String(
+        item.status ?? item.outcome ?? ATTEMPT_FAILED
+      ).trim();
+      let status = ATTEMPT_FAILED;
+      if (
+        [ATTEMPT_IN_PROGRESS, ATTEMPT_FAILED, ATTEMPT_DELIVERED].includes(
+          rawStatus
+        )
+      ) {
+        status = rawStatus;
+      } else if (/deliver/i.test(rawStatus) && !/fail/i.test(rawStatus)) {
+        status = ATTEMPT_DELIVERED;
+      } else if (/progress|ofd|out for delivery/i.test(rawStatus)) {
+        status = ATTEMPT_IN_PROGRESS;
+      }
+
+      const failureReason = String(
+        item.failure_reason ?? item.failureReason ?? ""
+      ).trim();
+      const eventTime =
+        item.event_time || item.completedAt || item.startedAt || new Date();
+
+      return {
+        attemptNumber,
+        status,
+        failureReason: status === ATTEMPT_FAILED ? failureReason : "",
+        startedAt: item.startedAt || eventTime,
+        completedAt: status === ATTEMPT_IN_PROGRESS ? null : eventTime,
+      };
+    })
+    .sort((a, b) => a.attemptNumber - b.attemptNumber);
+
+  shipping.deliveryAttemptHistory = nextHistory;
+  shipping.deliveryAttempts = nextHistory.length;
+  const lastFailed = [...nextHistory]
+    .reverse()
+    .find((entry) => entry.status === ATTEMPT_FAILED);
+  shipping.attemptFailureReason = lastFailed?.failureReason || "";
+  markHistoryModified(shipping);
+};
+
 module.exports = {
   ATTEMPT_IN_PROGRESS,
   ATTEMPT_FAILED,
@@ -162,4 +219,5 @@ module.exports = {
   resolveDeliveryAttempts,
   formatAttemptDisplay,
   formatAttemptForApi,
+  applyAdminDeliveryAttempts,
 };

@@ -1,9 +1,10 @@
 import { ChevronsUpDown } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 import { getOrdersByDate } from "../api/ordersAPI";
+import { getCompanies } from "../api/companyAPI";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import { useSelector } from "react-redux";
 import { toast } from '../utils/toast';
 import { formatDisplayDate } from "../utils/dateTime";
 
@@ -51,6 +52,8 @@ const OrderByDateInfo = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage, setEntriesPerPage] = useState(20);
   const [pagination, setPagination] = useState({ total: 0, total_pages: 1 });
+  const [selectedCompany, setSelectedCompany] = useState("ALL");
+  const [companiesList, setCompaniesList] = useState([]);
 
   const { isAdmin, user } = useSelector((state) => state.auth);
   const canSeeWeight = isAdmin || user?.showWeight;
@@ -64,6 +67,17 @@ const OrderByDateInfo = () => {
   ];
 
   const [hasFetched, setHasFetched] = useState(false);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    getCompanies()
+      .then((res) => {
+        if (res.success && Array.isArray(res.companies)) {
+          setCompaniesList(res.companies);
+        }
+      })
+      .catch(() => {});
+  }, [isAdmin]);
 
   const loadOrders = async (page = currentPage) => {
     if (!fromDate || !toDate) {
@@ -94,6 +108,7 @@ const OrderByDateInfo = () => {
       const result = await getOrdersByDate(formattedFrom, formattedTo, {
         page,
         perPage: entriesPerPage,
+        companyId: isAdmin ? selectedCompany : undefined,
       });
 
       if (result.success) {
@@ -117,7 +132,7 @@ const OrderByDateInfo = () => {
     if (hasFetched) {
       loadOrders();
     }
-  }, [currentPage, entriesPerPage]);
+  }, [currentPage, entriesPerPage, selectedCompany]);
 
   const getVisibleKeys = () => {
     if (tableData.length === 0) return [];
@@ -197,7 +212,10 @@ const OrderByDateInfo = () => {
     try {
       setLoading(true);
 
-      const result = await getOrdersByDate(fromDate, toDate, { all: true });
+      const result = await getOrdersByDate(fromDate, toDate, {
+        all: true,
+        companyId: isAdmin ? selectedCompany : undefined,
+      });
 
       if (!result.success || !result.orders?.length) {
         toast.error("No data to export");
@@ -331,6 +349,27 @@ const OrderByDateInfo = () => {
           />
         </div>
 
+        {isAdmin && (
+          <div className="space-y-1">
+            <label className="text-sm font-semibold text-red-700">Company</label>
+            <select
+              value={selectedCompany}
+              onChange={(e) => {
+                setSelectedCompany(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full p-2 border border-gray-300 rounded-md outline-none bg-white"
+            >
+              <option value="ALL">All Companies</option>
+              {companiesList.map((company) => (
+                <option key={company.companyID} value={company.companyID}>
+                  {company.companyName} ({company.companyID})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <button
           onClick={handleSearch}
           className="bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-6 rounded-lg transition-colors"
@@ -370,7 +409,7 @@ const OrderByDateInfo = () => {
         </div>
       </div>
 
-      <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+      <div className="responsive-table-wrap border border-gray-200 rounded-lg shadow-sm">
         <table className="w-full text-left text-sm border-collapse">
           <thead>
             <tr className="border-t border-b border-gray-300 bg-gray-100/80">

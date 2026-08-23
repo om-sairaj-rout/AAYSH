@@ -87,7 +87,7 @@ const AwbPage = () => {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#F8FAFC] p-4 font-sans text-[#1E293B]">
+    <div className="w-full min-h-full max-w-full overflow-x-hidden bg-[#F8FAFC] p-2 sm:p-4 font-sans text-[#1E293B]">
       <div className="max-w-4xl mx-auto space-y-4">
         
         <div className="flex items-center justify-between">

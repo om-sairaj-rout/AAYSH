@@ -86,7 +86,8 @@ const uploadAndUpdateStatusExcel = async (req, res) => {
   "exchange": "Exchange",
   "Pending": "Pending",
   "delayed": "Delayed",
-  "delivery attempt failed": "Delivery Attempt Failed",
+  "undelivered": "Undelivered",
+  "delivery attempt failed": "Undelivered",
 };
 
     const workbook = XLSX.read(file.buffer, {
@@ -242,7 +243,7 @@ console.log(typeof row["Tracking Date & Time"]);
     completeCurrentDeliveryAttempt(shipping, eventTime);
     break;
 
-  case "Delivery Attempt Failed":
+  case "Undelivered":
   failCurrentDeliveryAttempt(shipping, failureReason, eventTime);
   break;
 

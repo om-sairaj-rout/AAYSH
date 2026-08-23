@@ -16,6 +16,7 @@ import {
   createReversePickup,
   getReversePickups,
   searchReversePickupCustomers,
+  getReversePickupDocumentUrl,
 } from "../api/reversePickupAPI";
 import { getOrderByAwb } from "../api/ordersAPI";
 import { getCompanyDetail } from "../api/companyAPI";
@@ -110,6 +111,7 @@ const ReversePickupPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
   const [pagination, setPagination] = useState({ total: 0, total_pages: 1 });
+  const [selectedRequest, setSelectedRequest] = useState(null);
 
   const previewRequestNo = useMemo(
     () => `REV-RP-${Date.now().toString().slice(-8)}`,
@@ -299,6 +301,11 @@ const ReversePickupPage = () => {
       return;
     }
 
+    if (!/^\d{10}$/.test(String(form.fromPhone || "").replace(/\D/g, ""))) {
+      toast.error("Pickup phone number must be exactly 10 digits");
+      return;
+    }
+
     try {
       setSubmitting(true);
       await createReversePickup({
@@ -323,7 +330,7 @@ const ReversePickupPage = () => {
   };
 
   return (
-    <div className="w-full min-h-full bg-[#EFF2F6] -m-4 md:-m-6 p-5 md:p-8 space-y-6">
+    <div className="app-page bg-[#EFF2F6]">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[#1B2B4B] flex items-center gap-2">
@@ -815,7 +822,11 @@ const ReversePickupPage = () => {
                   const courier = getReversePickupCourier(item);
 
                   return (
-                  <tr key={item._id} className="hover:bg-slate-50/70 align-top">
+                  <tr
+                    key={item._id}
+                    className="hover:bg-slate-50/70 align-top cursor-pointer"
+                    onClick={() => setSelectedRequest(item)}
+                  >
                     <td className="px-4 py-4">
                       <p className="font-bold text-[#1B2B4B]">{item.requestId}</p>
                       <p className="text-xs text-slate-400 mt-0.5">
@@ -913,6 +924,60 @@ const ReversePickupPage = () => {
           </div>
         </div>
       </div>
+
+      {selectedRequest && (
+        <div className="modal-overlay">
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-bold text-[#1B2B4B]">{selectedRequest.requestId}</h3>
+                <p className="text-xs text-slate-400">Reverse pickup details</p>
+              </div>
+              <button type="button" className="text-slate-500" onClick={() => setSelectedRequest(null)}>Close</button>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3 text-sm">
+              <p><span className="text-slate-400">Status:</span> {selectedRequest.status}</p>
+              <p><span className="text-slate-400">AWB:</span> {selectedRequest.awbNumber || selectedRequest.liveAwbNumber || "—"}</p>
+              <p><span className="text-slate-400">Courier:</span> {selectedRequest.courierName || "—"}</p>
+              <p><span className="text-slate-400">Requested pickup:</span> {formatDisplayDate(selectedRequest.requestedPickupDate || selectedRequest.pickupDate)}</p>
+              <p><span className="text-slate-400">From:</span> {selectedRequest.fromName} · {selectedRequest.fromPhone}<br />{selectedRequest.fromAddress}, {selectedRequest.fromCity} {selectedRequest.fromPincode}</p>
+              <p><span className="text-slate-400">To:</span> {selectedRequest.toName} · {selectedRequest.toPhone}<br />{selectedRequest.toAddress}, {selectedRequest.toCity} {selectedRequest.toPincode}</p>
+              <p className="sm:col-span-2"><span className="text-slate-400">Items:</span> {selectedRequest.itemDescription} ({selectedRequest.pieces} pc, {selectedRequest.weight} kg)</p>
+              <p><span className="text-slate-400">Invoice value:</span> ₹{selectedRequest.invoiceValue || 0}</p>
+              <p><span className="text-slate-400">Payment:</span> {selectedRequest.paymentMethod || "—"}</p>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold uppercase text-slate-400 mb-2">Documents</h4>
+              <div className="flex flex-wrap gap-2">
+                {(selectedRequest.supportingDocumentName || selectedRequest.supportingDocumentPath || selectedRequest.supportingDocumentS3Key) && (
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 rounded-lg border text-xs font-bold text-indigo-600"
+                    onClick={async () => {
+                      try {
+                        const url = await getReversePickupDocumentUrl(selectedRequest._id);
+                        window.open(url, "_blank", "noopener,noreferrer");
+                      } catch (error) {
+                        toast.error(error.message);
+                      }
+                    }}
+                  >
+                    Open supporting document
+                  </button>
+                )}
+                {(selectedRequest.orderId?.documents || []).map((doc, index) => (
+                  <span key={`${doc.fileName}-${index}`} className="px-3 py-1.5 rounded-lg border text-xs">
+                    {doc.documentType || "Document"}: {doc.fileName || `File ${index + 1}`}
+                  </span>
+                ))}
+                {!selectedRequest.supportingDocumentName && !(selectedRequest.orderId?.documents || []).length && (
+                  <p className="text-xs text-slate-400">No documents attached</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

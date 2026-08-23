@@ -104,6 +104,88 @@ export const updateTicket = async (id, payload) => {
   return data;
 };
 
+export const addTicketMessage = async (id, message) => {
+  const res = await fetch(`${BASE}/api/tickets/${id}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    ...defaultFetchOptions,
+    body: JSON.stringify({ message }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to send message");
+  }
+  return data;
+};
+
+export const addAdminTicketMessage = async (id, message) => {
+  const res = await fetch(`${BASE}/api/admin/tickets/${id}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    ...defaultFetchOptions,
+    body: JSON.stringify({ message }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to send message");
+  }
+  return data;
+};
+
+export const markTicketRead = async (id) => {
+  const res = await fetch(`${BASE}/api/tickets/${id}/read`, {
+    method: "POST",
+    ...defaultFetchOptions,
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to mark ticket as read");
+  }
+  return data;
+};
+
+export const markAdminTicketRead = async (id) => {
+  const res = await fetch(`${BASE}/api/admin/tickets/${id}/read`, {
+    method: "POST",
+    ...defaultFetchOptions,
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to mark ticket as read");
+  }
+  return data;
+};
+
+export const getTicketUnreadCount = async () => {
+  const res = await fetch(`${BASE}/api/tickets/unread-count`, {
+    method: "GET",
+    ...defaultFetchOptions,
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to fetch unread count");
+  }
+  return data;
+};
+
+export const getAdminTicketUnreadCount = async () => {
+  const res = await fetch(`${BASE}/api/admin/tickets/unread-count`, {
+    method: "GET",
+    ...defaultFetchOptions,
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to fetch unread count");
+  }
+  return data;
+};
+
 export const getTicketAttachmentUrl = async (ticketId) => {
   const res = await fetch(`${BASE}/api/tickets/${ticketId}/attachment-url`, {
     method: "GET",

@@ -6,6 +6,8 @@ const FINAL_STATUS_UPDATE_EXCLUDED_STATUSES = [
   "RTO",
   "Returned",
   "Exchange",
+  "Booked",
+  "Pending",
 ];
 
 const buildOrderScopeForUser = (user) => {

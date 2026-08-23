@@ -101,7 +101,7 @@ const RegistrationOverviewPage = () => {
   }, [companies, searchQuery]);
 
   return (
-    <div className="w-full min-h-full bg-[#EFF2F6] -m-4 md:-m-6 p-5 md:p-8 space-y-6">
+    <div className="app-page bg-[#EFF2F6]">
       <div>
         <h1 className="text-2xl font-bold text-[#1B2B4B]">Registration Overview</h1>
         <p className="text-sm text-slate-500 mt-1">

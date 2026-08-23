@@ -40,12 +40,14 @@ const reschedulePickup = async (req, res) => {
   {
     $set: {
       pickupDate,
+      requestedPickupDate: pickupDate,
       pickupTime: pickupTime || pickup.pickupTime,
       pickupLocation: pickupLocation || pickup.pickupLocation,
       pickupInstructions: notes || "",
       pickupStatus: "Scheduled",
       failureReason: "",
       pickedUpAt: null,
+      actualPickupDate: null,
     },
   },
   {

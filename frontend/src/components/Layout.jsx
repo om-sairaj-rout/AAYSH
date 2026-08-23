@@ -20,13 +20,13 @@ const Layout = () => {
         />
       )}
 
-      <div className="flex-1 flex flex-col h-full overflow-hidden w-full">
+      <div className="flex-1 flex flex-col h-full overflow-hidden w-full min-w-0">
         {/* Header receives ability to open/toggle sidebar */}
         <Header setIsSidebarOpen={setIsSidebarOpen} />
         
         {/* Adjusted bottom padding to account for fixed/sticky footer positioning safely */}
-        <main className="flex-1 p-4 md:p-6 pb-16 overflow-y-auto no-scrollbar">
-          <div className="bg-transparent min-h-125 p-0 md:p-0">
+        <main className="flex-1 min-w-0 p-3 sm:p-4 md:p-6 pb-16 overflow-y-auto overflow-x-hidden no-scrollbar">
+          <div className="bg-transparent min-h-0 w-full max-w-full">
             <Outlet />
           </div>
         </main>

@@ -22,6 +22,7 @@ const getTickets = async (req, res) => {
         .skip(skip)
         .limit(perPage)
         .populate("submittedBy", "companyName email fullName mobile_number")
+        .populate("messages.sender", "fullName email companyName")
         .lean(),
     ]);
 

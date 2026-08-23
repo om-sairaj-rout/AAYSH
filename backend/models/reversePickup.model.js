@@ -71,7 +71,7 @@ const reversePickupSchema = new mongoose.Schema(
     height: { type: Number, default: 0, min: 0 },
     paymentMethod: {
       type: String,
-      enum: ["COD", "Prepaid"],
+      enum: ["COD", "Prepaid", "TO PAY"],
       default: "Prepaid",
     },
     preferredServiceType: {
@@ -80,6 +80,7 @@ const reversePickupSchema = new mongoose.Schema(
       default: "surface",
     },
     pickupDate: { type: Date, required: true },
+    requestedPickupDate: { type: Date, default: null },
     pickupTime: { type: String, default: "11:00", trim: true },
     notes: { type: String, default: "", trim: true },
     remarks: { type: String, default: "", trim: true },

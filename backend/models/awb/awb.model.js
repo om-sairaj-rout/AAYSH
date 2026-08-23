@@ -22,6 +22,7 @@ const awbSchema =
           "under3kg",
           "over3kg",
           "prime",
+          "codToPay",
         ],
         required: true,
       },

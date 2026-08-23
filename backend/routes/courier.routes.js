@@ -30,6 +30,16 @@ const getCourierPriority =
 
 const updateCourierPriority =
   require("../controllers/courierControllers/updateCourierPriority.controller");
+const updateCourier =
+  require("../controllers/courierControllers/updateCourier.controller");
+const deleteCourier =
+  require("../controllers/courierControllers/deleteCourier.controller");
+const getCourierAwbs =
+  require("../controllers/courierControllers/getCourierAwbs.controller");
+const updateAwb =
+  require("../controllers/courierControllers/updateAwb.controller");
+const deleteAwb =
+  require("../controllers/courierControllers/deleteAwb.controller");
 
 
 // ==========================
@@ -91,6 +101,41 @@ courierRouter.put(
   checkAuth,
   authRoles("admin"),
   updateCourierPriority
+);
+
+courierRouter.put(
+  "/courier/:courierId",
+  checkAuth,
+  authRoles("admin"),
+  updateCourier
+);
+
+courierRouter.delete(
+  "/courier/:courierId",
+  checkAuth,
+  authRoles("admin"),
+  deleteCourier
+);
+
+courierRouter.get(
+  "/courier/:courierId/awbs",
+  checkAuth,
+  authRoles("admin"),
+  getCourierAwbs
+);
+
+courierRouter.put(
+  "/awb/:awbId",
+  checkAuth,
+  authRoles("admin"),
+  updateAwb
+);
+
+courierRouter.delete(
+  "/awb/:awbId",
+  checkAuth,
+  authRoles("admin"),
+  deleteAwb
 );
 
 module.exports = courierRouter;

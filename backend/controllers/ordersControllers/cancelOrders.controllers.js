@@ -1,9 +1,9 @@
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const Tracking = require("../../models/upload/tracking.model");
-const Awb = require("../../models/awb/awb.model");
 const { userOwnsOrder } = require("../../utils/companyScope");
 const { applyShipmentCancellation } = require("../../utils/applyShipmentCancellation");
+const { releaseAwbIfReusable } = require("../../utils/awbReuse");
 
 const cancelOrder = async (req, res) => {
   try {
@@ -71,19 +71,11 @@ const cancelOrder = async (req, res) => {
       }
 
       const awbNumber = String(shipping.awbNumber || "").trim();
+      const statusBeforeCancel = shipping.shippingStatus;
 
       applyShipmentCancellation(shipping);
       await shipping.save();
-
-      if (awbNumber) {
-        await Awb.findOneAndUpdate(
-          { awbNumber },
-          {
-            status: "available",
-            assignedOrder: null,
-          }
-        );
-      }
+      await releaseAwbIfReusable(awbNumber, statusBeforeCancel);
 
       await Tracking.create({
         shippingId: shipping._id,

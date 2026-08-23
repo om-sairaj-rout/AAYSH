@@ -1,8 +1,8 @@
 const Shipping = require("../../models/upload/shipping.model");
 const Order = require("../../models/upload/order.model");
-const Awb = require("../../models/awb/awb.model");
 const { userOwnsOrder } = require("../../utils/companyScope");
 const { applyShipmentCancellation } = require("../../utils/applyShipmentCancellation");
+const { releaseAwbIfReusable } = require("../../utils/awbReuse");
 
 const cancelShipments = async (req, res) => {
   try {
@@ -75,19 +75,10 @@ const cancelShipments = async (req, res) => {
           continue;
         }
 
+        const statusBeforeCancel = shipment.shippingStatus;
         applyShipmentCancellation(shipment);
-
         await shipment.save();
-
-        await Awb.findOneAndUpdate(
-          {
-            awbNumber,
-          },
-          {
-            status: "available",
-            assignedOrder: null,
-          }
-        );
+        await releaseAwbIfReusable(awbNumber, statusBeforeCancel);
 
         cancelled.push({
           awb: awbNumber,

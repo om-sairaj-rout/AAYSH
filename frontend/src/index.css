@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
@@ -7,6 +15,48 @@
 
 /* Hide scrollbar for IE, Edge and Firefox */
 .no-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@layer components {
+  .app-page {
+    @apply w-full min-h-full max-w-full overflow-x-hidden space-y-4 sm:space-y-6;
+  }
+
+  .app-page-inner {
+    @apply w-full max-w-[1600px] mx-auto space-y-4 sm:space-y-5 px-0 sm:px-0;
+  }
+
+  .responsive-table-wrap {
+    @apply w-full max-w-full overflow-x-auto overscroll-x-contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .responsive-table-wrap table {
+    @apply min-w-[640px] w-full;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4;
+  }
+
+  .modal-panel {
+    @apply bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-2xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto shadow-xl;
+  }
+
+  .modal-panel-body {
+    @apply p-4 sm:p-6 space-y-4;
+  }
+
+  .max-w-400 {
+    max-width: 1600px;
+  }
+}
+
+@layer utilities {
+  .safe-break {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 }

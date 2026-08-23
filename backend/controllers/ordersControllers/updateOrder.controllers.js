@@ -12,7 +12,11 @@ const {
 const { parseISODateOnly } = require("../../utils/dateTime");
 const { resolveOrderWeights } = require("../../utils/weightCalculations");
 const { parseNoOfBoxes } = require("../../utils/parseNoOfBoxes");
-const { validateOptionalPhone } = require("../../utils/phone");
+const {
+  validateRequiredPhone,
+  validateOptionalPhone,
+} = require("../../utils/phone");
+const { applyAdminDeliveryAttempts } = require("../../utils/deliveryAttemptService");
 const { syncReversePickupFromShipping } = require("../../utils/reversePickupSync");
 
 const SHIPPING_STATUSES = [
@@ -27,7 +31,7 @@ const SHIPPING_STATUSES = [
   "Returned",
   "Exchange",
   "Delayed",
-  "Delivery Attempt Failed",
+  "Undelivered",
 ];
 
 const PICKUP_STATUSES = [
@@ -118,6 +122,7 @@ const updateOrder = async (req, res) => {
       pickup_time,
       pickup_status,
       courier_name,
+      delivery_attempts,
     } = req.body;
 
     // =========================================
@@ -140,6 +145,7 @@ const updateOrder = async (req, res) => {
       "pickup_time",
       "pickup_status",
       "courier_name",
+      "delivery_attempts",
     ];
 
     if (
@@ -159,11 +165,11 @@ const updateOrder = async (req, res) => {
 
     if (
       payment_method !== undefined &&
-      !["COD", "Prepaid"].includes(payment_method)
+      !["COD", "Prepaid", "TO PAY"].includes(payment_method)
     ) {
       return res.status(400).json({
         success: false,
-        message: "Invalid payment method. Use COD or Prepaid.",
+        message: "Invalid payment method. Use COD, Prepaid, or TO PAY.",
       });
     }
 
@@ -463,7 +469,7 @@ const updateOrder = async (req, res) => {
     }
 
     if (billing_phone !== undefined) {
-      const phoneCheck = validateOptionalPhone(
+      const phoneCheck = validateRequiredPhone(
         billing_phone,
         "Customer phone number"
       );
@@ -689,6 +695,17 @@ const updateOrder = async (req, res) => {
 
       if (courier_name !== undefined) {
         shipping.courierName = String(courier_name).trim();
+      }
+
+      if (delivery_attempts !== undefined) {
+        try {
+          applyAdminDeliveryAttempts(shipping, delivery_attempts);
+        } catch (error) {
+          return res.status(400).json({
+            success: false,
+            message: error.message,
+          });
+        }
       }
     }
 

@@ -90,7 +90,7 @@ const ReschedulePickupModal = ({ isOpen, onClose, pickup, onConfirmReschedule })
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
+    <div className="modal-overlay overflow-y-auto bg-slate-900/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 my-8">
         
         {/* Header */}
@@ -210,6 +210,7 @@ const ReschedulePickupModal = ({ isOpen, onClose, pickup, onConfirmReschedule })
 
 const TAB_TO_QUERY = {
   "Today's Pickups": "today",
+  "Pending Pickups": "scheduled",
   "Future Pickups": "future",
   "Failed Pickups": "failed",
   "Cancelled Pickups": "cancelled",
@@ -231,6 +232,7 @@ const UserPickupPage = () => {
     failed: 0,
     cancelled: 0,
     completed: 0,
+    scheduled: 0,
     all: 0,
   });
   const [loading, setLoading] = useState(false);
@@ -318,8 +320,8 @@ const UserPickupPage = () => {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#F8FAFC] p-4 font-sans text-[#1E293B]">
-      <div className="max-w-400 mx-auto space-y-5">
+    <div className="w-full min-h-full max-w-full overflow-x-hidden bg-[#F8FAFC] p-2 sm:p-4 font-sans text-[#1E293B]">
+      <div className="max-w-400 w-full mx-auto space-y-5">
         
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
@@ -395,10 +397,11 @@ const UserPickupPage = () => {
         {/* Tab Selection & Search Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-3 rounded-xl shadow-sm border border-slate-100">
           <div className="flex flex-wrap items-center gap-1.5">
-            {["Today's Pickups", "Future Pickups", "Failed Pickups", "Cancelled Pickups", "Completed Pickups", "All Pickups"].map((tab) => {
+            {["Today's Pickups", "Pending Pickups", "Future Pickups", "Failed Pickups", "Cancelled Pickups", "Completed Pickups", "All Pickups"].map((tab) => {
               const isActive = activeTab === tab;
               const count =
                 tab === "Today's Pickups" ? counts.today :
+                tab === "Pending Pickups" ? counts.scheduled :
                 tab === "Future Pickups" ? counts.future :
                 tab === "Failed Pickups" ? counts.failed :
                 tab === "Cancelled Pickups" ? counts.cancelled :
@@ -438,7 +441,7 @@ const UserPickupPage = () => {
         </div>
 
         {/* Data Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-x-auto">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 responsive-table-wrap">
           <table className="w-full text-left border-collapse table-auto">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/50">

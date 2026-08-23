@@ -293,7 +293,7 @@ const OrderDetailsModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
+    <div className="modal-overlay overflow-y-auto bg-slate-900/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in duration-200 my-8">
         
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
@@ -622,12 +622,18 @@ const OrdersPage = () => {
 
   const fetchOrders = useCallback(async () => {
     const requestId = startRequest();
+    const isTodayShipmentsTab = activeSegment === "Today's Shipments";
 
     try {
       const searchParams = buildOrderSearchParams(searchType, searchQuery);
 
       const res = await getOrders({
-        status: activeSegment !== "All Orders" ? activeSegment : undefined,
+        status:
+          !isTodayShipmentsTab && activeSegment !== "All Orders"
+            ? activeSegment
+            : undefined,
+        forShipments: isTodayShipmentsTab ? true : undefined,
+        bookedTab: isTodayShipmentsTab ? "today" : undefined,
         from: fromDate || undefined,
         to: toDate || undefined,
         search: searchParams.search,
@@ -815,12 +821,161 @@ const OrdersPage = () => {
   };
 
   const handleBulkShipClick = () => {
-    const matchingSelectedDetails = allOrders.filter((o) =>
-      selectedOrders.includes(o._id)
+    const pendingSelected = allOrders.filter(
+      (o) =>
+        selectedOrders.includes(o._id) &&
+        (o.shipping?.shippingStatus || "Pending") === "Pending"
     );
 
-    navigate('/select-courier', { state: { orders: matchingSelectedDetails } });
+    if (!pendingSelected.length) {
+      toast.error("Bulk Ship is only available for Pending orders");
+      return;
+    }
+
+    navigate("/select-courier", { state: { orders: pendingSelected } });
   };
+
+  const downloadPdf = (blob, filename) => {
+    const url = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const getSelectedOrderRows = () =>
+    allOrders.filter((order) => selectedOrders.includes(order._id));
+
+  const selectedOrdersWithAwb = () =>
+    getSelectedOrderRows().filter((order) => order.shipping?.awbNumber?.trim());
+
+  const selectedPendingOrders = () =>
+    getSelectedOrderRows().filter(
+      (order) => (order.shipping?.shippingStatus || "Pending") === "Pending"
+    );
+
+  const selectedCancellableOrders = () =>
+    getSelectedOrderRows().filter((order) => canCancelShipment(order));
+
+  const handleBulkPrintLabels = async () => {
+    const orderIds = selectedOrdersWithAwb().map((order) => order._id);
+    if (!orderIds.length) {
+      toast.error("Select orders with AWB numbers for bulk labels");
+      return;
+    }
+    try {
+      const blob = await generateLabelAPI({ orderIds });
+      downloadPdf(blob, "bulk-labels.pdf");
+    } catch {
+      toast.error("Bulk label generation failed");
+    }
+  };
+
+  const handleBulkPrintInvoices = async () => {
+    const orderIds = selectedOrdersWithAwb().map((order) => order._id);
+    if (!orderIds.length) {
+      toast.error("Select orders with AWB numbers for bulk invoices");
+      return;
+    }
+    try {
+      const blob = await generateInvoiceAPI({ orderIds });
+      downloadPdf(blob, "bulk-invoices.pdf");
+    } catch {
+      toast.error("Bulk invoice generation failed");
+    }
+  };
+
+  const handleBulkPrintManifest = async () => {
+    const orderIds = selectedOrdersWithAwb().map((order) => order._id);
+    if (!orderIds.length) {
+      toast.error("Select orders with AWB numbers for bulk manifest");
+      return;
+    }
+    try {
+      const blob = await generateManifestAPI({ orderIds });
+      downloadPdf(blob, "bulk-manifest.pdf");
+    } catch {
+      toast.error("Bulk manifest generation failed");
+    }
+  };
+
+  const handleBulkDocuments = async () => {
+    const rows = getSelectedOrderRows().filter(
+      (order) => (order.companyDocuments || []).length > 0
+    );
+
+    if (!rows.length) {
+      toast.error("No company documents found on selected orders");
+      return;
+    }
+
+    try {
+      for (const order of rows) {
+        for (const doc of order.companyDocuments) {
+          const data = await getOrderDocumentUrl(order._id, doc.index);
+          const link = document.createElement("a");
+          link.href = data.url;
+          link.download = doc.fileName || "order-document";
+          link.target = "_blank";
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        }
+      }
+      toast.success("Downloading selected documents");
+    } catch (error) {
+      toast.error(error.message || "Bulk document download failed");
+    }
+  };
+
+  const handleBulkCancelShipments = async () => {
+    const cancellable = selectedCancellableOrders();
+
+    if (!cancellable.length) {
+      toast.error("No cancellable orders selected");
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: "Cancel selected orders",
+      message: `Cancel ${cancellable.length} selected order(s)? This cannot be undone.`,
+      confirmLabel: "Cancel orders",
+      cancelLabel: "Keep orders",
+      variant: "danger",
+    });
+    if (!confirmed) return;
+
+    try {
+      const withAwb = cancellable
+        .map((order) => order.shipping?.awbNumber?.trim())
+        .filter(Boolean);
+      const withoutAwb = cancellable
+        .filter((order) => !order.shipping?.awbNumber?.trim())
+        .map((order) => order.externalOrderId)
+        .filter(Boolean);
+
+      if (withAwb.length) {
+        await cancelShipments(withAwb);
+      }
+      if (withoutAwb.length) {
+        await cancelOrder(withoutAwb);
+      }
+
+      toast.success(`Cancelled ${cancellable.length} order(s)`);
+      setSelectedOrders([]);
+      fetchOrders();
+    } catch (error) {
+      toast.error(error.message || "Bulk cancel failed");
+    }
+  };
+
+  const isTodayShipmentsTab = activeSegment === "Today's Shipments";
+  const canBulkShip =
+    selectedPendingOrders().length > 0 &&
+    selectedPendingOrders().length === selectedOrders.length;
 
   const handleRowClick = (order) => {
     setSelectedOrderDetails(order);
@@ -868,8 +1023,8 @@ const OrdersPage = () => {
   ];
 
   return (
-    <div className="w-full min-h-screen bg-[#F8FAFC] p-4 font-sans text-[#1E293B]">
-      <div className="max-w-400 mx-auto space-y-4">
+    <div className="w-full min-h-full max-w-full overflow-x-hidden bg-[#F8FAFC] p-2 sm:p-4 font-sans text-[#1E293B]">
+      <div className="max-w-400 w-full mx-auto space-y-4">
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -905,7 +1060,7 @@ const OrdersPage = () => {
         {/* ================= SEGMENT TABS & BULK ACTIONS BAR ================= */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 bg-white p-3 rounded-xl shadow-sm">
           <div className="flex flex-wrap items-center gap-1.5">
-            {['All Orders', 'Pending', 'Booked','In Transit','Delivered','RTO','Cancelled'].map((tabName) => {
+            {['All Orders', 'Pending', 'Booked','In Transit','Delivered','RTO','Cancelled', "Today's Shipments"].map((tabName) => {
               const isActive = activeSegment === tabName;
               return (
                 <button
@@ -933,12 +1088,47 @@ const OrdersPage = () => {
           </div>
 
           {canWrite && selectedOrders.length > 0 && (
-            <button
-              onClick={handleBulkShipClick}
-              className="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-sm font-bold tracking-wide px-5 py-2.5 rounded-lg transition-colors shadow-sm"
-            >
-              Bulk Ship ({selectedOrders.length})
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {!isTodayShipmentsTab && (
+                <button
+                  onClick={handleBulkShipClick}
+                  disabled={!canBulkShip}
+                  className="bg-[#4F46E5] hover:bg-[#4338CA] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold tracking-wide px-3.5 py-2 rounded-lg transition-colors shadow-sm"
+                >
+                  Bulk Ship ({selectedPendingOrders().length || selectedOrders.length})
+                </button>
+              )}
+              <button
+                onClick={handleBulkPrintLabels}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow-sm"
+              >
+                Bulk Labels
+              </button>
+              <button
+                onClick={handleBulkPrintInvoices}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow-sm"
+              >
+                Bulk Invoices
+              </button>
+              <button
+                onClick={handleBulkPrintManifest}
+                className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow-sm"
+              >
+                Bulk Manifest
+              </button>
+              <button
+                onClick={handleBulkDocuments}
+                className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow-sm"
+              >
+                Bulk Documents
+              </button>
+              <button
+                onClick={handleBulkCancelShipments}
+                className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow-sm"
+              >
+                Bulk Cancel
+              </button>
+            </div>
           )}
         </div>
 
@@ -1058,7 +1248,7 @@ const OrdersPage = () => {
         </div>
 
         {/* ================= DATA TABLE CONTAINER ================= */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 responsive-table-wrap">
           <table className="w-full text-left border-collapse table-auto">
             <thead>
               <tr className="border-b border-gray-100 bg-[#FAFAFA]">

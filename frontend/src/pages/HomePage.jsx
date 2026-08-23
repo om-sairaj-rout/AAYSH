@@ -431,59 +431,6 @@ const HomePage = () => {
                   />
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className={`rounded-2xl border overflow-hidden ${t.trackCard}`}>
-                    <div className={`px-4 py-3 flex items-center gap-2 border-b ${isDark ? "border-white/10 bg-white/[0.02]" : "border-slate-100 bg-slate-50"}`}>
-                      <Building className="w-4 h-4 text-cyan-500" />
-                      <h2 className={`text-xs uppercase font-bold tracking-wider ${t.trackMuted}`}>Shipper</h2>
-                    </div>
-                    <div className="p-4 text-sm">
-                      <p className={`font-bold ${t.h1}`}>{orderData.consignorName || "—"}</p>
-                      <p className={`text-xs mt-1 ${t.sub}`}>
-                        {orderData.shipping?.pickupLocation || "Default Warehouse"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className={`rounded-2xl border overflow-hidden ${t.trackCard}`}>
-                    <div className={`px-4 py-3 flex items-center gap-2 border-b ${isDark ? "border-white/10 bg-white/[0.02]" : "border-slate-100 bg-slate-50"}`}>
-                      <User className="w-4 h-4 text-emerald-500" />
-                      <h2 className={`text-xs uppercase font-bold tracking-wider ${t.trackMuted}`}>Consignee</h2>
-                    </div>
-                    <div className="p-4 text-sm space-y-2">
-                      <p className={`font-bold ${t.h1}`}>
-                        {[orderData.consigneeName, orderData.consigneeLastName].filter(Boolean).join(" ") || "—"}
-                      </p>
-                      <p className={`text-xs ${t.sub}`}>
-                        {orderData.address}
-                        {orderData.address2 ? `, ${orderData.address2}` : ""}
-                      </p>
-                      <p className={`text-xs flex items-center gap-1 ${t.sub}`}>
-                        <Phone className="w-3 h-3" />
-                        {orderData.billingPhone || orderData.contactNo || "—"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={`rounded-2xl border overflow-hidden ${t.trackCard}`}>
-                  <div className={`px-4 py-3 flex items-center gap-2 border-b ${isDark ? "border-white/10 bg-white/[0.02]" : "border-slate-100 bg-slate-50"}`}>
-                    <FileText className="w-4 h-4 text-cyan-500" />
-                    <h2 className={`text-xs uppercase font-bold tracking-wider ${t.trackMuted}`}>Manifest Details</h2>
-                  </div>
-                  <div className="grid grid-cols-3 divide-x divide-white/10 text-center">
-                    {[
-                      { label: "No. of Boxes", value: `${orderData.noOfBoxes || 1}` },
-                      { label: "Invoice No", value: orderData.invoiceNo || "—" },
-                      { label: "Value", value: `₹${orderData.invoiceValue || "0"}` },
-                    ].map((item) => (
-                      <div key={item.label} className="p-4">
-                        <span className={`text-[10px] uppercase font-bold tracking-wider block ${t.trackMuted}`}>{item.label}</span>
-                        <span className={`text-sm font-bold mt-1 block ${t.h1}`}>{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
             ) : null}
           </div>

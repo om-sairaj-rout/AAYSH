@@ -39,6 +39,7 @@ const assignManualAwbToReversePickupShipping = async ({
   shipping.courierName = trimmedCourier;
   shipping.serviceType = service;
   shipping.pickupDate = request.pickupDate;
+  shipping.requestedPickupDate = request.requestedPickupDate || request.pickupDate;
   shipping.pickupTime = request.pickupTime || "11:00";
   shipping.pickupInstructions = request.notes || request.remarks || "";
   shipping.pickupStatus = "Scheduled";

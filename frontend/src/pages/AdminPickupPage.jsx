@@ -26,7 +26,7 @@ const FailPickupModal = ({ isOpen, onClose, pickup, onConfirmFail }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
+    <div className="modal-overlay overflow-y-auto bg-slate-900/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 my-8">
         
         {/* Modal Header */}
@@ -120,7 +120,7 @@ const BulkFailPickupModal = ({ isOpen, onClose, selectedCount, onConfirmBulkFail
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
+    <div className="modal-overlay overflow-y-auto bg-slate-900/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 my-8">
         
         {/* Modal Header */}
@@ -198,6 +198,7 @@ const BulkFailPickupModal = ({ isOpen, onClose, selectedCount, onConfirmBulkFail
 
 const ADMIN_TAB_TO_QUERY = {
   "Today's Pickups": "today",
+  "Pending Pickups": "scheduled",
   "Future Pickups": "future",
   "Failed Pickups": "failed",
   "Completed Pickups": "completed",
@@ -233,6 +234,8 @@ const AdminPickupPage = () => {
   const [refreshToken, setRefreshToken] = useState(0);
 
   const isTodayTab = activeTab === "Today's Pickups";
+  const isPendingTab = activeTab === "Pending Pickups";
+  const isActionTab = isTodayTab || isPendingTab;
 
   useEffect(() => {
     getAdminPickupsAPI({ tab: "all", userId: "ALL", page: 1, perPage: 1 })
@@ -393,8 +396,8 @@ const AdminPickupPage = () => {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#F8FAFC] p-4 font-sans text-[#1E293B]">
-      <div className="max-w-400 mx-auto space-y-5">
+    <div className="w-full min-h-full max-w-full overflow-x-hidden bg-[#F8FAFC] p-2 sm:p-4 font-sans text-[#1E293B]">
+      <div className="max-w-400 w-full mx-auto space-y-5">
         
         {/* Header & User Selector Bar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
@@ -436,8 +439,8 @@ const AdminPickupPage = () => {
               </select>
             </div>
 
-            {/* Bulk actions only available in Today's Pickups tab */}
-            {isTodayTab && selectedPickupIds.length > 0 && (
+            {/* Bulk actions for Today's and Pending tabs */}
+            {isActionTab && selectedPickupIds.length > 0 && (
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleBulkComplete}
@@ -502,10 +505,11 @@ const AdminPickupPage = () => {
         {/* Tab Selection & Search Header with Status-based Badge Counts */}
         <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-3 rounded-xl shadow-sm border border-slate-100">
           <div className="flex flex-wrap items-center gap-1.5">
-            {["Today's Pickups", "Future Pickups", "Failed Pickups", "Completed Pickups", "All Pickups"].map((tab) => {
+            {["Today's Pickups", "Pending Pickups", "Future Pickups", "Failed Pickups", "Completed Pickups", "All Pickups"].map((tab) => {
               const isActive = activeTab === tab;
               const count =
                 tab === "Today's Pickups" ? counts.today :
+                tab === "Pending Pickups" ? counts.scheduled :
                 tab === "Future Pickups" ? counts.future :
                 tab === "Failed Pickups" ? counts.failed :
                 tab === "Completed Pickups" ? counts.completed :
@@ -551,12 +555,12 @@ const AdminPickupPage = () => {
         </div>
 
         {/* Data Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-x-auto">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 responsive-table-wrap">
           <table className="w-full text-left border-collapse table-auto">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/50">
-                {/* Show Checkbox Column Header ONLY in Today's Pickups */}
-                {isTodayTab && (
+                {/* Show Checkbox Column Header for actionable tabs */}
+                {isActionTab && (
                   <th className="p-4 w-12 text-center">
                     <input
                       type="checkbox"
@@ -574,8 +578,8 @@ const AdminPickupPage = () => {
                 <th className="p-3.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">Seller & Location</th>
                 <th className="p-3.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">Pickup Date</th>
                 <th className="p-3.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">Status</th>
-                {/* Show Admin Actions Header ONLY in Today's Pickups */}
-                {isTodayTab && (
+                {/* Show Admin Actions Header for actionable tabs */}
+                {isActionTab && (
                   <th className="p-3.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase text-right">Admin Actions</th>
                 )}
               </tr>
@@ -584,13 +588,13 @@ const AdminPickupPage = () => {
             <tbody className="divide-y divide-slate-100 text-[13px] font-medium text-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan={isTodayTab ? 7 : 5} className="p-8 text-center text-slate-400 font-medium">
+                  <td colSpan={isActionTab ? 7 : 5} className="p-8 text-center text-slate-400 font-medium">
                     Loading admin pickup database...
                   </td>
                 </tr>
               ) : filteredPickups.length === 0 ? (
                 <tr>
-                  <td colSpan={isTodayTab ? 7 : 5} className="p-8 text-center text-slate-400 font-medium">
+                  <td colSpan={isActionTab ? 7 : 5} className="p-8 text-center text-slate-400 font-medium">
                     {selectedCompany !== "ALL"
                       ? `No pickups found for this company in "${activeTab}". Try the "All Pickups" or "Completed Pickups" tab.`
                       : "No matching pickup records found."}
@@ -605,8 +609,8 @@ const AdminPickupPage = () => {
                   return (
                     <tr key={pickup._id} className={`hover:bg-slate-50/80 transition-colors ${isChecked ? 'bg-indigo-50/20' : ''}`}>
                       
-                      {/* Checkbox - ONLY in Today's Pickups */}
-                      {isTodayTab && (
+                      {/* Checkbox for actionable tabs */}
+                      {isActionTab && (
                         <td className="p-4 text-center">
                           <input
                             type="checkbox"
@@ -666,8 +670,8 @@ const AdminPickupPage = () => {
                         )}
                       </td>
 
-                      {/* Admin Controls - ONLY in Today's Pickups */}
-                      {isTodayTab && (
+                      {/* Admin Controls for actionable tabs */}
+                      {isActionTab && (
                         <td className="p-3.5 text-right whitespace-nowrap">
                           {!isTerminalStatus ? (
                             <div className="flex items-center justify-end gap-1.5">

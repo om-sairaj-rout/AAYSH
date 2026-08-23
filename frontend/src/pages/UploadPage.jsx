@@ -61,7 +61,7 @@ const UploadPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-slate-700 space-y-8">
+    <div className="w-full min-h-full max-w-full overflow-x-hidden bg-gray-50 p-3 sm:p-4 md:p-8 font-sans text-slate-700 space-y-8">
       {canWrite ? (
         <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100 flex justify-between items-center">

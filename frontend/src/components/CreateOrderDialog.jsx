@@ -559,8 +559,8 @@ const CreateOrderDialog = ({
       toast.validation("Customer city and state are required");
       return false;
     }
-    if (!/^\d{6}$/.test(String(form.billing_pincode || "").trim())) {
-      toast.validation("Enter a valid 6-digit pincode");
+    if (!form.billing_phone || !/^\d{10}$/.test(String(form.billing_phone).replace(/\D/g, ""))) {
+      toast.validation("Customer phone number must be exactly 10 digits");
       return false;
     }
     if (
@@ -661,9 +661,9 @@ const CreateOrderDialog = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/55 backdrop-blur-sm">
+    <div className="modal-overlay bg-slate-900/55 backdrop-blur-sm">
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-5xl max-h-[92vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl border border-slate-100 w-full max-w-5xl max-h-[92vh] overflow-hidden flex flex-col"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-100 bg-slate-50/80">
@@ -963,6 +963,7 @@ const CreateOrderDialog = ({
                 >
                   <option value="COD">COD</option>
                   <option value="Prepaid">Prepaid</option>
+                  <option value="TO PAY">TO PAY</option>
                 </select>
               </div>
             </section>

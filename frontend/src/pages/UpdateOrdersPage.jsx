@@ -16,8 +16,8 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { getAllUsers } from "../api/authAPI";
-import { getOrdersByUser, updateOrder } from "../api/ordersAPI";
+import { getCompanies } from "../api/companyAPI";
+import { getOrdersByCompany, updateOrder } from "../api/ordersAPI";
 import { getProducts } from "../api/productsAPI";
 import {
   formatDisplayDate,
@@ -48,7 +48,7 @@ const SHIPPING_STATUS_OPTIONS = [
   "Returned",
   "Exchange",
   "Delayed",
-  "Delivery Attempt Failed",
+  "Undelivered",
 ];
 
 const PICKUP_STATUS_OPTIONS = [
@@ -223,8 +223,8 @@ const UpdateOrdersPage = () => {
   const { isAdmin } = useSelector((state) => state.auth);
 
   // State Management
-  const [users, setUsers] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [companies, setCompanies] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState(null);
   const [orders, setOrders] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [fromDate, setFromDate] = useState("");
@@ -250,40 +250,40 @@ const UpdateOrdersPage = () => {
   );
 
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchCompanies = async () => {
       setLoading(true);
   
       try {
-        const data = await getAllUsers();
+        const data = await getCompanies();
   
         if (!data.success) {
-          throw new Error(data.message || "Failed to fetch users");
+          throw new Error(data.message || "Failed to fetch companies");
         }
   
-        setUsers(data.users || []);
+        setCompanies(data.companies || []);
       } catch (err) {
-        console.error("Failed to fetch users:", err);
+        console.error("Failed to fetch companies:", err);
   
         setMessage({
           type: "error",
-          text: err.message || "Failed to load users",
+          text: err.message || "Failed to load companies",
         });
       } finally {
         setLoading(false);
       }
     };
   
-    fetchUsers();
+    fetchCompanies();
   }, []);
 
   useEffect(() => {
-    if (!editingOrder || !selectedUser) return undefined;
+    if (!editingOrder || !selectedCompany) return undefined;
 
     const timer = setTimeout(async () => {
       try {
         const res = await getProducts({
           search: productSearch || undefined,
-          companyId: editingOrder.companyID || selectedUser.companyID,
+          companyId: editingOrder.companyID || selectedCompany.companyID,
         });
 
         if (res.success) {
@@ -295,10 +295,10 @@ const UpdateOrdersPage = () => {
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [editingOrder, productSearch, selectedUser]);
+  }, [editingOrder, productSearch, selectedCompany]);
 
-  const handleSelectUser = async (user) => {
-    setSelectedUser(user);
+  const handleSelectCompany = async (company) => {
+    setSelectedCompany(company);
     setOrders([]);
     setSearchQuery("");
     setFromDate("");
@@ -307,7 +307,7 @@ const UpdateOrdersPage = () => {
     setMessage({ type: "", text: "" });
   
     try {
-      const data = await getOrdersByUser(user._id);
+      const data = await getOrdersByCompany(company.companyID);
   
       if (!data.success) {
         throw new Error(data.message || "Failed to fetch orders");
@@ -316,7 +316,7 @@ const UpdateOrdersPage = () => {
       setOrders(data.orders || []);
   
     } catch (err) {
-      console.error("Failed to fetch user orders:", err);
+      console.error("Failed to fetch company orders:", err);
   
       setMessage({
         type: "error",
@@ -344,7 +344,7 @@ const UpdateOrdersPage = () => {
     setProducts([]);
     setFormData({
       order_id: order.externalOrderId,
-      company_id: order.companyID || selectedUser?.companyID || "",
+      company_id: order.companyID || selectedCompany?.companyID || "",
     
       order_date: order.orderDate
         ? toDateInputValue(order.orderDate)
@@ -403,6 +403,11 @@ const UpdateOrdersPage = () => {
       breadth: order.breadth ?? 0,
       height: order.height ?? 0,
       no_of_boxes: order.noOfBoxes ?? 1,
+      delivery_attempts: (order.shipping?.deliveryAttemptHistory || []).map((attempt) => ({
+        attempt_number: attempt.attemptNumber,
+        status: attempt.status,
+        failure_reason: attempt.failureReason || "",
+      })),
     
       order_items: order.orderItems
         ? order.orderItems.map((item) => ({
@@ -511,7 +516,18 @@ const UpdateOrdersPage = () => {
       return;
     }
 
+    if (!/^\d{10}$/.test(String(formData.billing_phone || "").replace(/\D/g, ""))) {
+      setMessage({
+        type: "error",
+        text: "Customer phone number must be exactly 10 digits.",
+      });
+      return;
+    }
+
     const payload = buildUpdatePayload(formData);
+    if (isAdmin) {
+      payload.delivery_attempts = formData.delivery_attempts || [];
+    }
 
     try {
       setIsSubmitting(true);
@@ -634,28 +650,28 @@ const UpdateOrdersPage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50/50 p-6 text-slate-800">
+    <div className="w-full min-h-full max-w-full overflow-x-hidden bg-slate-50/50 p-3 sm:p-6 text-slate-800">
       {/* SECTION 1: ACCOUNT MANAGEMENT VIEW */}
-      {!selectedUser ? (
+      {!selectedCompany ? (
         <div className="max-w-5xl mx-auto mt-10">
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-slate-900">Order Update Management</h1>
             <p className="text-sm text-slate-500 mt-1">
-              Select an active user file profile to perform order updates.
+              Select a company to view and update that company's orders.
             </p>
           </div>
 
           {loading ? (
             <div className="text-center py-12 text-slate-400 font-medium">
-              Loading user accounts...
+              Loading companies...
             </div>
           ) : (
           <div className="bg-white border border-slate-200/80 rounded-3xl shadow-sm overflow-hidden">
             <div className="divide-y divide-slate-100">
-              {users.map((u) => (
+              {companies.map((company) => (
                 <div
-                  key={u._id}
-                  onClick={() => handleSelectUser(u)}
+                  key={company.companyID || company._id}
+                  onClick={() => handleSelectCompany(company)}
                   className="flex items-center justify-between p-5 hover:bg-slate-50/80 cursor-pointer transition-colors group"
                 >
                   <div className="flex items-center gap-4">
@@ -664,20 +680,13 @@ const UpdateOrdersPage = () => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                        {u.companyName}
+                        {company.companyName}
                       </h3>
-                      <p className="text-xs text-slate-400 font-medium">{u.email}</p>
+                      <p className="text-xs text-slate-400 font-medium">{company.companyID}</p>
                     </div>
                   </div>
-
-                  <span
-                    className={`text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider ${
-                      u.role === "admin"
-                        ? "bg-indigo-100 text-indigo-700"
-                        : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    {u.role}
+                  <span className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider bg-slate-100 text-slate-600">
+                    {company.userCount || 0} users
                   </span>
                 </div>
               ))}
@@ -691,16 +700,16 @@ const UpdateOrdersPage = () => {
           {/* Header & Back Button */}
           <div className="flex items-center justify-between">
             <button
-              onClick={() => setSelectedUser(null)}
+              onClick={() => setSelectedCompany(null)}
               className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-sm transition"
             >
-              <ArrowLeft size={16} /> Back to Users
+              <ArrowLeft size={16} /> Back to Companies
             </button>
             <div className="text-right">
               <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                Selected Account
+                Selected Company
               </span>
-              <h2 className="text-lg font-bold text-slate-800">{selectedUser.companyName}</h2>
+              <h2 className="text-lg font-bold text-slate-800">{selectedCompany.companyName}</h2>
             </div>
           </div>
 
@@ -1141,7 +1150,7 @@ const UpdateOrdersPage = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-600 font-medium mb-1">Phone (optional)</label>
+                    <label className="block text-slate-600 font-medium mb-1">Phone</label>
                     <input
                       type="text"
                       name="billing_phone"
@@ -1244,6 +1253,77 @@ const UpdateOrdersPage = () => {
                     />
                   </div>
                 </div>
+                {isAdmin && (
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-slate-600 font-medium">Delivery attempts</label>
+                      <button
+                        type="button"
+                        className="text-xs font-bold text-indigo-600"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            delivery_attempts: [
+                              ...(prev.delivery_attempts || []),
+                              {
+                                attempt_number: (prev.delivery_attempts || []).length + 1,
+                                status: "Failed",
+                                failure_reason: "",
+                              },
+                            ],
+                          }))
+                        }
+                      >
+                        Add attempt
+                      </button>
+                    </div>
+                    {(formData.delivery_attempts || []).map((attempt, index) => (
+                      <div key={index} className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          value={attempt.attempt_number}
+                          onChange={(e) => {
+                            const next = [...(formData.delivery_attempts || [])];
+                            next[index] = {
+                              ...next[index],
+                              attempt_number: Number(e.target.value),
+                            };
+                            setFormData((prev) => ({ ...prev, delivery_attempts: next }));
+                          }}
+                          className="bg-slate-50 border border-slate-200 rounded-xl p-2.5"
+                        />
+                        <select
+                          value={attempt.status}
+                          onChange={(e) => {
+                            const next = [...(formData.delivery_attempts || [])];
+                            next[index] = { ...next[index], status: e.target.value };
+                            setFormData((prev) => ({ ...prev, delivery_attempts: next }));
+                          }}
+                          className="bg-slate-50 border border-slate-200 rounded-xl p-2.5"
+                        >
+                          <option value="In Progress">In Progress</option>
+                          <option value="Failed">Failed</option>
+                          <option value="Delivered">Delivered</option>
+                        </select>
+                        <input
+                          type="text"
+                          placeholder="Failure reason"
+                          value={attempt.failure_reason || ""}
+                          onChange={(e) => {
+                            const next = [...(formData.delivery_attempts || [])];
+                            next[index] = {
+                              ...next[index],
+                              failure_reason: e.target.value,
+                            };
+                            setFormData((prev) => ({ ...prev, delivery_attempts: next }));
+                          }}
+                          className="bg-slate-50 border border-slate-200 rounded-xl p-2.5"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Package & Logistics Dimensions */}
@@ -1324,6 +1404,7 @@ const UpdateOrdersPage = () => {
                     >
                       <option value="COD">COD</option>
                       <option value="Prepaid">Prepaid</option>
+                      <option value="TO PAY">TO PAY</option>
                     </select>
                   </div>
                   <div>

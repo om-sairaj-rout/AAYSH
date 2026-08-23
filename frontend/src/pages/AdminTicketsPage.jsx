@@ -7,9 +7,14 @@ import {
   getAdminTickets,
   updateTicket,
   getTicketAttachmentUrl,
+  addAdminTicketMessage,
+  markAdminTicketRead,
 } from "../api/ticketsAPI";
-import { getCompanies } from "../api/companyAPI";
 import { formatDisplayDate } from "../utils/dateTime";
+import TicketConversation from "../components/TicketConversation";
+import UnreadDot from "../components/UnreadDot";
+import { notifyTicketUnreadChanged } from "../utils/ticketHelpers";
+import { getCompanies } from "../api/companyAPI";
 
 const STATUS_STYLES = {
   pending: "bg-amber-50 text-amber-700 border-amber-200",
@@ -26,7 +31,7 @@ const PRIORITY_STYLES = {
 const AdminTicketsPage = () => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("pending");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [companyFilter, setCompanyFilter] = useState("ALL");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
   const [companiesList, setCompaniesList] = useState([]);
@@ -37,6 +42,8 @@ const AdminTicketsPage = () => {
     adminNotes: "",
     adminReply: "",
   });
+  const [replyText, setReplyText] = useState("");
+  const [replyLoading, setReplyLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const { preview, openPreviewWithLoader, closePreview } = useDocumentPreview();
 
@@ -69,25 +76,65 @@ const AdminTicketsPage = () => {
     loadTickets();
   }, [statusFilter, companyFilter, priorityFilter]);
 
-  const openTicket = (ticket) => {
+  const openTicket = async (ticket) => {
     setSelected(ticket);
+    setReplyText("");
     setEditForm({
       status: ticket.status,
       priority: ticket.priority || "medium",
       adminNotes: ticket.adminNotes || "",
-      adminReply: ticket.adminReply || "",
+      adminReply: "",
     });
+
+    if (ticket.unreadForAdmin) {
+      try {
+        const res = await markAdminTicketRead(ticket._id);
+        const updated = res.ticket;
+        setSelected(updated);
+        setTickets((prev) =>
+          prev.map((item) =>
+            item._id === ticket._id
+              ? { ...item, unreadForAdmin: false }
+              : item
+          )
+        );
+        notifyTicketUnreadChanged();
+      } catch {
+        // non-blocking
+      }
+    }
   };
 
   const closeModal = () => {
     setSelected(null);
   };
 
+  const handleSendReply = async () => {
+    if (!selected || !replyText.trim()) return;
+    try {
+      setReplyLoading(true);
+      const res = await addAdminTicketMessage(selected._id, replyText.trim());
+      setSelected(res.ticket);
+      setReplyText("");
+      await loadTickets();
+      notifyTicketUnreadChanged();
+      toast.success("Message sent");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setReplyLoading(false);
+    }
+  };
+
   const handleUpdate = async () => {
     if (!selected) return;
     try {
       setActionLoading(true);
-      await updateTicket(selected._id, editForm);
+      await updateTicket(selected._id, {
+        status: editForm.status,
+        priority: editForm.priority,
+        adminNotes: editForm.adminNotes,
+      });
       toast.success("Ticket updated");
       closeModal();
       await loadTickets();
@@ -109,7 +156,7 @@ const AdminTicketsPage = () => {
   };
 
   return (
-    <div className="w-full min-h-full bg-[#EFF2F6] -m-4 md:-m-6 p-5 md:p-8 space-y-6">
+    <div className="app-page bg-[#EFF2F6]">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[#1B2B4B] flex items-center gap-2">
@@ -169,7 +216,7 @@ const AdminTicketsPage = () => {
         <div className="px-5 py-4 border-b border-slate-100">
           <h2 className="font-bold text-[#1B2B4B]">All Tickets</h2>
         </div>
-        <div className="overflow-x-auto">
+        <div className="responsive-table-wrap">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-400 bg-[#FAFBFC] border-b border-slate-100">
@@ -197,9 +244,16 @@ const AdminTicketsPage = () => {
                 </tr>
               ) : (
                 tickets.map((ticket) => (
-                  <tr key={ticket._id} className="hover:bg-slate-50/70 align-top">
+                  <tr
+                    key={ticket._id}
+                    className="hover:bg-slate-50/70 align-top cursor-pointer"
+                    onClick={() => openTicket(ticket)}
+                  >
                     <td className="px-4 py-4">
-                      <p className="font-bold text-[#1B2B4B]">{ticket.ticketId}</p>
+                      <p className="font-bold text-[#1B2B4B] flex items-center gap-2">
+                        {ticket.ticketId}
+                        {ticket.unreadForAdmin && <UnreadDot title="Unread message" />}
+                      </p>
                       <p className="text-xs text-slate-400">
                         {formatDisplayDate(ticket.createdAt)}
                       </p>
@@ -232,7 +286,10 @@ const AdminTicketsPage = () => {
                       {ticket.attachmentPath || ticket.s3Key ? (
                         <button
                           type="button"
-                          onClick={() => viewAttachment(ticket)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            viewAttachment(ticket);
+                          }}
                           className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100"
                         >
                           <Eye size={14} />
@@ -245,7 +302,10 @@ const AdminTicketsPage = () => {
                     <td className="px-4 py-4 text-right">
                       <button
                         type="button"
-                        onClick={() => openTicket(ticket)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openTicket(ticket);
+                        }}
                         className="rounded-lg bg-[#1B2B4B] text-white px-3 py-1.5 text-xs font-bold"
                       >
                         Manage
@@ -260,17 +320,30 @@ const AdminTicketsPage = () => {
       </div>
 
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold text-[#1B2B4B]">
-              {selected.ticketId}
-            </h3>
-            <div className="text-sm space-y-2 bg-slate-50 rounded-xl p-4">
+        <div className="modal-overlay" onClick={closeModal} role="presentation">
+          <div
+            className="modal-panel max-w-2xl"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="modal-panel-body">
+            <div className="flex justify-between items-start gap-3">
+              <h3 className="text-lg font-bold text-[#1B2B4B] safe-break">
+                Manage Ticket — {selected.ticketId}
+              </h3>
+              <button type="button" onClick={closeModal} className="touch-target text-slate-500 shrink-0">
+                Close
+              </button>
+            </div>
+            <div className="text-sm space-y-2 bg-slate-50 rounded-xl p-4 safe-break">
               <p><strong>Company:</strong> {selected.companyName || selected.submittedBy?.companyName || "—"}</p>
               <p><strong>Company ID:</strong> {selected.companyID || "—"}</p>
               <p><strong>Contact:</strong> {selected.fullName || selected.submittedBy?.fullName || "—"}</p>
               <p><strong>Email:</strong> {selected.email || selected.submittedBy?.email || "—"}</p>
               <p><strong>Phone:</strong> {selected.phone || selected.submittedBy?.mobile_number || "—"}</p>
+              <p><strong>From:</strong> {selected.fromName} · {selected.fromPhone}<br />{selected.fromAddress}, {selected.fromCity}, {selected.fromState} {selected.fromPincode}</p>
+              <p><strong>To:</strong> {selected.toName} · {selected.toPhone}<br />{selected.toAddress}, {selected.toCity}, {selected.toState} {selected.toPincode}</p>
               <p><strong>Order / AWB:</strong> {selected.orderAwbNumber || "—"}</p>
               <p><strong>Subject:</strong> {selected.subject}</p>
               <p><strong>Issue Type:</strong> {selected.category}</p>
@@ -286,7 +359,26 @@ const AdminTicketsPage = () => {
                 </button>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <TicketConversation messages={selected.messages} />
+            <label className="block">
+              <span className="text-xs font-bold text-slate-500 uppercase">Message User</span>
+              <textarea
+                rows={3}
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Send a message to the user..."
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              />
+            </label>
+            <button
+              type="button"
+              disabled={replyLoading || !replyText.trim()}
+              onClick={handleSendReply}
+              className="touch-target rounded-xl bg-indigo-600 text-white text-sm font-bold disabled:opacity-50"
+            >
+              {replyLoading ? "Sending..." : "Send Message"}
+            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="block">
                 <span className="text-xs font-bold text-slate-500 uppercase">Status</span>
                 <select
@@ -321,28 +413,19 @@ const AdminTicketsPage = () => {
                 className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
               />
             </label>
-            <label className="block">
-              <span className="text-xs font-bold text-slate-500 uppercase">Reply to User</span>
-              <textarea
-                rows={3}
-                value={editForm.adminReply}
-                onChange={(e) => setEditForm({ ...editForm, adminReply: e.target.value })}
-                placeholder="Resolution message visible to the user..."
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <div className="flex justify-end gap-3">
-              <button type="button" onClick={closeModal} className="px-4 py-2 rounded-xl border text-sm font-semibold">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
+              <button type="button" onClick={closeModal} className="touch-target rounded-xl border text-sm font-semibold">
                 Cancel
               </button>
               <button
                 type="button"
                 disabled={actionLoading}
                 onClick={handleUpdate}
-                className="px-4 py-2 rounded-xl bg-[#1B2B4B] text-white text-sm font-bold disabled:opacity-50"
+                className="touch-target rounded-xl bg-[#1B2B4B] text-white text-sm font-bold disabled:opacity-50"
               >
                 {actionLoading ? "Saving..." : "Save Changes"}
               </button>
+            </div>
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@ const fs = require("fs");
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const User = require("../../models/user.model");
-const { formatDisplayDate, formatDisplayDateTime, nowISTDateTime } = require("../../utils/dateTime");
+        const { formatDisplayDate, formatDisplayDateTime, nowISTDateTime } = require("../../utils/dateTime");
 
 const generateInvoice = async (req, res) => {
     try {

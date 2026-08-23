@@ -104,7 +104,7 @@ const ServiceabilityPage = () => {
   );
 
   return (
-    <div className="w-full min-h-screen bg-[#F8FAFC] p-4 md:p-8 font-sans text-[#1E293B]">
+    <div className="w-full w-full min-h-full max-w-full overflow-x-hidden bg-[#F8FAFC] p-3 sm:p-4 md:p-8 font-sans text-[#1E293B]">
       <div className="max-w-6xl mx-auto space-y-6">
         
         {/* ================= BAR CONTROL HEADER BAR ================= */}

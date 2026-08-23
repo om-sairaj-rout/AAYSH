@@ -18,7 +18,7 @@ const SHIPPING_STATUS_STYLES = {
   Returned: "bg-orange-50 text-orange-700 border-orange-200",
   Exchange: "bg-teal-50 text-teal-700 border-teal-200",
   Delayed: "bg-amber-50 text-amber-700 border-amber-200",
-  "Delivery Attempt Failed": "bg-rose-50 text-rose-700 border-rose-200",
+  "Undelivered": "bg-rose-50 text-rose-700 border-rose-200",
 };
 
 const PICKUP_STATUS_STYLES = {

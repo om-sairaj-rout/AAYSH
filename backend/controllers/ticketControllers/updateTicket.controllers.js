@@ -44,7 +44,21 @@ const updateTicket = async (req, res) => {
     }
 
     if (adminReply !== undefined) {
-      ticket.adminReply = String(adminReply).trim();
+      const trimmedReply = String(adminReply).trim();
+      ticket.adminReply = trimmedReply;
+      if (trimmedReply) {
+        ticket.messages.push({
+          sender: req.user.id,
+          senderRole: "admin",
+          message: trimmedReply,
+          createdAt: new Date(),
+        });
+        ticket.unreadForUser = true;
+        ticket.unreadForAdmin = false;
+        if (ticket.status === "pending") {
+          ticket.status = "in_progress";
+        }
+      }
     }
 
     ticket.assignedTo = req.user.id;
@@ -54,6 +68,7 @@ const updateTicket = async (req, res) => {
       .populate("submittedBy", "companyName email fullName")
       .populate("assignedTo", "email fullName")
       .populate("resolvedBy", "email fullName")
+      .populate("messages.sender", "fullName email companyName")
       .lean();
 
     return res.status(200).json({

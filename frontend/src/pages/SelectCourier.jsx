@@ -160,7 +160,7 @@ const SelectCourier = () => {
   }
 
   return (
-    <div className="w-full min-h-full bg-[#EFF2F6] -m-4 md:-m-6 p-5 md:p-8 space-y-6">
+    <div className="app-page bg-[#EFF2F6]">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <button

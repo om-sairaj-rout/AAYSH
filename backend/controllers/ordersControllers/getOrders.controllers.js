@@ -28,7 +28,7 @@ const SHIPMENT_STATUSES = [
   "Returned",
   "Exchange",
   "Delayed",
-  "Delivery Attempt Failed",
+  "Undelivered",
 ];
 
 const getOrdersController = async (req, res) => {
@@ -356,6 +356,30 @@ const getOrdersController = async (req, res) => {
         (sum, entry) => sum + entry.count,
         0
       );
+
+      const todayStart = startOfDayIST(new Date());
+      const todayEnd = endOfDayIST(new Date());
+      const todayShipmentBase = [
+        ...basePipeline,
+        {
+          $match: {
+            "shipping.shippingStatus": { $in: SHIPMENT_STATUSES },
+          },
+        },
+      ];
+      const [todayShipmentResult] = await Order.aggregate([
+        ...todayShipmentBase,
+        {
+          $match: {
+            "shipping.bookedAt": {
+              $gte: todayStart,
+              $lte: todayEnd,
+            },
+          },
+        },
+        { $count: "total" },
+      ]);
+      statusCounts["Today's Shipments"] = todayShipmentResult?.total || 0;
     }
 
     return res.status(200).json({

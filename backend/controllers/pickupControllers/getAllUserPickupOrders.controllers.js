@@ -41,6 +41,11 @@ const buildTabMatch = (tab) => {
       };
     case "completed":
       return { pickupStatus: "Completed" };
+    case "scheduled":
+      return {
+        pickupStatus: "Scheduled",
+        shippingStatus: { $ne: "Cancelled" },
+      };
     case "all":
       return {};
     default:
@@ -209,6 +214,15 @@ const getUserPickups = async (req, res) => {
             { $match: { pickupStatus: "Completed" } },
             { $count: "count" },
           ],
+          scheduled: [
+            {
+              $match: {
+                pickupStatus: "Scheduled",
+                shippingStatus: { $ne: "Cancelled" },
+              },
+            },
+            { $count: "count" },
+          ],
           all: [{ $count: "count" }],
         },
       },
@@ -225,6 +239,7 @@ const getUserPickups = async (req, res) => {
         failed: countFacet.failed?.[0]?.count || 0,
         cancelled: countFacet.cancelled?.[0]?.count || 0,
         completed: countFacet.completed?.[0]?.count || 0,
+        scheduled: countFacet.scheduled?.[0]?.count || 0,
         all: countFacet.all?.[0]?.count || 0,
       },
       meta: {

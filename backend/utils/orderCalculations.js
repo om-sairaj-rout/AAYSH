@@ -37,9 +37,11 @@ const orderCalculations = (order = {}, shipping = {}) => {
   // ==========================
   // DATE PARSING
   // ==========================
-  const pickupDate = shipping?.pickupDate
-    ? new Date(shipping.pickupDate)
-    : null;
+  const pickupDate = shipping?.actualPickupDate
+    ? new Date(shipping.actualPickupDate)
+    : shipping?.pickedUpAt
+      ? new Date(shipping.pickedUpAt)
+      : null;
 
   const deliveryDate = order.deliveryDate
     ? new Date(order.deliveryDate)
@@ -134,9 +136,11 @@ const getExpectedDeliveryDate = (order = {}, shipping = {}) => {
   const status = shipping?.shippingStatus?.toLowerCase() || "";
   if (status === "delivered") return null;
 
-  const pickupDate = shipping?.pickupDate
-    ? new Date(shipping.pickupDate)
-    : null;
+  const pickupDate = shipping?.actualPickupDate
+    ? new Date(shipping.actualPickupDate)
+    : shipping?.pickedUpAt
+      ? new Date(shipping.pickedUpAt)
+      : null;
 
   if (!pickupDate || Number.isNaN(pickupDate.getTime())) return null;
 

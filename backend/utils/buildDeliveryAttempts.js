@@ -1,5 +1,5 @@
 const OUT_FOR_DELIVERY = "Out For Delivery";
-const DELIVERY_FAILED = "Delivery Attempt Failed";
+const DELIVERY_FAILED = "Undelivered";
 const DELIVERED = "Delivered";
 
 const sortByEventTime = (events = []) =>

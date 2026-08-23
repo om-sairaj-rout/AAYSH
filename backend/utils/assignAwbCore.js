@@ -4,11 +4,7 @@ const Shipping = require("../models/upload/shipping.model");
 const PincodeServiceability = require("../models/upload/serviceability.model");
 const CourierPriority = require("../models/upload/courierPriority.model");
 const { parseISODateOnly, now } = require("./dateTime");
-
-const getAwbCategory = (weight, service) => {
-  if (service === "prime") return "prime";
-  return weight > 3 ? "over3kg" : "under3kg";
-};
+const { getAwbCategory } = require("./codToPay");
 
 const getServiceabilityPincode = (order) => {
   if (order.isReversePickup && order.pickupPincode) {
@@ -163,7 +159,8 @@ const assignAwbCore = async ({
 
     const category = getAwbCategory(
       order.chargeableWeight || order.weight,
-      service
+      service,
+      order.paymentMethod
     );
     let awb = null;
     let selectedCourier = null;
@@ -218,6 +215,7 @@ const assignAwbCore = async ({
           courierName: selectedCourier.courierName,
           serviceType: service,
           pickupDate: parsedPickupDate,
+          requestedPickupDate: parsedPickupDate,
           pickupTime,
           pickupInstructions: notes,
           pickupLocation,

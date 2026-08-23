@@ -54,6 +54,11 @@ const getReversePickups = async (req, res) => {
         .limit(perPage)
         .populate("requestedBy", "companyName email fullName")
         .populate("reviewedBy", "email fullName")
+        .populate({
+          path: "orderId",
+          select:
+            "externalOrderId invoiceNo invoiceValue documents consigneeName billingPhone paymentMethod orderItems",
+        })
         .lean(),
     ]);
 

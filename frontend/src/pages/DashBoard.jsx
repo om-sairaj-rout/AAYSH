@@ -684,7 +684,7 @@ const Dashboard = () => {
 
   return (
     <div
-      className="-m-4 md:-m-6 min-h-full rounded-xl overflow-hidden"
+      className="app-page min-h-full rounded-xl overflow-hidden"
       style={{ backgroundColor: PAGE_BG }}
     >
       <div className="p-5 md:p-8 space-y-6">

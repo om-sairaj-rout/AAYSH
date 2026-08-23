@@ -483,13 +483,13 @@ const ShipmentPage = () => {
   ];
 
   return (
-    <div className="w-full min-h-screen bg-[#F8FAFC] p-4 font-sans text-[#1E293B]">
-      <div className="max-w-400 mx-auto space-y-4">
+    <div className="w-full min-h-full max-w-full overflow-x-hidden bg-[#F8FAFC] p-2 sm:p-4 font-sans text-[#1E293B]">
+      <div className="max-w-400 w-full mx-auto space-y-4">
 
         {/* ================= NAVIGATION TABS BAR ================= */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 bg-white p-3 rounded-xl shadow-sm">
           <div className="flex flex-wrap items-center gap-1.5">
-            {['All Shipments', "Today's Shipments", 'Previous Shipments'].map((tabName) => {
+            {['All Shipments', "Today's Shipments"].map((tabName) => {
               const isActive = activeTab === tabName;
               return (
                 <button
@@ -630,7 +630,7 @@ const ShipmentPage = () => {
         )}
 
         {/* ================= DATA TABLE CONTAINER ================= */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 responsive-table-wrap">
           <table className="w-full text-left border-collapse table-auto">
             <thead>
               <tr className="border-b border-gray-100 bg-[#FAFAFA]">
@@ -905,13 +905,13 @@ const ShipmentPage = () => {
                           </span>
                         )}
 
-                        {order.shipping?.shippingStatus === "Delivery Attempt Failed" && (
+                        {order.shipping?.shippingStatus === "Undelivered" && (
                           <span className="bg-pink-100 text-pink-800 font-bold text-xs px-3 py-1 rounded-full border border-pink-200">
-                            Delivery Attempt Failed
+                            Undelivered
                           </span>
                         )}
 
-                        {!['Pending','Shipped','Booked', 'Cancelled','In Transit', 'Delivered', 'RTO', 'Delayed', 'Delivery Attempt Failed'].includes(order.shipping?.shippingStatus) && (
+                        {!['Pending','Shipped','Booked', 'Cancelled','In Transit', 'Delivered', 'RTO', 'Delayed', 'Undelivered'].includes(order.shipping?.shippingStatus) && (
                           <span className="bg-slate-100 text-slate-600 font-bold text-xs px-3 py-1 rounded-full border border-slate-200">
                             {order.shipping?.shippingStatus || "Unknown"}
                           </span>

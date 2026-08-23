@@ -96,12 +96,14 @@ if (pickupTime < "11:00" || pickupTime > "17:00") {
     }
 
     shipping.pickupDate = requestedDate;
+    shipping.requestedPickupDate = requestedDate;
     shipping.pickupTime = pickupTime;
     shipping.pickupLocation = pickupLocation;
     shipping.pickupInstructions = notes || "";
     shipping.pickupStatus = "Scheduled";
     shipping.failureReason = "";
     shipping.pickedUpAt = null;
+    shipping.actualPickupDate = null;
 
     await shipping.save();
 

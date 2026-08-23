@@ -70,3 +70,16 @@ export const deleteCompanyUser = async (companyID, userId) => {
   }
   return data;
 };
+
+export const deleteCompany = async (companyID) => {
+  const res = await fetch(`${BASE}/api/companies/${companyID}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to delete company");
+  }
+  return data;
+};

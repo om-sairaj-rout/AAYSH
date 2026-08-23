@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import {
   Building2,
   Users,
@@ -16,6 +17,7 @@ import {
   registerCompanyUser,
   updateCompanyUser,
   deleteCompanyUser,
+  deleteCompany,
 } from "../api/companyAPI";
 import { formatDisplayDate } from "../utils/dateTime";
 import {
@@ -35,7 +37,7 @@ const emptyForm = {
 };
 
 const PermissionMatrix = ({ permissions, onChange, disabled }) => (
-  <div className="overflow-x-auto rounded-xl border border-slate-200">
+  <div className="responsive-table-wrap rounded-xl border border-slate-200">
     <table className="w-full text-left text-sm">
       <thead>
         <tr className="text-[11px] uppercase tracking-wider text-slate-400 bg-slate-50">
@@ -96,6 +98,7 @@ const RoleBadge = ({ role }) => {
 const CompanyUserManagement = ({ companyID, backPath, backLabel }) => {
   const { confirm } = useConfirm();
   const navigate = useNavigate();
+  const { isAdmin } = useSelector((state) => state.auth);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -213,7 +216,7 @@ const CompanyUserManagement = ({ companyID, backPath, backLabel }) => {
   const { company, users, stats, canManageUsers, owner } = data;
 
   return (
-    <div className="w-full min-h-full bg-[#EFF2F6] -m-4 md:-m-6 p-5 md:p-8 space-y-6">
+    <div className="app-page bg-[#EFF2F6]">
       <button
         type="button"
         onClick={() => navigate(backPath)}
@@ -248,6 +251,32 @@ const CompanyUserManagement = ({ companyID, backPath, backLabel }) => {
               <p className="text-xs text-slate-400 mt-2">
                 Owner: {owner.fullName || owner.email}
               </p>
+            )}
+            {isAdmin && (
+            <button
+              type="button"
+              className="mt-4 inline-flex items-center gap-2 rounded-xl border border-rose-200 text-rose-600 px-3 py-2 text-xs font-bold"
+              onClick={async () => {
+                const confirmed = await confirm({
+                  title: "Delete company",
+                  message: `Delete ${company.companyName} and ALL related users, orders, shipping, products, tickets, reverse pickups, and upload history? This cannot be undone.`,
+                  confirmLabel: "Delete company",
+                  cancelLabel: "Cancel",
+                  variant: "danger",
+                });
+                if (!confirmed) return;
+                try {
+                  await deleteCompany(company.companyID);
+                  toast.success("Company deleted");
+                  navigate(backPath);
+                } catch (error) {
+                  toast.error(error.message);
+                }
+              }}
+            >
+              <Trash2 size={14} />
+              Delete company
+            </button>
             )}
           </div>
 

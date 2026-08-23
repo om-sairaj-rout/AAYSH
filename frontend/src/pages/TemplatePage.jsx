@@ -63,7 +63,7 @@ const TemplatePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-8 font-sans text-slate-700 space-y-8">
+    <div className="w-full min-h-full max-w-full overflow-x-hidden bg-[#F8FAFC] p-3 sm:p-4 md:p-8 font-sans text-slate-700 space-y-8">
       <div className="max-w-5xl mx-auto w-full bg-white rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100/80 overflow-hidden">
         
         {/* Header section matching your dashboard style */}

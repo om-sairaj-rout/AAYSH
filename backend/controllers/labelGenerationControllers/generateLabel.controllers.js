@@ -5,7 +5,35 @@ const fs = require("fs");
 const Order = require("../../models/upload/order.model"); 
 const Shipping = require("../../models/upload/shipping.model");
 const User = require("../../models/user.model");
+const Company = require("../../models/company.model");
 const { formatDisplayDate } = require("../../utils/dateTime");
+
+const drawBrandBlock = (doc, { logoPath, brandName, x, y, width, height, fontBold }) => {
+    if (logoPath && fs.existsSync(logoPath)) {
+        doc.image(logoPath, x, y, {
+            fit: [width, height],
+            align: "center",
+            valign: "center",
+        });
+        return;
+    }
+
+    let fontSize = 14;
+    while (fontSize >= 8) {
+        doc.font(fontBold).fontSize(fontSize);
+        const textHeight = doc.heightOfString(brandName, { width });
+        if (textHeight <= height) break;
+        fontSize -= 1;
+    }
+
+    doc.font(fontBold)
+        .fontSize(fontSize)
+        .fillColor("#1E293B")
+        .text(brandName, x, y + Math.max(0, (height - doc.heightOfString(brandName, { width })) / 2), {
+            width,
+            align: "center",
+        });
+};
 
 const generateLabel = async (req, res) => {
     try {
@@ -35,7 +63,16 @@ const generateLabel = async (req, res) => {
             return res.status(404).json({ success: false, message: "Orders not found" });
         }
 
-        const seller = await User.findById(orders[0].uploadedBy).lean();
+        const userIds = [...new Set(orders.map((order) => String(order.uploadedBy)).filter(Boolean))];
+        const companyIds = [...new Set(orders.map((order) => order.companyID).filter(Boolean))];
+
+        const [sellers, companies] = await Promise.all([
+            User.find({ _id: { $in: userIds } }).lean(),
+            Company.find({ companyID: { $in: companyIds } }).lean(),
+        ]);
+
+        const sellerMap = new Map(sellers.map((seller) => [String(seller._id), seller]));
+        const companyMap = new Map(companies.map((company) => [company.companyID, company]));
 
         // 4 x 6 inches in PDF Points (1 inch = 72 points) -> 288 x 432 points
         const LABEL_WIDTH = 288;
@@ -60,6 +97,12 @@ const generateLabel = async (req, res) => {
 
         for (let i = 0; i < orders.length; i++) {
             const order = orders[i];
+            const seller = sellerMap.get(String(order.uploadedBy)) || null;
+            const company = companyMap.get(order.companyID) || null;
+            const brandName = (seller?.companyName || company?.companyName || "AAYSH EXPRESS").toUpperCase();
+            const logoFile = seller?.logo || company?.logo || "";
+            const logoPath = logoFile ? path.join(__dirname, "../../assets", logoFile) : null;
+            const courierNameStr = (order.shipping?.courierName || "SURFACE").toUpperCase();
 
             if (i > 0) doc.addPage();
 
@@ -86,65 +129,50 @@ const generateLabel = async (req, res) => {
             // Start content Y position right below the top strap
             let y = margin + strapHeight;
 
-            // ================= 1. BRANDING & LOGO HEADER BOX =================
-            const headerHeight = 52; 
+            // ================= 1. BRANDING & ORDER META HEADER =================
+            const headerHeight = 58;
             doc.rect(margin, y, printWidth, headerHeight).strokeColor("#000000").stroke();
 
-            // LOGO ZONE (Left Header)
+            const brandWidth = printWidth - 100;
+            drawBrandBlock(doc, {
+                logoPath,
+                brandName,
+                x: margin + 4,
+                y: y + 4,
+                width: brandWidth - 8,
+                height: headerHeight - 8,
+                fontBold,
+            });
 
-const logoPath = seller?.logo
-    ? path.join(__dirname, "../../assets", seller.logo)
-    : null;
-
-const logoWidth = 115;
-const logoHeight = 42;
-
-if (logoPath && fs.existsSync(logoPath)) {
-
-    // User has a logo → show user's logo
-    doc.image(logoPath, margin + 5, y + 5, {
-        fit: [logoWidth, logoHeight],
-        align: "left",
-        valign: "center"
-    });
-
-} else {
-
-    // User has no logo → show user's name
-    doc
-        .font(fontBold)
-        .fontSize(14)
-        .fillColor("#1E293B")
-        .text(
-            seller?.companyName || "AAYSH EXPRESS",
-            margin + 6,
-            y + 15,
-            {
-                width: 115,
-                ellipsis: true
-            }
-        );
-}
-
-            // ORDER DATE ZONE (Right Header Box)
-            const rightHeaderX = margin + printWidth - 95;
+            const rightHeaderX = margin + brandWidth;
             doc.moveTo(rightHeaderX, y).lineTo(rightHeaderX, y + headerHeight).stroke();
 
-            doc.font(fontBold).fontSize(6.5).fillColor("#475569").text("ORDER DATE", rightHeaderX + 5, y + 8, {
-                width: 85,
-                align: "center"
+            doc.font(fontBold).fontSize(6).fillColor("#475569").text("ORDER DATE", rightHeaderX + 4, y + 6, {
+                width: 92,
+                align: "center",
             });
 
             const formattedOrderDate = order.orderDate ? formatDisplayDate(order.orderDate) : "N/A";
-            doc.font(fontBold).fontSize(9.5).fillColor("#000000").text(formattedOrderDate, rightHeaderX + 5, y + 22, {
-                width: 85,
-                align: "center"
+            doc.font(fontBold).fontSize(8.5).fillColor("#000000").text(formattedOrderDate, rightHeaderX + 4, y + 16, {
+                width: 92,
+                align: "center",
+            });
+
+            doc.font(fontBold).fontSize(6).fillColor("#475569").text("COURIER", rightHeaderX + 4, y + 32, {
+                width: 92,
+                align: "center",
+            });
+
+            doc.font(fontBold).fontSize(8).fillColor("#000000").text(courierNameStr, rightHeaderX + 4, y + 41, {
+                width: 92,
+                align: "center",
+                lineGap: 0,
             });
 
             y += headerHeight;
 
             // ================= 2. MAIN AWB BARCODE SECTION =================
-            const barcodeBoxHeight = 70;
+            const barcodeBoxHeight = 64;
             doc.rect(margin, y, printWidth, barcodeBoxHeight).stroke();
 
             const awbNo = order.shipping?.awbNumber;
@@ -181,7 +209,7 @@ if (logoPath && fs.existsSync(logoPath)) {
             y += barcodeBoxHeight;
 
             // ================= 3. CONSIGNEE / SHIP TO ADDRESS =================
-            const consigneeHeight = 100;
+            const consigneeHeight = 94;
             doc.rect(margin, y, printWidth, consigneeHeight).stroke();
 
             doc.font(fontBold).fontSize(7).fillColor("#475569").text("SHIP TO (CONSIGNEE):", margin + 6, y + 5);
@@ -202,43 +230,52 @@ if (logoPath && fs.existsSync(logoPath)) {
 
             doc.text(fullAddress, margin + 6, y + 30, {
                 width: printWidth - 12,
-                height: 30,
-                ellipsis: true
+                height: 26,
+                lineGap: 1,
             });
 
-            // City, State, Pincode
             const destinationLine = `${(order.destinationCity || '').toUpperCase()}, ${(order.destinationState || '').toUpperCase()} - ${order.destinationPincode || ''}`;
-            doc.font(fontBold).fontSize(9.5).text(destinationLine, margin + 6, y + 64, {
+            doc.font(fontBold).fontSize(9).text(destinationLine, margin + 6, y + 58, {
                 width: printWidth - 12,
-                ellipsis: true
             });
 
-            // Contact Info
             const phoneStr = order.billingPhone || order.contactNo || "N/A";
-            doc.font(fontNormal).fontSize(8.5).text(`TEL: ${phoneStr}`, margin + 6, y + 82);
+            doc.font(fontNormal).fontSize(8).text(`TEL: ${phoneStr}`, margin + 6, y + 76);
 
             y += consigneeHeight;
 
             // ================= 4. SHIPPER / CONSIGNOR DETAILS =================
-            const shipperHeight = 40;
+            const shipperHeight = 54;
             doc.rect(margin, y, printWidth, shipperHeight).stroke();
 
-            doc.font(fontBold).fontSize(7).fillColor("#475569").text("RETURN ADDRESS (CONSIGNOR):", margin + 6, y + 4);
-            doc.font(fontBold).fontSize(8).fillColor("#000000").text((order.consignorName || "ABC MANUFACTURING LTD.").toUpperCase(), margin + 6, y + 14, {
+            doc.font(fontBold).fontSize(6.5).fillColor("#475569").text("RETURN ADDRESS (CONSIGNOR):", margin + 6, y + 4);
+
+            const consignorName = (order.consignorName || company?.companyName || brandName).toUpperCase();
+            doc.font(fontBold).fontSize(7.5).fillColor("#000000").text(consignorName, margin + 6, y + 13, {
                 width: printWidth - 12,
-                ellipsis: true
             });
 
-            const pickupLoc = order.shipping?.pickupLocation ? `Hub: ${order.shipping.pickupLocation}` : "DEFAULT WAREHOUSE HUB, NOIDA, UP - 201301";
-            doc.font(fontNormal).fontSize(7.5).text(pickupLoc, margin + 6, y + 25, {
+            const returnAddressParts = [
+                company?.address || order.shipping?.pickupLocation || "",
+                company?.city,
+                company?.state,
+                company?.zip_code || company?.pincode,
+            ].filter(Boolean);
+
+            const returnAddressLine = returnAddressParts.length
+                ? returnAddressParts.join(", ").toUpperCase()
+                : (order.shipping?.pickupLocation || "DEFAULT WAREHOUSE HUB").toUpperCase();
+
+            doc.font(fontNormal).fontSize(7).fillColor("#000000").text(returnAddressLine, margin + 6, y + 24, {
                 width: printWidth - 12,
-                ellipsis: true
+                height: 26,
+                lineGap: 0.5,
             });
 
             y += shipperHeight;
 
             // ================= 5. PACKAGE & MANIFEST SPECIFICATIONS =================
-            const metaHeight = 45;
+            const metaHeight = 42;
             doc.rect(margin, y, printWidth, metaHeight).stroke();
 
             const colWidth = printWidth / 3;
@@ -275,22 +312,20 @@ if (logoPath && fs.existsSync(logoPath)) {
                 itemSummary += "General Parcel Goods";
             }
 
-            doc.font(fontNormal).fontSize(7).fillColor("#334155").text(itemSummary, margin + 6, y + 5, {
+            doc.font(fontNormal).fontSize(6.5).fillColor("#334155").text(itemSummary, margin + 6, y + 5, {
                 width: printWidth - 12,
-                height: 16,
-                ellipsis: true
+                height: 18,
+                lineGap: 0,
             });
 
-            // Courier Name + Destination City Strip
-            const courierNameStr = (order.shipping?.courierName || "SURFACE").toUpperCase();
             const destCityStr = (order.destinationCity || "ROI").toUpperCase();
             const destStateStr = (order.destinationState || "IN").toUpperCase();
 
-            doc.font(fontBold).fontSize(8).fillColor("#000000").text(
-                `COURIER: ${courierNameStr} | DEST: ${destCityStr} (${destStateStr})`,
+            doc.font(fontBold).fontSize(7.5).fillColor("#000000").text(
+                `DEST: ${destCityStr} (${destStateStr})`,
                 margin + 6,
-                y + 22,
-                { width: printWidth - 80, ellipsis: true }
+                y + 24,
+                { width: printWidth - 80 }
             );
 
             // Payment Type Badge on Footer Right
