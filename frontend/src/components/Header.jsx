@@ -79,7 +79,6 @@ const Header = ({ setIsSidebarOpen }) => {
     "/user/registrations": "Registration Overview",
     "/company/team": "Team Management",
     "/rate-calculator": "Rate Calculator",
-    "/reports/shipments": "Shipments",
     "/user/edit-account": "Edit User Profile",
     "/user/remove-account": "Remove User Account",
     "/update/AWB": "AWB Management",

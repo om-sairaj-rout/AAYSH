@@ -14,7 +14,6 @@ import ForgotPassword from "./pages/ForgotPassword.jsx";
 import ResetPassword from "./pages/ResetPassword.jsx";
 import TemplatePage from "./pages/TemplatePage.jsx";
 import OrdersPage from "./pages/OrdersPage.jsx";
-import ShipmentPage from "./pages/ShipmentPage.jsx";
 import EditAccount from "./pages/EditAccount.jsx";
 import RemoveAccount from "./pages/RemoveAccount.jsx";
 import AwbManagement from "./pages/AwbManagement.jsx";
@@ -72,7 +71,6 @@ const router = createBrowserRouter([
       { path: "/company/team", element: <CompanyTeamPage /> },
       { path: "/user/edit-account", element: <EditAccount /> },
       { path: "/user/remove-account", element: <RemoveAccount /> },
-      { path: "/reports/shipments", element: <ShipmentPage /> },
       { path: "/update/AWB", element: <AwbManagement /> },
       { path: "/update/serviceability", element: <ServiceabilityPage /> },
       { path: "/update/courier-priority", element: <CourierPriorityPage /> },
