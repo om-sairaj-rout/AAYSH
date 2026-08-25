@@ -3,8 +3,8 @@ const orderRouter = express.Router();
 
 const {
   checkAuth,
-  authRoles,
   checkPermission,
+  checkAnyPermission,
 } = require("../middlewares/auth.middleware");
 
 // Existing Controllers
@@ -124,7 +124,7 @@ orderRouter.post(
 orderRouter.post(
   "/external/orders/update-order",
   checkAuth,
-  checkPermission("orders", "write"),
+  checkAnyPermission(["orders", "update"], "write"),
   updateOrder
 );
 
@@ -138,14 +138,14 @@ orderRouter.post(
 orderRouter.get(
   "/users/:userId/orders",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("orders", "read"),
   getOrdersByUserController
 );
 
 orderRouter.get(
   "/companies/:companyID/orders",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("orders", "read"),
   getOrdersByCompanyController
 );
 

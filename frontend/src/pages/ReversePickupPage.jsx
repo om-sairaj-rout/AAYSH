@@ -92,7 +92,7 @@ const Field = ({ label, children, className = "" }) => (
 
 const ReversePickupPage = () => {
   const { user } = useSelector((state) => state.auth);
-  const canWrite = canAccess(user, "pickup", "write");
+  const canWrite = canAccess(user, "reversePickup", "write");
 
   const [form, setForm] = useState(() => buildEmptyForm(user));
   const [requests, setRequests] = useState([]);

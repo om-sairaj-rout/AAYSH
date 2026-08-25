@@ -47,5 +47,22 @@ assert(
   "read permission must not grant write permission"
 );
 
+const pickupOnlyStored = resolvePermissions("operator", {
+  pickup: { read: true, write: false },
+});
+assert(
+  canAccess(pickupOnlyStored, "reversePickup", "read"),
+  "reversePickup inherits pickup read when not explicitly stored"
+);
+assert(
+  !canAccess(pickupOnlyStored, "reversePickup", "write"),
+  "reversePickup inherits pickup write denial when not explicitly stored"
+);
+
+assert(
+  canAccess(operator, "reversePickup", "write"),
+  "operator can write reversePickup by default"
+);
+
 console.log(`Permission tests: ${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

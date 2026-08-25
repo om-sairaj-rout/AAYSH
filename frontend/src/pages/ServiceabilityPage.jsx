@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
+import { canAccess } from '../utils/permissions';
 
 import {
   fetchCourierPartnersAPI,
@@ -17,6 +19,8 @@ import { toast } from '../utils/toast';
 
 
 const ServiceabilityPage = () => {
+  const { user } = useSelector((state) => state.auth);
+  const canWrite = canAccess(user, "update", "write");
   const [couriers, setCouriers] = useState([]);
   const [isCourierModalOpen, setIsCourierModalOpen] = useState(false);
   const [newCourierName, setNewCourierName] = useState('');
@@ -128,7 +132,7 @@ const ServiceabilityPage = () => {
               <p className="text-[11px] text-slate-400 font-medium mt-0.5">Import serviceable pincodes and active status directly from an Excel/CSV file.</p>
             </div>
 
-            <form onSubmit={handleUploadSheet} className="space-y-4">
+            <form onSubmit={canWrite ? handleUploadSheet : (e) => e.preventDefault()} className="space-y-4">
               {/* Courier Picker Option Dropdown */}
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Select Courier Partner</label>
@@ -174,7 +178,7 @@ const ServiceabilityPage = () => {
 
               <button
                 type="submit"
-                disabled={loading || !selectedCourierId || !selectedFile}
+                disabled={!canWrite || loading || !selectedCourierId || !selectedFile}
                 className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold text-xs uppercase tracking-wider py-3 rounded-xl transition-colors shadow-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
               >
                 <FileSpreadsheet className="w-4 h-4" /> {loading ? "Processing..." : "Process Sheet Upload"}

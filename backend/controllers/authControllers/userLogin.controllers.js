@@ -22,7 +22,8 @@ const loginUser = async (req, res) => {
       foundUser.companyRole,
       foundUser.permissions instanceof Map
         ? Object.fromEntries(foundUser.permissions)
-        : foundUser.permissions || {}
+        : foundUser.permissions || {},
+      { permissionsManaged: foundUser.permissionsManaged }
     );
 
     const token = jwt.sign(
@@ -58,6 +59,7 @@ const loginUser = async (req, res) => {
         role: foundUser.role,
         companyRole: foundUser.companyRole,
         permissions,
+        permissionsManaged: Boolean(foundUser.permissionsManaged),
         showWeight: foundUser.showWeight,
       },
     });

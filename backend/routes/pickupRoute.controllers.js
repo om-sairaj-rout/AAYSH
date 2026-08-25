@@ -3,7 +3,6 @@ const pickupRouter = express.Router();
 
 const {
   checkAuth,
-  authRoles,
   checkPermission,
 } = require("../middlewares/auth.middleware");
 
@@ -26,7 +25,7 @@ pickupRouter.get(
 pickupRouter.get(
   "/admin/pickups",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("pickup", "read"),
   getAdminPickups
 );
 
@@ -47,7 +46,7 @@ pickupRouter.put(
 pickupRouter.put(
   "/admin/pickups/complete",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("pickup", "write"),
   UserPickupsComplete
 );
 
@@ -68,10 +67,8 @@ pickupRouter.put(
 pickupRouter.put(
   "/admin/pickups/fail",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("pickup", "write"),
   UserPickupFailed
 );
-
-
 
 module.exports = pickupRouter;

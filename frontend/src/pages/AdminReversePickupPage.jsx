@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import { ArrowLeftRight, CheckCircle2, RefreshCw, XCircle } from "lucide-react";
 import { toast } from '../utils/toast';
+import { canAccess } from "../utils/permissions";
 import {
   getReversePickups,
   approveReversePickup,
@@ -19,6 +21,8 @@ import {
 } from "../utils/reversePickupDisplay";
 
 const AdminReversePickupPage = () => {
+  const { user } = useSelector((state) => state.auth);
+  const canWrite = canAccess(user, "reversePickup", "write");
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -96,6 +100,10 @@ const AdminReversePickupPage = () => {
   };
 
   const handleApprove = async () => {
+    if (!canWrite) {
+      toast.error("You do not have permission to approve reverse pickup requests");
+      return;
+    }
     if (!selected) return;
 
     const trimmedAwb = awbNumber.trim();
@@ -135,6 +143,10 @@ const AdminReversePickupPage = () => {
   };
 
   const handleReject = async () => {
+    if (!canWrite) {
+      toast.error("You do not have permission to reject reverse pickup requests");
+      return;
+    }
     if (!selected || !rejectReason.trim()) {
       toast.validation("Rejection reason is required");
       return;
@@ -296,7 +308,7 @@ const AdminReversePickupPage = () => {
                       )}
                     </td>
                     <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                      {item.status === "pending" ? (
+                      {item.status === "pending" && canWrite ? (
                         <div className="flex justify-end gap-2">
                           <button
                             type="button"
@@ -384,7 +396,7 @@ const AdminReversePickupPage = () => {
               </button>
               <button
                 type="button"
-                disabled={actionLoading}
+                disabled={!canWrite || actionLoading}
                 onClick={handleApprove}
                 className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50"
               >
@@ -412,7 +424,7 @@ const AdminReversePickupPage = () => {
               </button>
               <button
                 type="button"
-                disabled={actionLoading}
+                disabled={!canWrite || actionLoading}
                 onClick={handleReject}
                 className="px-4 py-2 rounded-xl bg-rose-600 text-white text-sm font-bold disabled:opacity-50"
               >

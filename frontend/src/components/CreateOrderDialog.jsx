@@ -963,7 +963,6 @@ const CreateOrderDialog = ({
                 >
                   <option value="COD">COD</option>
                   <option value="Prepaid">Prepaid</option>
-                  <option value="TO PAY">TO PAY</option>
                 </select>
               </div>
             </section>

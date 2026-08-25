@@ -16,7 +16,7 @@ const uploadAndUpdateStatusExcelController = require('../controllers/uploadContr
 
 const upload = require('../middlewares/upload.middleware.js');
 
-const { checkAuth, authRoles, checkPermission } = require('../middlewares/auth.middleware.js');
+const { checkAuth, checkPermission } = require('../middlewares/auth.middleware.js');
 
 uploadRouter.post(
     '/external/upload',
@@ -43,28 +43,28 @@ uploadRouter.delete(
 uploadRouter.get(
   "/status-update/companies",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("upload", "read"),
   getStatusUpdateCompaniesController
 );
 
 uploadRouter.get(
   "/download-company-orders/:companyID",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("upload", "read"),
   downloadCompanyOrdersExcelController
 );
 
 uploadRouter.get(
   "/download-user-orders/:userId",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("upload", "read"),
   downloadUserOrdersExcelController
 );
 
 uploadRouter.post(
   "/upload-status-excel/:companyID",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("upload", "write"),
   upload.single("file"),
   uploadAndUpdateStatusExcelController
 );

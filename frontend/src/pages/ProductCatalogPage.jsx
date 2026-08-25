@@ -20,7 +20,7 @@ import {
 } from "../api/productsAPI";
 import { createOrder } from "../api/ordersAPI";
 import { getCompanies } from "../api/companyAPI";
-import { canAccess } from "../utils/permissions";
+import { canAccess, hasGlobalDataAccess } from "../utils/permissions";
 
 const emptyProduct = {
   name: "",
@@ -52,7 +52,8 @@ const emptyShipForm = {
 const ProductCatalogPage = () => {
   const { confirm } = useConfirm();
   const navigate = useNavigate();
-  const { user, isAdmin } = useSelector((state) => state.auth);
+  const { user } = useSelector((state) => state.auth);
+  const hasGlobalAccess = hasGlobalDataAccess(user);
   const canWrite = canAccess(user, "orders", "write");
 
   const [products, setProducts] = useState([]);
@@ -76,7 +77,7 @@ const ProductCatalogPage = () => {
       setLoading(true);
       const res = await getProducts({
         search: searchQuery || undefined,
-        companyId: isAdmin ? selectedCompany : undefined,
+        companyId: hasGlobalAccess ? selectedCompany : undefined,
       });
       setProducts(res.products || []);
     } catch (error) {
@@ -87,17 +88,17 @@ const ProductCatalogPage = () => {
   };
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!hasGlobalAccess) return;
     getCompanies()
       .then((res) => {
         if (res.success) setCompaniesList(res.companies || []);
       })
       .catch(() => {});
-  }, [isAdmin]);
+  }, [hasGlobalAccess]);
 
   useEffect(() => {
     loadProducts();
-  }, [searchQuery, selectedCompany, isAdmin]);
+  }, [searchQuery, selectedCompany, hasGlobalAccess]);
 
   useEffect(() => {
     if (user && !shipForm.pickup_location) {
@@ -114,7 +115,7 @@ const ProductCatalogPage = () => {
   );
 
   const openCreate = () => {
-    if (isAdmin && selectedCompany === "ALL") {
+    if (hasGlobalAccess && selectedCompany === "ALL") {
       toast.validation("Select a company before adding a product");
       return;
     }
@@ -164,7 +165,7 @@ const ProductCatalogPage = () => {
         breadth: Number(form.breadth) || 0,
         height: Number(form.height) || 0,
         defaultUnits: Number(form.defaultUnits) || 1,
-        ...(isAdmin && selectedCompany !== "ALL"
+        ...(hasGlobalAccess && selectedCompany !== "ALL"
           ? { companyID: selectedCompany }
           : {}),
       };
@@ -345,7 +346,7 @@ const ProductCatalogPage = () => {
             className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm"
           />
         </div>
-        {isAdmin && (
+        {hasGlobalAccess && (
           <select
             value={selectedCompany}
             onChange={(e) => setSelectedCompany(e.target.value)}

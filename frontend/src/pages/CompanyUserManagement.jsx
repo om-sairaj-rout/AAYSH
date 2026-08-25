@@ -24,19 +24,24 @@ import {
   PERMISSION_SECTIONS,
   COMPANY_ROLES,
   buildDefaultPermissions,
+  buildAdminDelegatedDefaultPermissions,
+  getTeamPermissionSections,
+  isUnrestrictedAdmin,
 } from "../utils/permissions";
 
-const emptyForm = {
+const createEmptyForm = (manager) => ({
   fullName: "",
   email: "",
   password: "",
   mobile_number: "",
   companyRole: "operator",
   isOwner: false,
-  permissions: buildDefaultPermissions("operator"),
-};
+  permissions: isUnrestrictedAdmin(manager)
+    ? buildAdminDelegatedDefaultPermissions()
+    : buildDefaultPermissions("operator"),
+});
 
-const PermissionMatrix = ({ permissions, onChange, disabled }) => (
+const PermissionMatrix = ({ sections, permissions, onChange, disabled }) => (
   <div className="responsive-table-wrap rounded-xl border border-slate-200">
     <table className="w-full text-left text-sm">
       <thead>
@@ -47,7 +52,7 @@ const PermissionMatrix = ({ permissions, onChange, disabled }) => (
         </tr>
       </thead>
       <tbody className="divide-y divide-slate-100">
-        {Object.entries(PERMISSION_SECTIONS).map(([key, meta]) => (
+        {sections.map(([key, meta]) => (
           <tr key={key}>
             <td className="px-4 py-3 font-medium text-[#1B2B4B]">{meta.label}</td>
             <td className="px-4 py-3 text-center">
@@ -98,10 +103,11 @@ const RoleBadge = ({ role }) => {
 const CompanyUserManagement = ({ companyID, backPath, backLabel }) => {
   const { confirm } = useConfirm();
   const navigate = useNavigate();
-  const { isAdmin } = useSelector((state) => state.auth);
+  const { user: currentUser } = useSelector((state) => state.auth);
+  const teamPermissionSections = getTeamPermissionSections(currentUser);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(() => createEmptyForm(currentUser));
   const [editingUser, setEditingUser] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -140,7 +146,9 @@ const CompanyUserManagement = ({ companyID, backPath, backLabel }) => {
       ...prev,
       companyRole,
       isOwner: companyRole === "owner",
-      permissions: buildDefaultPermissions(companyRole),
+      permissions: isUnrestrictedAdmin(currentUser)
+        ? buildAdminDelegatedDefaultPermissions()
+        : buildDefaultPermissions(companyRole),
     }));
   };
 
@@ -160,7 +168,7 @@ const CompanyUserManagement = ({ companyID, backPath, backLabel }) => {
         await registerCompanyUser(companyID, form);
         toast.success("User registered successfully");
       }
-      setForm(emptyForm);
+      setForm(createEmptyForm(currentUser));
       setEditingUser(null);
       await loadCompany();
     } catch (error) {
@@ -179,7 +187,13 @@ const CompanyUserManagement = ({ companyID, backPath, backLabel }) => {
       mobile_number: user.mobile_number,
       companyRole: user.companyRole,
       isOwner: user.companyRole === "owner",
-      permissions: user.permissions || buildDefaultPermissions(user.companyRole),
+      permissions: Object.keys(PERMISSION_SECTIONS).reduce((acc, key) => {
+        acc[key] = {
+          read: Boolean(user.permissions?.[key]?.read),
+          write: Boolean(user.permissions?.[key]?.write),
+        };
+        return acc;
+      }, {}),
     });
   };
 
@@ -252,7 +266,7 @@ const CompanyUserManagement = ({ companyID, backPath, backLabel }) => {
                 Owner: {owner.fullName || owner.email}
               </p>
             )}
-            {isAdmin && (
+            {isUnrestrictedAdmin(currentUser) && (
             <button
               type="button"
               className="mt-4 inline-flex items-center gap-2 rounded-xl border border-rose-200 text-rose-600 px-3 py-2 text-xs font-bold"
@@ -375,9 +389,9 @@ const CompanyUserManagement = ({ companyID, backPath, backLabel }) => {
                       ...prev,
                       isOwner: checked,
                       companyRole: checked ? "owner" : "operator",
-                      permissions: buildDefaultPermissions(
-                        checked ? "owner" : "operator"
-                      ),
+                      permissions: isUnrestrictedAdmin(currentUser)
+                        ? buildAdminDelegatedDefaultPermissions()
+                        : buildDefaultPermissions(checked ? "owner" : "operator"),
                     }));
                   }}
                 />
@@ -393,6 +407,7 @@ const CompanyUserManagement = ({ companyID, backPath, backLabel }) => {
                 </h3>
               </div>
               <PermissionMatrix
+                sections={teamPermissionSections}
                 permissions={form.permissions}
                 onChange={handlePermissionChange}
                 disabled={form.isOwner}
@@ -416,7 +431,7 @@ const CompanyUserManagement = ({ companyID, backPath, backLabel }) => {
                   type="button"
                   onClick={() => {
                     setEditingUser(null);
-                    setForm(emptyForm);
+                    setForm(createEmptyForm(currentUser));
                   }}
                   className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600"
                 >

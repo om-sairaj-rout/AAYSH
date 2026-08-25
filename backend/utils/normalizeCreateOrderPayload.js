@@ -6,9 +6,6 @@ const normalizePaymentMethod = (value) => {
   if (!raw) return "COD";
   if (["cod", "cash_on_delivery"].includes(raw)) return "COD";
   if (["paid", "prepaid", "pre-paid", "online"].includes(raw)) return "Prepaid";
-  if (["to pay", "topay", "to-pay"].includes(raw) || value === "TO PAY") {
-    return "TO PAY";
-  }
   if (value === "COD" || value === "Prepaid") return value;
   return "COD";
 };

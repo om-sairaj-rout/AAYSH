@@ -71,7 +71,7 @@ const reversePickupSchema = new mongoose.Schema(
     height: { type: Number, default: 0, min: 0 },
     paymentMethod: {
       type: String,
-      enum: ["COD", "Prepaid", "TO PAY"],
+      enum: ["COD", "Prepaid"],
       default: "Prepaid",
     },
     preferredServiceType: {

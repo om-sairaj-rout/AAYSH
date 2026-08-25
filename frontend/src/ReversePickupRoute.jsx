@@ -1,11 +1,12 @@
 import { useSelector } from "react-redux";
+import { hasGlobalDataAccess } from "./utils/permissions";
 import ReversePickupPage from "./pages/ReversePickupPage";
 import AdminReversePickupPage from "./pages/AdminReversePickupPage";
 
 const ReversePickupRoute = () => {
-  const { isAdmin } = useSelector((state) => state.auth);
+  const { user } = useSelector((state) => state.auth);
 
-  if (isAdmin) {
+  if (hasGlobalDataAccess(user)) {
     return <AdminReversePickupPage />;
   }
 

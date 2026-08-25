@@ -1,6 +1,11 @@
 const express = require("express");
 const companyRouter = express.Router();
-const { checkAuth, authRoles, checkPermission } = require("../middlewares/auth.middleware");
+const {
+  checkAuth,
+  checkPermission,
+  checkAnyPermission,
+  requireUnrestrictedAdmin,
+} = require("../middlewares/auth.middleware");
 const getCompanies = require("../controllers/companyControllers/getCompanies.controllers");
 const getCompanyDetail = require("../controllers/companyControllers/getCompanyDetail.controllers");
 const registerCompanyUser = require("../controllers/companyControllers/registerCompanyUser.controllers");
@@ -8,11 +13,16 @@ const updateCompanyUser = require("../controllers/companyControllers/updateCompa
 const deleteCompanyUser = require("../controllers/companyControllers/deleteCompanyUser.controllers");
 const deleteCompany = require("../controllers/companyControllers/deleteCompany.controllers");
 
-companyRouter.get("/companies", checkAuth, authRoles("admin"), getCompanies);
+companyRouter.get(
+  "/companies",
+  checkAuth,
+  checkPermission("companies", "read"),
+  getCompanies
+);
 companyRouter.get(
   "/companies/:companyID",
   checkAuth,
-  checkPermission("team", "read"),
+  checkAnyPermission(["team", "companies"], "read"),
   getCompanyDetail
 );
 companyRouter.post(
@@ -30,7 +40,7 @@ companyRouter.put(
 companyRouter.delete(
   "/companies/:companyID",
   checkAuth,
-  authRoles("admin"),
+  requireUnrestrictedAdmin,
   deleteCompany
 );
 companyRouter.delete(

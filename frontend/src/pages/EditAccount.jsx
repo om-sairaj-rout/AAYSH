@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import {
   Building2,
   Phone,
@@ -22,8 +23,11 @@ import {
   updateUserAccount
 } from "../api/authAPI";
 import { toast } from '../utils/toast'; // Imported for toast notifications
+import { canAccess } from "../utils/permissions";
 
 const EditAccount = () => {
+  const { user: currentUser } = useSelector((state) => state.auth);
+  const canWrite = canAccess(currentUser, "settings", "write");
   const [usersList, setUsersList] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -98,6 +102,10 @@ const EditAccount = () => {
   // ================= VALIDATE & SUBMIT UPDATE =================
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canWrite) {
+      toast.error("You do not have permission to edit user accounts.");
+      return;
+    }
     const newErrors = {};
 
     if (formData.companyName.trim().length < 3) {
@@ -496,7 +504,8 @@ const EditAccount = () => {
             </button>
             <button 
               type="submit"
-              className="w-2/3 py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all shadow-md uppercase tracking-wide text-sm cursor-pointer bg-[#FF6B35] hover:bg-[#e85a2a]"
+              disabled={!canWrite}
+              className="w-2/3 py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all shadow-md uppercase tracking-wide text-sm cursor-pointer bg-[#FF6B35] hover:bg-[#e85a2a] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Apply Changes
             </button>

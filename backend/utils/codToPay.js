@@ -8,18 +8,19 @@ const normalizePaymentMethod = (value) => {
     .replace(/\s+/g, " ");
 
   if (["COD", "CASH ON DELIVERY"].includes(raw)) return "COD";
-  if (["TO PAY", "TOPAY", "TO-PAY"].includes(raw)) return "TO PAY";
   if (["PREPAID", "PAID", "PRE PAID", "ONLINE"].includes(raw)) return "Prepaid";
   return raw || "COD";
 };
 
-const isCodToPayPayment = (paymentMethod) => {
+const isCodPayment = (paymentMethod) => {
   const normalized = normalizePaymentMethod(paymentMethod);
-  return normalized === "COD" || normalized === "TO PAY";
+  return normalized === "COD";
 };
 
+const isCodToPayPayment = isCodPayment;
+
 const getAwbCategory = (weight, service, paymentMethod) => {
-  if (isCodToPayPayment(paymentMethod)) {
+  if (isCodPayment(paymentMethod)) {
     return COD_TO_PAY_CATEGORY;
   }
   if (String(service || "").toLowerCase() === "prime") {
@@ -31,6 +32,7 @@ const getAwbCategory = (weight, service, paymentMethod) => {
 module.exports = {
   COD_TO_PAY_CATEGORY,
   normalizePaymentMethod,
+  isCodPayment,
   isCodToPayPayment,
   getAwbCategory,
 };

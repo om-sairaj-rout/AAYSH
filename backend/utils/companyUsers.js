@@ -8,7 +8,11 @@ const mapUserResponse = (user) => {
       ? Object.fromEntries(user.permissions)
       : user.permissions || {};
 
-  const permissions = resolvePermissions(user.companyRole, storedPermissions);
+  const permissions = resolvePermissions(
+    user.companyRole,
+    storedPermissions,
+    { permissionsManaged: user.permissionsManaged }
+  );
 
   return {
     _id: user._id,
@@ -20,6 +24,7 @@ const mapUserResponse = (user) => {
     role: user.role,
     companyRole: user.companyRole,
     permissions,
+    permissionsManaged: Boolean(user.permissionsManaged),
     address: user.address,
     city: user.city,
     state: user.state,

@@ -7,6 +7,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { toast } from '../utils/toast';
 import { formatDisplayDate } from "../utils/dateTime";
+import { hasGlobalDataAccess } from "../utils/permissions";
 
 const HIDDEN_TABLE_KEYS = new Set([
   "_id",
@@ -55,8 +56,9 @@ const OrderByDateInfo = () => {
   const [selectedCompany, setSelectedCompany] = useState("ALL");
   const [companiesList, setCompaniesList] = useState([]);
 
-  const { isAdmin, user } = useSelector((state) => state.auth);
-  const canSeeWeight = isAdmin || user?.showWeight;
+  const { user } = useSelector((state) => state.auth);
+  const hasGlobalAccess = hasGlobalDataAccess(user);
+  const canSeeWeight = hasGlobalAccess || user?.showWeight;
 
   const adminOnlyFields = [
     "weight",
@@ -69,7 +71,7 @@ const OrderByDateInfo = () => {
   const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!hasGlobalAccess) return;
     getCompanies()
       .then((res) => {
         if (res.success && Array.isArray(res.companies)) {
@@ -77,7 +79,7 @@ const OrderByDateInfo = () => {
         }
       })
       .catch(() => {});
-  }, [isAdmin]);
+  }, [hasGlobalAccess]);
 
   const loadOrders = async (page = currentPage) => {
     if (!fromDate || !toDate) {
@@ -108,7 +110,7 @@ const OrderByDateInfo = () => {
       const result = await getOrdersByDate(formattedFrom, formattedTo, {
         page,
         perPage: entriesPerPage,
-        companyId: isAdmin ? selectedCompany : undefined,
+        companyId: hasGlobalAccess ? selectedCompany : undefined,
       });
 
       if (result.success) {
@@ -141,7 +143,7 @@ const OrderByDateInfo = () => {
       if (HIDDEN_TABLE_KEYS.has(key)) return false;
 
       if (key === "weight" && !canSeeWeight) return false;
-      if (!isAdmin && adminOnlyFields.includes(key) && key !== "weight") return false;
+      if (!hasGlobalAccess && adminOnlyFields.includes(key) && key !== "weight") return false;
 
       return true;
     });
@@ -214,7 +216,7 @@ const OrderByDateInfo = () => {
 
       const result = await getOrdersByDate(fromDate, toDate, {
         all: true,
-        companyId: isAdmin ? selectedCompany : undefined,
+        companyId: hasGlobalAccess ? selectedCompany : undefined,
       });
 
       if (!result.success || !result.orders?.length) {
@@ -240,7 +242,7 @@ const OrderByDateInfo = () => {
           .filter(([key]) => {
             if (HIDDEN_TABLE_KEYS.has(key)) return false;
             if (key === "weight" && !canSeeWeight) return false;
-            if (!isAdmin && adminOnlyFields.includes(key) && key !== "weight") {
+            if (!hasGlobalAccess && adminOnlyFields.includes(key) && key !== "weight") {
               return false;
             }
             return true;
@@ -349,7 +351,7 @@ const OrderByDateInfo = () => {
           />
         </div>
 
-        {isAdmin && (
+        {hasGlobalAccess && (
           <div className="space-y-1">
             <label className="text-sm font-semibold text-red-700">Company</label>
             <select

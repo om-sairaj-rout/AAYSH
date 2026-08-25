@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import { Headphones, RefreshCw, Eye } from "lucide-react";
+import { canAccess } from "../utils/permissions";
 import { toast } from '../utils/toast';
 import DocumentPreviewDialog from "../components/DocumentPreviewDialog";
 import useDocumentPreview from "../utils/useDocumentPreview";
@@ -29,6 +31,8 @@ const PRIORITY_STYLES = {
 };
 
 const AdminTicketsPage = () => {
+  const { user } = useSelector((state) => state.auth);
+  const canWrite = canAccess(user, "tickets", "write");
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -359,7 +363,7 @@ const AdminTicketsPage = () => {
                 </button>
               )}
             </div>
-            <TicketConversation messages={selected.messages} />
+            <TicketConversation messages={selected.messages} viewerMode="admin" />
             <label className="block">
               <span className="text-xs font-bold text-slate-500 uppercase">Message User</span>
               <textarea
@@ -367,24 +371,19 @@ const AdminTicketsPage = () => {
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
                 placeholder="Send a message to the user..."
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                disabled={!canWrite}
+                readOnly={!canWrite}
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50 disabled:text-slate-500"
               />
             </label>
-            <button
-              type="button"
-              disabled={replyLoading || !replyText.trim()}
-              onClick={handleSendReply}
-              className="touch-target rounded-xl bg-indigo-600 text-white text-sm font-bold disabled:opacity-50"
-            >
-              {replyLoading ? "Sending..." : "Send Message"}
-            </button>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="block">
                 <span className="text-xs font-bold text-slate-500 uppercase">Status</span>
                 <select
                   value={editForm.status}
                   onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                  disabled={!canWrite}
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50 disabled:text-slate-500"
                 >
                   <option value="pending">Pending</option>
                   <option value="in_progress">In Progress</option>
@@ -396,7 +395,8 @@ const AdminTicketsPage = () => {
                 <select
                   value={editForm.priority}
                   onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                  disabled={!canWrite}
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50 disabled:text-slate-500"
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -410,22 +410,32 @@ const AdminTicketsPage = () => {
                 rows={2}
                 value={editForm.adminNotes}
                 onChange={(e) => setEditForm({ ...editForm, adminNotes: e.target.value })}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                disabled={!canWrite}
+                readOnly={!canWrite}
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50 disabled:text-slate-500"
               />
             </label>
-            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
-              <button type="button" onClick={closeModal} className="touch-target rounded-xl border text-sm font-semibold">
+            </div>
+            <div className="modal-panel-footer">
+              <button
+                type="button"
+                disabled={!canWrite || replyLoading || !replyText.trim()}
+                onClick={handleSendReply}
+                className="modal-action-btn bg-indigo-600 text-white disabled:opacity-50 sm:mr-auto"
+              >
+                {replyLoading ? "Sending..." : "Send Message"}
+              </button>
+              <button type="button" onClick={closeModal} className="modal-action-btn border border-slate-200 text-slate-700">
                 Cancel
               </button>
               <button
                 type="button"
-                disabled={actionLoading}
+                disabled={!canWrite || actionLoading}
                 onClick={handleUpdate}
-                className="touch-target rounded-xl bg-[#1B2B4B] text-white text-sm font-bold disabled:opacity-50"
+                className="modal-action-btn bg-[#1B2B4B] text-white disabled:opacity-50"
               >
                 {actionLoading ? "Saving..." : "Save Changes"}
               </button>
-            </div>
             </div>
           </div>
         </div>

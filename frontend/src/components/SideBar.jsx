@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { canViewPath } from "../utils/permissions";
+import { canViewPath, isUnrestrictedAdmin } from "../utils/permissions";
 import {
   getTicketUnreadCount,
   getAdminTicketUnreadCount,
@@ -30,13 +30,16 @@ const NAVY_DARK = "#152238";
 const SideBar = ({ isOpen, setIsOpen }) => {
   const [openMenus, setOpenMenus] = useState({});
   const [ticketUnreadCount, setTicketUnreadCount] = useState(0);
-  const { isAdmin, canManageTeam, user } = useSelector((state) => state.auth);
+  const { canManageTeam, user } = useSelector((state) => state.auth);
   const location = useLocation();
 
   useEffect(() => {
     const loadUnread = async () => {
       try {
-        if (isAdmin) {
+        if (isUnrestrictedAdmin(user)) {
+          const res = await getAdminTicketUnreadCount();
+          setTicketUnreadCount(res.count || 0);
+        } else if (canViewPath(user, "/admin/tickets")) {
           const res = await getAdminTicketUnreadCount();
           setTicketUnreadCount(res.count || 0);
         } else if (canViewPath(user, "/contact")) {
@@ -57,7 +60,7 @@ const SideBar = ({ isOpen, setIsOpen }) => {
       clearInterval(timer);
       window.removeEventListener(TICKET_UNREAD_CHANGED_EVENT, loadUnread);
     };
-  }, [isAdmin, user, location.pathname]);
+  }, [user, location.pathname]);
 
   const toggleMenu = (name) => {
     setOpenMenus((prev) => ({ ...prev, [name]: !prev[name] }));
@@ -195,23 +198,17 @@ const SideBar = ({ isOpen, setIsOpen }) => {
   ];
 
   const canShowPath = (path) => {
-    if (isAdmin) return true;
+    if (isUnrestrictedAdmin(user)) return true;
     return canViewPath(user, path);
   };
 
   const filteredMenu = menuItems
-    .filter((group) => {
-      if (group.adminOnly && !isAdmin) return false;
-      return true;
-    })
     .map((group) => ({
       ...group,
       items: group.items
         .map((item) => {
           if (item.subItems) {
-            const subItems = item.subItems.filter(
-              (sub) => !(sub.adminOnly && !isAdmin) && canShowPath(sub.path)
-            );
+            const subItems = item.subItems.filter((sub) => canShowPath(sub.path));
             return subItems.length ? { ...item, subItems } : null;
           }
           if (item.path && !canShowPath(item.path)) return null;
@@ -222,8 +219,8 @@ const SideBar = ({ isOpen, setIsOpen }) => {
     .filter((group) => group.items.length > 0);
 
   const getUnreadForPath = (path) => {
-    if (path === "/contact" && !isAdmin) return ticketUnreadCount;
-    if (path === "/admin/tickets" && isAdmin) return ticketUnreadCount;
+    if (path === "/contact" && user?.role !== "admin" && canViewPath(user, "/contact")) return ticketUnreadCount;
+    if (path === "/admin/tickets" && (isUnrestrictedAdmin(user) || canViewPath(user, "/admin/tickets"))) return ticketUnreadCount;
     return 0;
   };
 

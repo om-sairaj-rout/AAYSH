@@ -16,8 +16,10 @@ const completePickup = async (req, res) => {
 
     pickup.pickupStatus = "Completed";
     pickup.failureReason = "";
-    pickup.pickedUpAt = new Date();
-    pickup.actualPickupDate = pickup.pickedUpAt;
+    const completedAt = new Date();
+    pickup.pickedUpAt = completedAt;
+    pickup.actualPickupDate = completedAt;
+    pickup.pickupDate = completedAt;
 
     const previousStatus = pickup.shippingStatus;
     pickup.shippingStatus = "Shipped";

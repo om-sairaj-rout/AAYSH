@@ -1,11 +1,12 @@
 import { Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import AdminTicketsPage from "./pages/AdminTicketsPage";
+import { canViewPath } from "./utils/permissions";
 
 const AdminTicketsRoute = () => {
-  const { isAdmin } = useSelector((state) => state.auth);
+  const { user } = useSelector((state) => state.auth);
 
-  if (!isAdmin) {
+  if (!canViewPath(user, "/admin/tickets")) {
     return <Navigate to="/dashboard" replace />;
   }
 

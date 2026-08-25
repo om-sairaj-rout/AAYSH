@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { toast } from '../utils/toast';
+import { canAccess } from '../utils/permissions';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
     getAdminPickupsAPI,
@@ -207,6 +209,8 @@ const ADMIN_TAB_TO_QUERY = {
 
 /* ================= MAIN ADMIN PICKUP PAGE COMPONENT ================= */
 const AdminPickupPage = () => {
+  const { user } = useSelector((state) => state.auth);
+  const canWrite = canAccess(user, "pickup", "write");
   const [activeTab, setActiveTab] = useState("All Pickups");
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCompany, setSelectedCompany] = useState('ALL');
@@ -440,7 +444,7 @@ const AdminPickupPage = () => {
             </div>
 
             {/* Bulk actions for Today's and Pending tabs */}
-            {isActionTab && selectedPickupIds.length > 0 && (
+            {canWrite && isActionTab && selectedPickupIds.length > 0 && (
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleBulkComplete}
@@ -671,7 +675,7 @@ const AdminPickupPage = () => {
                       </td>
 
                       {/* Admin Controls for actionable tabs */}
-                      {isActionTab && (
+                      {canWrite && isActionTab && (
                         <td className="p-3.5 text-right whitespace-nowrap">
                           {!isTerminalStatus ? (
                             <div className="flex items-center justify-end gap-1.5">

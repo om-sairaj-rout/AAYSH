@@ -5,11 +5,12 @@ const {
   canManageCompanyUsers,
   resolvePermissions,
   sanitizePermissionsInput,
+  isUnrestrictedAdmin,
 } = require("../../utils/permissions");
 const { mapUserResponse } = require("../../utils/companyUsers");
 
 const assertCanManageTargetCompany = (req, companyID) => {
-  if (req.user.role === "admin") return true;
+  if (isUnrestrictedAdmin(req.user)) return true;
   if (req.user.companyID !== companyID) return false;
   return canManageCompanyUsers(req.user);
 };
@@ -75,7 +76,9 @@ const updateCompanyUser = async (req, res) => {
     user.companyRole = nextRole;
 
     const sanitizedPermissions = sanitizePermissionsInput(permissions);
-    user.permissions = resolvePermissions(nextRole, sanitizedPermissions);
+    user.permissions = resolvePermissions(nextRole, sanitizedPermissions, {
+      permissionsManaged: user.permissionsManaged,
+    });
 
     await user.save();
 

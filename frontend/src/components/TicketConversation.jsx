@@ -5,8 +5,14 @@ const TicketConversation = ({
   fallbackText = "",
   emptyLabel = "No messages yet.",
   className = "",
+  viewerMode = "user",
 }) => {
   const thread = Array.isArray(messages) ? messages : [];
+
+  const senderLabel = (entry) => {
+    if (entry.senderRole === "admin") return "Admin";
+    return viewerMode === "admin" ? "User" : "You";
+  };
 
   return (
     <div
@@ -24,7 +30,7 @@ const TicketConversation = ({
             }`}
           >
             <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">
-              {entry.senderRole === "admin" ? "Admin" : "You"} ·{" "}
+              {senderLabel(entry)} ·{" "}
               {formatDisplayDate(entry.createdAt)}
             </p>
             <p className="whitespace-pre-wrap">{entry.message}</p>

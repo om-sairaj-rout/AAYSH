@@ -20,6 +20,7 @@ import {
   notifyTicketUnreadChanged,
 } from "../utils/ticketHelpers";
 import { formatDisplayDate } from "../utils/dateTime";
+import { canAccess } from "../utils/permissions";
 
 const STATUS_STYLES = {
   pending: "bg-amber-50 text-amber-700 border-amber-200",
@@ -63,6 +64,7 @@ const buildFormFromUser = (user, orderAwbNumber = "") => ({
 
 const SupportTicketsPage = () => {
   const { user } = useSelector((state) => state.auth);
+  const canWrite = canAccess(user, "support", "write");
   const [searchParams] = useSearchParams();
   const awbFromUrl = searchParams.get("awb") || searchParams.get("orderAwb") || "";
 
@@ -242,6 +244,7 @@ const SupportTicketsPage = () => {
             <RefreshCw size={16} />
             Refresh
           </button>
+          {canWrite && (
           <button
             type="button"
             onClick={() => {
@@ -253,10 +256,11 @@ const SupportTicketsPage = () => {
             <Plus size={16} />
             {showForm ? "Hide Form" : "New Ticket"}
           </button>
+          )}
         </div>
       </div>
 
-      {showForm && (
+      {canWrite && showForm && (
         <form
           onSubmit={handleSubmit}
           className="bg-white rounded-[22px] shadow-sm border border-white p-5 md:p-6 space-y-5"
@@ -685,26 +689,14 @@ const SupportTicketsPage = () => {
               messages={selectedTicket.messages}
               fallbackText={selectedTicket.description}
             />
-            {canUserReplyToTicket(selectedTicket) ? (
-              <div className="space-y-2">
-                <textarea
-                  rows={3}
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="Reply to support..."
-                  className={`${inputClass} min-h-[80px]`}
-                />
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    disabled={replyLoading || !replyText.trim()}
-                    onClick={handleSendReply}
-                    className="touch-target rounded-xl bg-[#1B2B4B] text-white text-sm font-bold disabled:opacity-50"
-                  >
-                    {replyLoading ? "Sending..." : "Send Reply"}
-                  </button>
-                </div>
-              </div>
+            {canWrite && canUserReplyToTicket(selectedTicket) ? (
+              <textarea
+                rows={3}
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Reply to support..."
+                className={`${inputClass} min-h-[80px]`}
+              />
             ) : selectedTicket.status !== "resolved" ? (
               <p className="text-sm text-slate-500 bg-slate-50 rounded-xl px-4 py-3">
                 Our team will respond shortly. You can reply here once admin has messaged you.
@@ -715,6 +707,18 @@ const SupportTicketsPage = () => {
               </p>
             )}
             </div>
+            {canWrite && canUserReplyToTicket(selectedTicket) && (
+              <div className="modal-panel-footer">
+                <button
+                  type="button"
+                  disabled={replyLoading || !replyText.trim()}
+                  onClick={handleSendReply}
+                  className="modal-action-btn bg-[#1B2B4B] text-white disabled:opacity-50"
+                >
+                  {replyLoading ? "Sending..." : "Send Reply"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

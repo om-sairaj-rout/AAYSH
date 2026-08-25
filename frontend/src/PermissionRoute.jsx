@@ -1,6 +1,6 @@
 import { useSelector } from "react-redux";
 import { Navigate } from "react-router-dom";
-import { canAccess } from "./utils/permissions";
+import { canAccess, isUnrestrictedAdmin } from "./utils/permissions";
 
 const PermissionRoute = ({
   section,
@@ -8,9 +8,9 @@ const PermissionRoute = ({
   redirectTo = "/dashboard",
   children,
 }) => {
-  const { user, isAdmin } = useSelector((state) => state.auth);
+  const { user } = useSelector((state) => state.auth);
 
-  if (isAdmin || canAccess(user, section, action)) {
+  if (isUnrestrictedAdmin(user) || canAccess(user, section, action)) {
     return children;
   }
 

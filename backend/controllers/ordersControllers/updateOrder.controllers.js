@@ -165,11 +165,11 @@ const updateOrder = async (req, res) => {
 
     if (
       payment_method !== undefined &&
-      !["COD", "Prepaid", "TO PAY"].includes(payment_method)
+      !["COD", "Prepaid"].includes(payment_method)
     ) {
       return res.status(400).json({
         success: false,
-        message: "Invalid payment method. Use COD, Prepaid, or TO PAY.",
+        message: "Invalid payment method. Use COD or Prepaid.",
       });
     }
 

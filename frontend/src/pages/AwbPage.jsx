@@ -5,13 +5,14 @@ import { ChevronLeft, Package, Truck, User, Building, FileText, Calendar, Phone 
 import { getOrderByAwb } from '../api/ordersAPI'; 
 import OrderTracker from '../components/OrderTracker'; // <--- Imported OrderTracker Component
 import { formatDisplayDate } from '../utils/dateTime';
+import { hasGlobalDataAccess } from '../utils/permissions';
 
 const AwbPage = () => {
   const { awbNumber } = useParams(); 
   const navigate = useNavigate();
 
-  const { isAdmin, user } = useSelector((state) => state.auth);
-  const canSeeWeight = isAdmin || user?.showWeight;
+  const { user } = useSelector((state) => state.auth);
+  const canSeeWeight = hasGlobalDataAccess(user) || user?.showWeight;
   
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);

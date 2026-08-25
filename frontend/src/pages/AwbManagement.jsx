@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { canAccess } from '../utils/permissions';
 import { 
   Truck, 
   Plus, 
@@ -22,6 +24,8 @@ import {
 import { toast } from '../utils/toast';
 
 const AwbManagement = () => {
+  const { user } = useSelector((state) => state.auth);
+  const canWrite = canAccess(user, "update", "write");
   const [couriers, setCouriers] = useState([]);
   const [isCourierModalOpen, setIsCourierModalOpen] = useState(false);
   const [newCourierName, setNewCourierName] = useState('');
@@ -180,8 +184,9 @@ const AwbManagement = () => {
             </p>
           </div>
           <button
-            onClick={() => setIsCourierModalOpen(true)}
-            className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider px-4 py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm shrink-0"
+            onClick={() => canWrite && setIsCourierModalOpen(true)}
+            disabled={!canWrite}
+            className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider px-4 py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-4 h-4" /> Add Courier Company
           </button>
@@ -196,7 +201,7 @@ const AwbManagement = () => {
               <p className="text-[11px] text-slate-400 font-medium mt-0.5">Parse tracking blocks directly from a document sheet layout.</p>
             </div>
 
-            <form onSubmit={handleUploadSheet} className="space-y-4">
+            <form onSubmit={canWrite ? handleUploadSheet : (e) => e.preventDefault()} className="space-y-4">
               {/* Courier Picker Option Dropdown */}
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Select Courier Partner</label>
@@ -259,7 +264,7 @@ const AwbManagement = () => {
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    COD/TO PAY
+                    COD
                   </button>
                 </div>
               </div>
@@ -309,7 +314,7 @@ const AwbManagement = () => {
                     <th className="p-4 text-center">Remaining (&lt; 3 kg)</th>
                     <th className="p-4 text-center">Remaining (&gt; 3 kg)</th>
                     <th className="p-4 text-center">Remaining (Prime)</th>
-                    <th className="p-4 text-center">COD/TO PAY</th>
+                    <th className="p-4 text-center">COD</th>
                     <th className="p-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -340,17 +345,21 @@ const AwbManagement = () => {
                           </button>
                         </td>
                         <td className="p-4 text-center">
-                          <button type="button" onClick={() => openCategoryAwbs(courier, "codToPay", "COD/TO PAY")} className="bg-emerald-50 text-emerald-700 border border-emerald-100 px-2.5 py-1 rounded-full font-mono font-bold">
-                            {(courier.unbookedCodToPay || 0).toLocaleString()} available
+                          <button type="button" onClick={() => openCategoryAwbs(courier, "codToPay", "COD")} className="bg-emerald-50 text-emerald-700 border border-emerald-100 px-2.5 py-1 rounded-full font-mono font-bold">
+                            {(courier.unbookedCod ?? courier.unbookedCodToPay ?? 0).toLocaleString()} available
                           </button>
                         </td>
                         <td className="p-4 text-right">
+                          {canWrite && (
                           <button type="button" onClick={() => handleRenameCourier(courier)} className="inline-flex p-1.5 text-slate-500 hover:text-indigo-600" title="Edit courier">
                             <Pencil className="w-4 h-4" />
                           </button>
+                          )}
+                          {canWrite && (
                           <button type="button" onClick={() => handleDeleteCourier(courier)} className="inline-flex p-1.5 text-slate-500 hover:text-rose-600" title="Delete courier">
                             <Trash2 className="w-4 h-4" />
                           </button>
+                          )}
                         </td>
                       </tr>
                   ))}
@@ -474,8 +483,12 @@ const AwbManagement = () => {
                           </>
                         ) : (
                           <>
+                            {canWrite ? (
+                            <>
                             <button type="button" className="text-indigo-600" onClick={() => setEditingAwb({ ...awb })}>Edit</button>
                             <button type="button" className="text-rose-600" onClick={() => handleDeleteAwb(awb)}>Delete</button>
+                            </>
+                            ) : null}
                           </>
                         )}
                       </td>

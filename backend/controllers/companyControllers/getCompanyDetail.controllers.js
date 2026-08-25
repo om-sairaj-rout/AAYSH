@@ -1,5 +1,5 @@
 const { getCompanyDetailPayload } = require("../../utils/companyUsers");
-const { canManageCompanyUsers } = require("../../utils/permissions");
+const { canManageCompanyUsers, isUnrestrictedAdmin } = require("../../utils/permissions");
 
 const getCompanyDetail = async (req, res) => {
   try {
@@ -13,10 +13,9 @@ const getCompanyDetail = async (req, res) => {
       });
     }
 
-    const isPlatformAdmin = req.user.role === "admin";
     const isSameCompany = req.user.companyID === companyID;
 
-    if (!isPlatformAdmin && !isSameCompany) {
+    if (!isUnrestrictedAdmin(req.user) && !isSameCompany) {
       return res.status(403).json({
         success: false,
         message: "Forbidden access",
@@ -27,7 +26,7 @@ const getCompanyDetail = async (req, res) => {
       success: true,
       ...payload,
       canManageUsers:
-        isPlatformAdmin ||
+        isUnrestrictedAdmin(req.user) ||
         (isSameCompany && canManageCompanyUsers(req.user)),
     });
   } catch (error) {

@@ -162,7 +162,7 @@ const OrderSchema = new mongoose.Schema(
 
     paymentMethod: {
       type: String,
-      enum: ["COD", "Prepaid", "TO PAY"],
+      enum: ["COD", "Prepaid"],
       default: "COD",
     },
 

@@ -92,6 +92,10 @@ const userSchema = new mongoose.Schema(
       of: permissionEntrySchema,
       default: undefined,
     },
+    permissionsManaged: {
+      type: Boolean,
+      default: false,
+    },
     showWeight: {
       type: Boolean,
       default: true,

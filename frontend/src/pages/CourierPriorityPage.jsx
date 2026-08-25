@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
+import { canAccess } from "../utils/permissions";
 import {
   Truck,
   Plane,
@@ -19,6 +21,8 @@ import { toast } from '../utils/toast';
 
 
 const CourierPriorityPage = () => {
+  const { user } = useSelector((state) => state.auth);
+  const canWrite = canAccess(user, "update", "write");
   const [activeTab, setActiveTab] = useState("surface");
   const [priorityData, setPriorityData] = useState({
   service: "surface",
@@ -146,7 +150,7 @@ setIsModified(true);
 
             <button
               onClick={handleSave}
-              disabled={!isModified || isSaving}
+              disabled={!canWrite || !isModified || isSaving}
               className="flex items-center gap-2 px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-all shadow-md shadow-indigo-600/20 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 cursor-pointer"
             >
               <Save className="w-4 h-4" />

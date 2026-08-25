@@ -6,12 +6,15 @@ const {
   canManageCompanyUsers,
   resolvePermissions,
   sanitizePermissionsInput,
+  getFullManagedAdminPermissions,
+  isAdminCreatingOwnCompanyUser,
+  isUnrestrictedAdmin,
 } = require("../../utils/permissions");
 const { mapUserResponse } = require("../../utils/companyUsers");
 const { respondWithError } = require("../../utils/mongoErrors");
 
 const assertCanManageTargetCompany = (req, companyID) => {
-  if (req.user.role === "admin") return true;
+  if (isUnrestrictedAdmin(req.user)) return true;
   if (req.user.companyID !== companyID) return false;
   return canManageCompanyUsers(req.user);
 };
@@ -96,10 +99,16 @@ const registerCompanyUser = async (req, res) => {
       }
     }
 
-    const sanitizedPermissions = sanitizePermissionsInput(permissions);
+    const createAsManagedAdmin = isAdminCreatingOwnCompanyUser(req.user, companyID);
+
+    const sanitizedPermissions = sanitizePermissionsInput(
+      permissions ||
+        (createAsManagedAdmin ? getFullManagedAdminPermissions() : {})
+    );
     const resolvedPermissions = resolvePermissions(
       resolvedCompanyRole,
-      sanitizedPermissions
+      sanitizedPermissions,
+      { permissionsManaged: createAsManagedAdmin }
     );
 
     const salt = await bcrypt.genSalt(10);
@@ -120,9 +129,10 @@ const registerCompanyUser = async (req, res) => {
       website: company.website,
       gstin: company.gstin,
       logo: company.logo,
-      role: "user",
+      role: createAsManagedAdmin ? "admin" : "user",
       companyRole: resolvedCompanyRole,
       permissions: resolvedPermissions,
+      permissionsManaged: createAsManagedAdmin,
     });
 
     if (resolvedCompanyRole === "owner") {

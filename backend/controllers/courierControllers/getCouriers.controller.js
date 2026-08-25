@@ -40,6 +40,7 @@ const getCouriers = async (req, res) => {
   unbookedUnder1kg: under3kg,
   unbookedOver3kg: over3kg,
   unbookedPrime: prime,
+  unbookedCod: codToPay,
   unbookedCodToPay: codToPay,
 
   // Serviceability Counts

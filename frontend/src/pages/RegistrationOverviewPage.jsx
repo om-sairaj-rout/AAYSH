@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import {
   Users,
   Building2,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 import { getRegistrationStats, migrateLegacyCompanies } from "../api/authAPI";
 import { formatDisplayDate } from "../utils/dateTime";
+import { isUnrestrictedAdmin } from "../utils/permissions";
 import { toast } from '../utils/toast';
 
 const StatCard = ({ icon: Icon, label, value, hint, tone = "text-[#1B2B4B]", onClick }) => (
@@ -32,6 +34,8 @@ const StatCard = ({ icon: Icon, label, value, hint, tone = "text-[#1B2B4B]", onC
 
 const RegistrationOverviewPage = () => {
   const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
+  const canMigrate = isUnrestrictedAdmin(user);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalCompanies: 0,
@@ -151,6 +155,7 @@ const RegistrationOverviewPage = () => {
               You do not need to re-register — run migration once to assign IDs and create companies.
             </p>
           </div>
+          {canMigrate && (
           <button
             type="button"
             onClick={handleMigrate}
@@ -159,6 +164,7 @@ const RegistrationOverviewPage = () => {
           >
             {migrating ? "Migrating..." : "Run Migration"}
           </button>
+          )}
         </div>
       )}
 

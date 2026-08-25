@@ -13,44 +13,44 @@ const searchReversePickupCustomers = require("../controllers/reversePickupContro
 reversePickupRouter.post(
   "/reverse-pickups",
   checkAuth,
-  checkPermission("pickup", "write"),
+  checkPermission("reversePickup", "write"),
   upload.single("supportingDocument"),
   createReversePickup
 );
 reversePickupRouter.get(
   "/reverse-pickups",
   checkAuth,
-  checkPermission("pickup", "read"),
+  checkPermission("reversePickup", "read"),
   getReversePickups
 );
 reversePickupRouter.get(
   "/reverse-pickups/customers/search",
   checkAuth,
-  checkPermission("pickup", "read"),
+  checkPermission("reversePickup", "read"),
   searchReversePickupCustomers
 );
 reversePickupRouter.get(
   "/reverse-pickups/order/:orderId/document-url",
   checkAuth,
-  checkPermission("pickup", "read"),
+  checkPermission("reversePickup", "read"),
   getReversePickupDocumentByOrder
 );
 reversePickupRouter.get(
   "/reverse-pickups/:id/document-url",
   checkAuth,
-  checkPermission("pickup", "read"),
+  checkPermission("reversePickup", "read"),
   getReversePickupDocumentUrl
 );
 reversePickupRouter.put(
   "/admin/reverse-pickups/:id/approve",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("reversePickup", "write"),
   approveReversePickup
 );
 reversePickupRouter.put(
   "/admin/reverse-pickups/:id/reject",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("reversePickup", "write"),
   rejectReversePickup
 );
 

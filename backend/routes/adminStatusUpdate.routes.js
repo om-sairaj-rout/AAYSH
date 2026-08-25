@@ -5,24 +5,24 @@ const updateOrderStatusController = require('../controllers/statusUpdateControll
 const getOrdersByUserController = require('../controllers/statusUpdateControllers/getOrdersByUser.controllers.js');
 const getAllUsers =
 require('../controllers/authControllers/getAllUsers.controllers');
-const { checkAuth, authRoles } = require('../middlewares/auth.middleware.js');
+const { checkAuth, checkPermission } = require('../middlewares/auth.middleware.js');
 
 adminStatusUpdateRouter.get(
   "/users",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("upload", "read"),
   getAllUsers
 );
 adminStatusUpdateRouter.get(
   "/orders/:userId",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("upload", "read"),
   getOrdersByUserController
 );
 adminStatusUpdateRouter.put(
   "/order/:orderId",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("upload", "write"),
   updateOrderStatusController
 );
 

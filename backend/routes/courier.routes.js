@@ -6,7 +6,6 @@ const upload =
 
 const {
   checkAuth,
-  authRoles,
   checkPermission,
 } = require("../middlewares/auth.middleware");
 
@@ -42,19 +41,13 @@ const deleteAwb =
   require("../controllers/courierControllers/deleteAwb.controller");
 
 
-// ==========================
-// ADD COURIER
-// ==========================
 courierRouter.post(
   "/courier/add",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("update", "write"),
   addCourier
 );
 
-// ==========================
-// GET ALL COURIERS + COUNTS
-// ==========================
 courierRouter.get(
   "/courier/all",
   checkAuth,
@@ -69,14 +62,10 @@ courierRouter.get(
   getCouriersExternal
 );
 
-// ==========================
-// UPLOAD AWB SHEET
-// field name = awbSheet
-// ==========================
 courierRouter.post(
   "/awb/upload",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("update", "write"),
   upload.single("awbSheet"),
   uploadAwbSheet
 );
@@ -84,7 +73,7 @@ courierRouter.post(
 courierRouter.post(
   "/serviceability/upload",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("update", "write"),
   upload.single("serviceabilitySheet"),
   uploadServiceabilitySheet
 );
@@ -92,49 +81,49 @@ courierRouter.post(
 courierRouter.get(
   "/priority/:service",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("update", "read"),
   getCourierPriority
 );
 
 courierRouter.put(
   "/priority/:service",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("update", "write"),
   updateCourierPriority
 );
 
 courierRouter.put(
   "/courier/:courierId",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("update", "write"),
   updateCourier
 );
 
 courierRouter.delete(
   "/courier/:courierId",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("update", "write"),
   deleteCourier
 );
 
 courierRouter.get(
   "/courier/:courierId/awbs",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("update", "read"),
   getCourierAwbs
 );
 
 courierRouter.put(
   "/awb/:awbId",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("update", "write"),
   updateAwb
 );
 
 courierRouter.delete(
   "/awb/:awbId",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("update", "write"),
   deleteAwb
 );
 

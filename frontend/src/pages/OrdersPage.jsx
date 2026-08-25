@@ -29,7 +29,7 @@ import {
 import { getOrderPartySections } from '../utils/reversePickupOrderDisplay';
 import { useLatestRequestId } from '../utils/useLatestRequestId';
 import useDocumentPreview from '../utils/useDocumentPreview';
-import { canAccess } from '../utils/permissions';
+import { canAccess, hasGlobalDataAccess } from '../utils/permissions';
 import CreateOrderDialog from '../components/CreateOrderDialog';
 
 const SEARCH_TYPES = {
@@ -550,7 +550,8 @@ const OrderDetailsModal = ({
 
 /* ================= MAIN ORDERS PAGE COMPONENT ================= */
 const OrdersPage = () => {
-  const { isAdmin, user } = useSelector((state) => state.auth);
+  const { user } = useSelector((state) => state.auth);
+  const hasGlobalAccess = hasGlobalDataAccess(user);
   const canWrite = canAccess(user, "orders", "write");
   const [activeSegment, setActiveSegment] = useState('All Orders');
   const [counts, setCounts] = useState({});
@@ -587,7 +588,7 @@ const OrdersPage = () => {
   const { confirm } = useConfirm();
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!hasGlobalAccess) return;
 
     getCompanies()
       .then((res) => {
@@ -596,7 +597,7 @@ const OrdersPage = () => {
         }
       })
       .catch(() => {});
-  }, [isAdmin]);
+  }, [hasGlobalAccess]);
 
   useEffect(() => {
     const loadAnalytics = async () => {
@@ -604,7 +605,7 @@ const OrdersPage = () => {
         setAnalyticsLoading(true);
         const data = await getDashboardData({
           year: analyticsYear,
-          companyId: isAdmin ? selectedCompany : undefined,
+          companyId: hasGlobalAccess ? selectedCompany : undefined,
           from: fromDate || undefined,
           to: toDate || undefined,
         });
@@ -618,7 +619,7 @@ const OrdersPage = () => {
     };
 
     loadAnalytics();
-  }, [isAdmin, selectedCompany, analyticsYear, fromDate, toDate]);
+  }, [hasGlobalAccess, selectedCompany, analyticsYear, fromDate, toDate]);
 
   const fetchOrders = useCallback(async () => {
     const requestId = startRequest();
@@ -638,7 +639,7 @@ const OrdersPage = () => {
         to: toDate || undefined,
         search: searchParams.search,
         searchType: searchParams.searchType,
-        companyId: isAdmin ? selectedCompany : undefined,
+        companyId: hasGlobalAccess ? selectedCompany : undefined,
         page: currentPage,
         perPage: ordersPerPage,
       });
@@ -661,7 +662,7 @@ const OrdersPage = () => {
     searchQuery,
     searchType,
     selectedCompany,
-    isAdmin,
+    hasGlobalAccess,
     currentPage,
     ordersPerPage,
     startRequest,
@@ -999,7 +1000,7 @@ const OrdersPage = () => {
   const activeSearchConfig = SEARCH_TYPES[searchType] || SEARCH_TYPES.orderId;
 
   const analyticsScopeLabel = useMemo(() => {
-    if (isAdmin) {
+    if (hasGlobalAccess) {
       if (selectedCompany === 'ALL') {
         return 'All companies';
       }
@@ -1011,7 +1012,7 @@ const OrdersPage = () => {
     return user?.companyName
       ? `${user.companyName}${user.companyID ? ` (${user.companyID})` : ''}`
       : 'Your company';
-  }, [isAdmin, selectedCompany, companiesList, user]);
+  }, [hasGlobalAccess, selectedCompany, companiesList, user]);
 
   const headers = [
     'Order ID & Info',
@@ -1187,7 +1188,7 @@ const OrdersPage = () => {
 
           {/* Order Date Range Controls */}
           <div className="flex flex-wrap items-center gap-2">
-            {isAdmin && (
+            {hasGlobalAccess && (
               <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 min-w-[200px]">
                 <span className="text-xs font-bold text-slate-500 whitespace-nowrap">Company:</span>
                 <select
@@ -1235,7 +1236,7 @@ const OrdersPage = () => {
               />
             </div>
 
-            {(isSearchActive(searchType, searchQuery) || fromDate || toDate || (isAdmin && selectedCompany !== 'ALL')) && (
+            {(isSearchActive(searchType, searchQuery) || fromDate || toDate || (hasGlobalAccess && selectedCompany !== 'ALL')) && (
               <button
                 onClick={clearFilters}
                 className="text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-2 rounded-lg transition-colors"
@@ -1576,7 +1577,7 @@ const OrdersPage = () => {
         open={isCreateOrderOpen}
         onClose={() => setIsCreateOrderOpen(false)}
         user={user}
-        isAdmin={isAdmin}
+        isAdmin={hasGlobalAccess}
         companiesList={companiesList}
         defaultCompanyId={selectedCompany}
         onSuccess={fetchOrders}

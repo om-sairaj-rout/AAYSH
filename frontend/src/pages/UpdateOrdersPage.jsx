@@ -19,6 +19,7 @@ import {
 import { getCompanies } from "../api/companyAPI";
 import { getOrdersByCompany, updateOrder } from "../api/ordersAPI";
 import { getProducts } from "../api/productsAPI";
+import { canAccess, hasGlobalDataAccess } from "../utils/permissions";
 import {
   formatDisplayDate,
   toDateInputValue,
@@ -62,8 +63,9 @@ const PICKUP_STATUS_OPTIONS = [
 /** Non-admin users may only update orders while shipping is still Pending. */
 const USER_EDITABLE_SHIPPING_STATUSES = ["Pending"];
 
-const isOrderEditableByRole = (order, isAdmin) => {
-  if (isAdmin) return true;
+const isOrderEditableByRole = (order, canEdit, isGlobalAdmin = false) => {
+  if (!canEdit) return false;
+  if (isGlobalAdmin) return true;
   const status = order?.shipping?.shippingStatus || "Pending";
   return USER_EDITABLE_SHIPPING_STATUSES.includes(status);
 };
@@ -220,7 +222,9 @@ const buildUpdatePayload = (formData) => ({
 });
 
 const UpdateOrdersPage = () => {
-  const { isAdmin } = useSelector((state) => state.auth);
+  const { user } = useSelector((state) => state.auth);
+  const canWrite = canAccess(user, "update", "write");
+  const isGlobalAdmin = hasGlobalDataAccess(user);
 
   // State Management
   const [companies, setCompanies] = useState([]);
@@ -331,7 +335,7 @@ const UpdateOrdersPage = () => {
 
   // Open Edit Modal with Pre-filled Form
   const handleOpenEditModal = (order) => {
-    if (!isOrderEditableByRole(order, isAdmin)) {
+    if (!isOrderEditableByRole(order, canWrite, isGlobalAdmin)) {
       setMessage({
         type: "error",
         text: "This order can no longer be edited because it has been booked or shipped.",
@@ -495,7 +499,7 @@ const UpdateOrdersPage = () => {
     e.preventDefault();
     setMessage({ type: "", text: "" });
 
-    if (!isOrderEditableByRole(editingOrder, isAdmin)) {
+    if (!isOrderEditableByRole(editingOrder, canWrite, isGlobalAdmin)) {
       setMessage({
         type: "error",
         text: "This order can no longer be edited because it has been booked or shipped.",
@@ -525,7 +529,7 @@ const UpdateOrdersPage = () => {
     }
 
     const payload = buildUpdatePayload(formData);
-    if (isAdmin) {
+    if (isGlobalAdmin) {
       payload.delivery_attempts = formData.delivery_attempts || [];
     }
 
@@ -793,7 +797,7 @@ const UpdateOrdersPage = () => {
                   ) : (
                     filteredOrders.map((order) => {
                         const shippingStatus = order.shipping?.shippingStatus || "Pending";
-                        const isEditable = isOrderEditableByRole(order, isAdmin);
+                        const isEditable = isOrderEditableByRole(order, canWrite, isGlobalAdmin);
                       return (
                         <tr key={order.externalOrderId} className="hover:bg-slate-50/50 transition">
                           <td className="p-4">
@@ -926,7 +930,7 @@ const UpdateOrdersPage = () => {
                               >
                                 <Edit3 size={12} /> Edit Order
                               </button>
-                              {!isEditable && !isAdmin && (
+                              {!isEditable && !canWrite && (
                                 <p className="text-[10px] text-slate-400 mt-1 max-w-[140px] mx-auto leading-snug">
                                   Booked or shipped — editing disabled
                                 </p>
@@ -1253,10 +1257,11 @@ const UpdateOrdersPage = () => {
                     />
                   </div>
                 </div>
-                {isAdmin && (
+                {isGlobalAdmin && (
                   <div className="mt-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <label className="block text-slate-600 font-medium">Delivery attempts</label>
+                      {canWrite && (
                       <button
                         type="button"
                         className="text-xs font-bold text-indigo-600"
@@ -1276,6 +1281,7 @@ const UpdateOrdersPage = () => {
                       >
                         Add attempt
                       </button>
+                      )}
                     </div>
                     {(formData.delivery_attempts || []).map((attempt, index) => (
                       <div key={index} className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1283,6 +1289,7 @@ const UpdateOrdersPage = () => {
                           type="number"
                           min="1"
                           value={attempt.attempt_number}
+                          readOnly={!canWrite}
                           onChange={(e) => {
                             const next = [...(formData.delivery_attempts || [])];
                             next[index] = {
@@ -1295,6 +1302,7 @@ const UpdateOrdersPage = () => {
                         />
                         <select
                           value={attempt.status}
+                          disabled={!canWrite}
                           onChange={(e) => {
                             const next = [...(formData.delivery_attempts || [])];
                             next[index] = { ...next[index], status: e.target.value };
@@ -1310,6 +1318,7 @@ const UpdateOrdersPage = () => {
                           type="text"
                           placeholder="Failure reason"
                           value={attempt.failure_reason || ""}
+                          readOnly={!canWrite}
                           onChange={(e) => {
                             const next = [...(formData.delivery_attempts || [])];
                             next[index] = {
@@ -1404,7 +1413,6 @@ const UpdateOrdersPage = () => {
                     >
                       <option value="COD">COD</option>
                       <option value="Prepaid">Prepaid</option>
-                      <option value="TO PAY">TO PAY</option>
                     </select>
                   </div>
                   <div>
@@ -1659,7 +1667,7 @@ const UpdateOrdersPage = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={!canWrite || isSubmitting}
                   className="px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-xl shadow-md transition"
                 >
                   {isSubmitting ? "Saving..." : "Save Changes"}

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { Building2, Download, Upload, Search, ShieldAlert, Loader2 } from 'lucide-react';
+import { canAccess } from '../utils/permissions';
 import {
   getStatusUpdateCompanies,
   downloadCompanyOrdersExcel,
@@ -8,6 +10,8 @@ import {
 import { toast } from '../utils/toast';
 
 const ExcelReportsPage = () => {
+  const { user } = useSelector((state) => state.auth);
+  const canWrite = canAccess(user, "upload", "write");
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -169,10 +173,12 @@ const ExcelReportsPage = () => {
                   </button>
 
                   <label
-                    className={`flex-1 sm:flex-initial text-xs font-bold tracking-wide px-4 py-2 rounded-lg transition-colors shadow-sm inline-flex items-center justify-center gap-1.5 h-9 cursor-pointer border ${
-                      isRowUploading
+                    className={`flex-1 sm:flex-initial text-xs font-bold tracking-wide px-4 py-2 rounded-lg transition-colors shadow-sm inline-flex items-center justify-center gap-1.5 h-9 border ${
+                      !canWrite
+                        ? "bg-slate-50 text-slate-400 border-gray-200 cursor-not-allowed opacity-50"
+                        : isRowUploading
                         ? "bg-slate-50 text-slate-400 border-gray-200 cursor-wait"
-                        : "bg-white hover:bg-slate-50 text-indigo-600 border-indigo-200 hover:border-indigo-300"
+                        : "bg-white hover:bg-slate-50 text-indigo-600 border-indigo-200 hover:border-indigo-300 cursor-pointer"
                     }`}
                   >
                     {isRowUploading ? (
@@ -190,7 +196,7 @@ const ExcelReportsPage = () => {
                     <input
                       type="file"
                       accept=".xlsx, .xls"
-                      disabled={isRowUploading}
+                      disabled={!canWrite || isRowUploading}
                       onChange={(e) => handleUploadStatusExcel(e, company.companyID)}
                       className="hidden"
                     />

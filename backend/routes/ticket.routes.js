@@ -1,6 +1,6 @@
 const express = require("express");
 const ticketRouter = express.Router();
-const { checkAuth, authRoles } = require("../middlewares/auth.middleware");
+const { checkAuth, checkPermission } = require("../middlewares/auth.middleware");
 const upload = require("../middlewares/upload.middleware");
 const createTicket = require("../controllers/ticketControllers/createTicket.controllers");
 const getTickets = require("../controllers/ticketControllers/getTickets.controllers");
@@ -17,46 +17,63 @@ const getTicketAttachmentUrl = require("../controllers/ticketControllers/getTick
 ticketRouter.post(
   "/tickets",
   checkAuth,
+  checkPermission("support", "write"),
   upload.single("attachment"),
   createTicket
 );
-ticketRouter.get("/tickets", checkAuth, getTickets);
-ticketRouter.get("/tickets/unread-count", checkAuth, getUserTicketUnreadCount);
-ticketRouter.post("/tickets/:id/messages", checkAuth, addTicketMessage);
-ticketRouter.post("/tickets/:id/read", checkAuth, markTicketRead);
+ticketRouter.get("/tickets", checkAuth, checkPermission("support", "read"), getTickets);
+ticketRouter.get(
+  "/tickets/unread-count",
+  checkAuth,
+  checkPermission("support", "read"),
+  getUserTicketUnreadCount
+);
+ticketRouter.post(
+  "/tickets/:id/messages",
+  checkAuth,
+  checkPermission("support", "write"),
+  addTicketMessage
+);
+ticketRouter.post(
+  "/tickets/:id/read",
+  checkAuth,
+  checkPermission("support", "read"),
+  markTicketRead
+);
 ticketRouter.get(
   "/tickets/:id/attachment-url",
   checkAuth,
+  checkPermission("support", "read"),
   getTicketAttachmentUrl
 );
 ticketRouter.get(
   "/admin/tickets",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("tickets", "read"),
   getAdminTickets
 );
 ticketRouter.get(
   "/admin/tickets/unread-count",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("tickets", "read"),
   getAdminTicketUnreadCount
 );
 ticketRouter.put(
   "/admin/tickets/:id",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("tickets", "write"),
   updateTicket
 );
 ticketRouter.post(
   "/admin/tickets/:id/messages",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("tickets", "write"),
   addTicketMessage
 );
 ticketRouter.post(
   "/admin/tickets/:id/read",
   checkAuth,
-  authRoles("admin"),
+  checkPermission("tickets", "read"),
   markTicketRead
 );
 
