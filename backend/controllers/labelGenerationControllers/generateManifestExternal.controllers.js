@@ -87,10 +87,12 @@ const generateManifest = async (req, res) => {
         // Set autoFirstPage to true and disable automatic page creation (matching internal style)
         const doc = new PDFDocument({ margin: 25, size: "A4", autoFirstPage: true });
 
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", "attachment; filename=aaysh_express_manifest.pdf");
-
-        doc.pipe(res);
+        const chunks = [];
+        doc.on("data", (chunk) => chunks.push(chunk));
+        const pdfBufferPromise = new Promise((resolve, reject) => {
+            doc.on("end", () => resolve(Buffer.concat(chunks)));
+            doc.on("error", reject);
+        });
 
         const fontBold = "Helvetica-Bold";
         const fontNormal = "Helvetica";
@@ -290,6 +292,13 @@ const generateManifest = async (req, res) => {
            );
 
         doc.end();
+
+        const pdfBuffer = await pdfBufferPromise;
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", 'attachment; filename="aaysh_express_manifest.pdf"');
+        res.setHeader("Content-Length", pdfBuffer.length);
+        return res.status(200).send(pdfBuffer);
 
     } catch (err) {
         console.error("Manifest Generation Error:", err);

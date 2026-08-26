@@ -91,10 +91,12 @@ if (!labels.length) {
             size: [LABEL_WIDTH, LABEL_HEIGHT]
         });
 
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", "attachment; filename=labels_4x6.pdf");
-
-        doc.pipe(res);
+        const chunks = [];
+        doc.on("data", (chunk) => chunks.push(chunk));
+        const pdfBufferPromise = new Promise((resolve, reject) => {
+            doc.on("end", () => resolve(Buffer.concat(chunks)));
+            doc.on("error", reject);
+        });
 
         const fontBold = "Helvetica-Bold";
         const fontNormal = "Helvetica";
@@ -343,6 +345,13 @@ let y = margin + strapHeight;
         }
 
         doc.end();
+
+        const pdfBuffer = await pdfBufferPromise;
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", 'attachment; filename="labels_4x6.pdf"');
+        res.setHeader("Content-Length", pdfBuffer.length);
+        return res.status(200).send(pdfBuffer);
 
     } catch (err) {
         console.error("Label Generation Error:", err);

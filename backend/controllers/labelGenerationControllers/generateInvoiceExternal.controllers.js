@@ -62,10 +62,12 @@ const generateInvoice = async (req, res) => {
         // Set dimensions to standard A4 (matching internal style)
         const doc = new PDFDocument({ margin: 20, size: "A4", autoFirstPage: true });
 
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", "attachment; filename=tax_invoice.pdf");
-
-        doc.pipe(res);
+        const chunks = [];
+        doc.on("data", (chunk) => chunks.push(chunk));
+        const pdfBufferPromise = new Promise((resolve, reject) => {
+            doc.on("end", () => resolve(Buffer.concat(chunks)));
+            doc.on("error", reject);
+        });
 
         const fontBold = "Helvetica-Bold";
         const fontNormal = "Helvetica";
@@ -381,6 +383,13 @@ const generateInvoice = async (req, res) => {
         }
 
         doc.end();
+
+        const pdfBuffer = await pdfBufferPromise;
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", 'attachment; filename="tax_invoice.pdf"');
+        res.setHeader("Content-Length", pdfBuffer.length);
+        return res.status(200).send(pdfBuffer);
 
     } catch (err) {
         console.error("Invoice Generation Error:", err);
