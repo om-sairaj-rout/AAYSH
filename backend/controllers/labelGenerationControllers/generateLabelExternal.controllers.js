@@ -2,10 +2,40 @@ const PDFDocument = require("pdfkit");
 const bwipjs = require("bwip-js");
 const path = require("path");
 const fs = require("fs");
+const { PassThrough } = require("stream");
 const Order = require("../../models/upload/order.model"); 
 const Shipping = require("../../models/upload/shipping.model");
 const User = require("../../models/user.model");
 const { formatDisplayDate } = require("../../utils/dateTime");
+
+const sendPdfDownload = (res, pdfBuffer, filename) => {
+    const buffer = Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
+
+    if (!buffer.length) {
+        return res.status(500).json({
+            success: false,
+            message: "PDF generation produced empty output",
+        });
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", buffer.length);
+    return res.status(200).send(buffer);
+};
+
+const collectPdfBuffer = (doc) => {
+    const stream = doc.pipe(new PassThrough());
+    const chunks = [];
+
+    stream.on("data", (chunk) => chunks.push(chunk));
+
+    return new Promise((resolve, reject) => {
+        stream.on("end", () => resolve(Buffer.concat(chunks)));
+        stream.on("error", reject);
+        doc.on("error", reject);
+    });
+};
 
 const generateLabel = async (req, res) => {
     try {
@@ -90,13 +120,7 @@ if (!labels.length) {
             margin: 0,
             size: [LABEL_WIDTH, LABEL_HEIGHT]
         });
-
-        const chunks = [];
-        doc.on("data", (chunk) => chunks.push(chunk));
-        const pdfBufferPromise = new Promise((resolve, reject) => {
-            doc.on("end", () => resolve(Buffer.concat(chunks)));
-            doc.on("error", reject);
-        });
+        const pdfBufferPromise = collectPdfBuffer(doc);
 
         const fontBold = "Helvetica-Bold";
         const fontNormal = "Helvetica";
@@ -347,11 +371,7 @@ let y = margin + strapHeight;
         doc.end();
 
         const pdfBuffer = await pdfBufferPromise;
-
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", 'attachment; filename="labels_4x6.pdf"');
-        res.setHeader("Content-Length", pdfBuffer.length);
-        return res.status(200).send(pdfBuffer);
+        return sendPdfDownload(res, pdfBuffer, "labels_4x6.pdf");
 
     } catch (err) {
         console.error("Label Generation Error:", err);

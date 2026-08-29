@@ -1,9 +1,39 @@
 const PDFDocument = require("pdfkit");
 const bwipjs = require("bwip-js");
+const { PassThrough } = require("stream");
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const User = require("../../models/user.model");
 const { formatDisplayDateTime } = require("../../utils/dateTime");
+
+const sendPdfDownload = (res, pdfBuffer, filename) => {
+    const buffer = Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
+
+    if (!buffer.length) {
+        return res.status(500).json({
+            success: false,
+            message: "PDF generation produced empty output",
+        });
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", buffer.length);
+    return res.status(200).send(buffer);
+};
+
+const collectPdfBuffer = (doc) => {
+    const stream = doc.pipe(new PassThrough());
+    const chunks = [];
+
+    stream.on("data", (chunk) => chunks.push(chunk));
+
+    return new Promise((resolve, reject) => {
+        stream.on("end", () => resolve(Buffer.concat(chunks)));
+        stream.on("error", reject);
+        doc.on("error", reject);
+    });
+};
 
 const drawBarcode128 = async (doc, code, x, y) => {
     if (!code) return;
@@ -86,13 +116,7 @@ const generateManifest = async (req, res) => {
 
         // Set autoFirstPage to true and disable automatic page creation (matching internal style)
         const doc = new PDFDocument({ margin: 25, size: "A4", autoFirstPage: true });
-
-        const chunks = [];
-        doc.on("data", (chunk) => chunks.push(chunk));
-        const pdfBufferPromise = new Promise((resolve, reject) => {
-            doc.on("end", () => resolve(Buffer.concat(chunks)));
-            doc.on("error", reject);
-        });
+        const pdfBufferPromise = collectPdfBuffer(doc);
 
         const fontBold = "Helvetica-Bold";
         const fontNormal = "Helvetica";
@@ -294,11 +318,7 @@ const generateManifest = async (req, res) => {
         doc.end();
 
         const pdfBuffer = await pdfBufferPromise;
-
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", 'attachment; filename="aaysh_express_manifest.pdf"');
-        res.setHeader("Content-Length", pdfBuffer.length);
-        return res.status(200).send(pdfBuffer);
+        return sendPdfDownload(res, pdfBuffer, "aaysh_express_manifest.pdf");
 
     } catch (err) {
         console.error("Manifest Generation Error:", err);
