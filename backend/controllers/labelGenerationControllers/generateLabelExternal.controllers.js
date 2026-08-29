@@ -8,6 +8,25 @@ const Shipping = require("../../models/upload/shipping.model");
 const User = require("../../models/user.model");
 const { formatDisplayDate } = require("../../utils/dateTime");
 
+const resolveOrderId = (order) =>
+    String(order?.externalOrderId || order?.orderNumber || order?._id || "order");
+
+const sanitizeFilenamePart = (value) =>
+    String(value).replace(/[\\/:*?"<>|]/g, "-").trim();
+
+const buildFilenameFromOrders = (prefix, orders) => {
+    const ids = [
+        ...new Set(
+            orders
+                .map((order) => sanitizeFilenamePart(resolveOrderId(order)))
+                .filter(Boolean)
+        ),
+    ];
+
+    if (!ids.length) return prefix;
+    return `${prefix}${ids.join("-")}`;
+};
+
 const sendPdfDownload = (res, pdfBuffer, filename) => {
     const buffer = Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
 
@@ -19,7 +38,7 @@ const sendPdfDownload = (res, pdfBuffer, filename) => {
     }
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}.pdf"`);
     res.setHeader("Content-Length", buffer.length);
     return res.status(200).send(buffer);
 };
@@ -371,7 +390,11 @@ let y = margin + strapHeight;
         doc.end();
 
         const pdfBuffer = await pdfBufferPromise;
-        return sendPdfDownload(res, pdfBuffer, "labels_4x6.pdf");
+        return sendPdfDownload(
+            res,
+            pdfBuffer,
+            buildFilenameFromOrders("label", labels)
+        );
 
     } catch (err) {
         console.error("Label Generation Error:", err);
