@@ -21,6 +21,16 @@ const HIDDEN_TABLE_KEYS = new Set([
   "delivery_attempts",
 ]);
 
+const SHIPPING_DETAIL_KEYS = ["awb_number", "courier_name", "service_type"];
+
+const COLUMN_LABELS = {
+  awb_number: "AWB Number",
+  courier_name: "Courier Name",
+  service_type: "Service Type",
+};
+
+const formatColumnLabel = (key) => COLUMN_LABELS[key] || key;
+
 const formatAttemptStatus = (attempt) => {
   if (!attempt) {
     return "—";
@@ -136,10 +146,10 @@ const OrderByDateInfo = () => {
     }
   }, [currentPage, entriesPerPage, selectedCompany]);
 
-  const getVisibleKeys = () => {
-    if (tableData.length === 0) return [];
+  const getVisibleKeysForRow = (sampleRow) => {
+    if (!sampleRow) return [];
 
-    return Object.keys(tableData[0]).filter((key) => {
+    const keys = Object.keys(sampleRow).filter((key) => {
       if (HIDDEN_TABLE_KEYS.has(key)) return false;
 
       if (key === "weight" && !canSeeWeight) return false;
@@ -147,7 +157,25 @@ const OrderByDateInfo = () => {
 
       return true;
     });
+
+    const withoutShippingDetails = keys.filter(
+      (key) => !SHIPPING_DETAIL_KEYS.includes(key)
+    );
+    const shippingDetails = SHIPPING_DETAIL_KEYS.filter((key) => keys.includes(key));
+    const statusIndex = withoutShippingDetails.indexOf("status");
+
+    if (statusIndex === -1) {
+      return [...withoutShippingDetails, ...shippingDetails];
+    }
+
+    return [
+      ...withoutShippingDetails.slice(0, statusIndex + 1),
+      ...shippingDetails,
+      ...withoutShippingDetails.slice(statusIndex + 1),
+    ];
   };
+
+  const getVisibleKeys = () => getVisibleKeysForRow(tableData[0]);
 
   const visibleKeys = getVisibleKeys();
   const currentRows = tableData;
@@ -189,7 +217,7 @@ const OrderByDateInfo = () => {
     const newRow = {};
 
     visibleKeys.forEach((key) => {
-      newRow[key] = renderCellValue(row[key]);
+      newRow[formatColumnLabel(key)] = renderCellValue(row[key]);
     });
 
     newRow.DeliveryAttempts = Number(row.delivery_attempts || 0);
@@ -235,21 +263,14 @@ const OrderByDateInfo = () => {
         (_, index) => index + 1
       );
 
+      const exportVisibleKeys = getVisibleKeysForRow(result.orders[0]);
+
       const cleanedData = result.orders.map((row) => {
         const newRow = {};
 
-        Object.entries(row)
-          .filter(([key]) => {
-            if (HIDDEN_TABLE_KEYS.has(key)) return false;
-            if (key === "weight" && !canSeeWeight) return false;
-            if (!hasGlobalAccess && adminOnlyFields.includes(key) && key !== "weight") {
-              return false;
-            }
-            return true;
-          })
-          .forEach(([key, value]) => {
-            newRow[key] = renderCellValue(value);
-          });
+        exportVisibleKeys.forEach((key) => {
+          newRow[formatColumnLabel(key)] = renderCellValue(row[key]);
+        });
 
         newRow.DeliveryAttempts = Number(row.delivery_attempts || 0);
 
@@ -421,7 +442,7 @@ const OrderByDateInfo = () => {
                   className="p-4 font-bold text-gray-800 whitespace-nowrap border-r border-gray-200 last:border-r-0"
                 >
                   <div className="flex items-center gap-2">
-                    {header}
+                    {formatColumnLabel(header)}
                     <ChevronsUpDown size={14} className="text-gray-400" />
                   </div>
                 </th>
