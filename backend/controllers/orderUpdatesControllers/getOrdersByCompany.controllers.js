@@ -1,7 +1,9 @@
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
 const Company = require("../../models/company.model");
+const ReversePickup = require("../../models/reversePickup.model");
 const { buildOrderScopeForCompany } = require("../../utils/companyScope");
+const { buildReversePickupSummary } = require("../../utils/reversePickupDocument");
 
 const getOrdersByCompanyController = async (req, res) => {
   try {
@@ -40,11 +42,38 @@ const getOrdersByCompanyController = async (req, res) => {
       shippingMap.set(String(shipping.orderId), shipping);
     });
 
+    const reversePickupOrderIds = orders
+      .filter((order) => order.isReversePickup)
+      .map((order) => order._id);
+
+    const reversePickupRows = reversePickupOrderIds.length
+      ? await ReversePickup.find({
+          orderId: { $in: reversePickupOrderIds },
+        })
+          .select(
+            "orderId requestId status awbNumber supportingDocumentName supportingDocumentS3Key supportingDocumentPath fromName fromPhone fromEmail fromAddress fromAddress2 fromCity fromState fromPincode toName toPhone toAddress toCity toState toPincode"
+          )
+          .lean()
+      : [];
+
+    const reversePickupMap = new Map(
+      reversePickupRows.map((row) => [String(row.orderId), row])
+    );
+
     const finalOrders = orders
-      .map((order) => ({
-        ...order,
-        shipping: shippingMap.get(String(order._id)) || null,
-      }))
+      .map((order) => {
+        const reversePickupRequest = reversePickupMap.get(String(order._id));
+
+        return {
+          ...order,
+          shipping: shippingMap.get(String(order._id)) || null,
+          ...(order.isReversePickup
+            ? {
+                reversePickup: buildReversePickupSummary(reversePickupRequest),
+              }
+            : {}),
+        };
+      })
       .sort((a, b) => {
         const dateA = a.shipping?.pickupDate
           ? new Date(a.shipping.pickupDate).getTime()

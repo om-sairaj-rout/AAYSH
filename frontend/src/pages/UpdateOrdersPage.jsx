@@ -11,8 +11,6 @@ import {
   Package,
   AlertCircle,
   CheckCircle,
-  Phone,
-  MapPin,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -26,6 +24,11 @@ import {
   startOfDayIST,
   endOfDayIST,
 } from "../utils/dateTime";
+import ReversePickupRouteCell from "../components/ReversePickupRouteCell";
+import {
+  getOrderPartySections,
+  formatPartyFullAddress,
+} from "../utils/reversePickupOrderDisplay";
 
 const EMPTY_ITEM = {
   name: "",
@@ -782,7 +785,7 @@ const UpdateOrdersPage = () => {
                     </th>
                     <th className="p-4">Order ID & Info</th>
                     <th className="p-4">Order Items</th>
-                    <th className="p-4">Customer Details</th>
+                    <th className="p-4">Route</th>
                     <th className="p-4">AWB No.</th>
                     <th className="p-4 text-center">Status & Actions</th>
                   </tr>
@@ -798,9 +801,17 @@ const UpdateOrdersPage = () => {
                     filteredOrders.map((order) => {
                         const shippingStatus = order.shipping?.shippingStatus || "Pending";
                         const isEditable = isOrderEditableByRole(order, canWrite, isGlobalAdmin);
+                        const parties = getOrderPartySections(order);
                       return (
-                        <tr key={order.externalOrderId} className="hover:bg-slate-50/50 transition">
-                          <td className="p-4">
+                        <tr
+                          key={order.externalOrderId}
+                          className={`hover:bg-slate-50/50 transition ${
+                            isEditable ? "cursor-pointer" : ""
+                          }`}
+                          onClick={() => isEditable && handleOpenEditModal(order)}
+                          title={isEditable ? "Click to edit order" : undefined}
+                        >
+                          <td className="p-4" onClick={(e) => e.stopPropagation()}>
                             <input type="checkbox" className="rounded border-slate-300" />
                           </td>
 
@@ -811,7 +822,10 @@ const UpdateOrdersPage = () => {
                                 #{order.externalOrderId}
                               </span>
                               <button
-                                onClick={() => copyToClipboard(order.externalOrderId)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  copyToClipboard(order.externalOrderId);
+                                }}
                                 className="text-slate-400 hover:text-slate-600 bg-slate-100 p-1 rounded-md text-[10px] flex items-center gap-1"
                               >
                                 <Copy size={11} /> Copy
@@ -851,33 +865,14 @@ const UpdateOrdersPage = () => {
                             </p>
                           </td>
 
-                          {/* Customer Details */}
-                          <td className="p-4 space-y-1 max-w-[260px]">
-                            <p className="font-bold text-slate-900 uppercase">{order.consigneeName}</p>
-                            <div className="flex items-center gap-1.5 text-slate-600 font-medium">
-                              <Phone size={12} className="text-pink-500" />
-                              <span>{order.billingPhone || "N/A"}</span>
-                              {order.billingPhone ? (
-                              <button
-                                onClick={() => copyToClipboard(order.billingPhone)}
-                                className="text-slate-400 hover:text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px]"
-                              >
-                                Copy
-                              </button>
-                              ) : null}
-                            </div>
-                            <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex items-start gap-1.5 mt-1 text-[11px] text-slate-600">
-                              <MapPin size={13} className="text-pink-500 shrink-0 mt-0.5" />
-                              <span className="line-clamp-2 uppercase">
-                                {order.address}, {order.destinationCity}
-                              </span>
-                              <button
-                                onClick={() => copyToClipboard(order.address)}
-                                className="text-slate-400 hover:text-slate-600 bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[10px] ml-auto shrink-0"
-                              >
-                                Copy
-                              </button>
-                            </div>
+                          {/* Route */}
+                          <td className="p-4">
+                            <ReversePickupRouteCell
+                              fromName={parties.pickup.name}
+                              fromAddress={formatPartyFullAddress(parties.pickup)}
+                              toName={parties.delivery.name}
+                              toAddress={formatPartyFullAddress(parties.delivery)}
+                            />
                           </td>
 
                           {/* AWB No */}
@@ -886,7 +881,10 @@ const UpdateOrdersPage = () => {
                               <span className="font-bold text-indigo-900">{order.shipping?.awbNumber || "-"}</span>
                               {order.shipping?.awbNumber && (
                                 <button
-                                  onClick={() => copyToClipboard(order.shipping.awbNumber)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    copyToClipboard(order.shipping.awbNumber);
+                                  }}
                                   className="text-slate-400 hover:text-slate-600 bg-slate-100 p-1 rounded text-[10px]"
                                 >
                                   <Copy size={11} /> Copy
@@ -915,7 +913,10 @@ const UpdateOrdersPage = () => {
                             <div>
                               <button
                                 type="button"
-                                onClick={() => isEditable && handleOpenEditModal(order)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (isEditable) handleOpenEditModal(order);
+                                }}
                                 disabled={!isEditable}
                                 title={
                                   isEditable

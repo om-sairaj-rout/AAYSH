@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { canAccess } from '../utils/permissions';
 import { 
@@ -9,7 +9,9 @@ import {
   Database, 
   Pencil,
   Trash2,
-  X 
+  X,
+  Search,
+  ArrowUpDown,
 } from 'lucide-react';
 import {
   fetchCourierPartnersAPI,
@@ -20,6 +22,7 @@ import {
   fetchCourierAwbsAPI,
   updateAwbAPI,
   deleteAwbAPI,
+  bulkDeleteAwbsAPI,
 } from "../api/courierAPI";
 import { toast } from '../utils/toast';
 
@@ -37,6 +40,79 @@ const AwbManagement = () => {
   const [awbDrawer, setAwbDrawer] = useState(null);
   const [awbs, setAwbs] = useState([]);
   const [editingAwb, setEditingAwb] = useState(null);
+  const [awbSearchInput, setAwbSearchInput] = useState('');
+  const [appliedAwbSearch, setAppliedAwbSearch] = useState('');
+  const [awbStatusTab, setAwbStatusTab] = useState('all');
+  const [awbSortOrder, setAwbSortOrder] = useState('asc');
+  const [selectedAwbIds, setSelectedAwbIds] = useState(() => new Set());
+
+  const resetAwbDrawerFilters = () => {
+    setAwbSearchInput('');
+    setAppliedAwbSearch('');
+    setAwbStatusTab('all');
+    setAwbSortOrder('asc');
+    setSelectedAwbIds(new Set());
+  };
+
+  const displayedAwbs = useMemo(() => {
+    let list = [...awbs];
+
+    if (awbStatusTab === 'available') {
+      list = list.filter((awb) => awb.status === 'available');
+    } else if (awbStatusTab === 'booked') {
+      list = list.filter((awb) => awb.status === 'booked');
+    }
+
+    if (appliedAwbSearch) {
+      const query = appliedAwbSearch.toLowerCase();
+      list = list.filter((awb) =>
+        String(awb.awbNumber || '').toLowerCase().includes(query)
+      );
+    }
+
+    list.sort((a, b) => {
+      const cmp = String(a.awbNumber || '').localeCompare(
+        String(b.awbNumber || ''),
+        undefined,
+        { numeric: true, sensitivity: 'base' }
+      );
+      return awbSortOrder === 'asc' ? cmp : -cmp;
+    });
+
+    return list;
+  }, [awbs, awbStatusTab, appliedAwbSearch, awbSortOrder]);
+
+  const allDisplayedSelected =
+    displayedAwbs.length > 0 &&
+    displayedAwbs.every((awb) => selectedAwbIds.has(awb._id));
+
+  const toggleSelectAllDisplayed = () => {
+    setSelectedAwbIds((prev) => {
+      const next = new Set(prev);
+      if (allDisplayedSelected) {
+        displayedAwbs.forEach((awb) => next.delete(awb._id));
+      } else {
+        displayedAwbs.forEach((awb) => next.add(awb._id));
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAwb = (awbId) => {
+    setSelectedAwbIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(awbId)) next.delete(awbId);
+      else next.add(awbId);
+      return next;
+    });
+  };
+
+  const refreshAwbDrawer = async () => {
+    if (!awbDrawer) return;
+    const res = await fetchCourierAwbsAPI(awbDrawer.courier._id, awbDrawer.category);
+    setAwbs(res.awbs || []);
+    loadCouriers();
+  };
 
   const loadCouriers = async () => {
     try {
@@ -101,11 +177,38 @@ const AwbManagement = () => {
       setAwbs(res.awbs || []);
       setAwbDrawer({ courier, category, label });
       setEditingAwb(null);
+      resetAwbDrawerFilters();
     } catch (err) {
       toast.error(err.message || "Failed to load AWBs");
     } finally {
       setLoading(false);
     }
+  };
+
+  const closeAwbDrawer = () => {
+    setAwbDrawer(null);
+    setEditingAwb(null);
+    resetAwbDrawerFilters();
+  };
+
+  const handleAwbSearch = () => {
+    setAppliedAwbSearch(awbSearchInput.trim());
+    setSelectedAwbIds(new Set());
+  };
+
+  const handleClearAwbSearch = () => {
+    setAwbSearchInput('');
+    setAppliedAwbSearch('');
+    setSelectedAwbIds(new Set());
+  };
+
+  const handleAwbStatusTabChange = (tab) => {
+    setAwbStatusTab(tab);
+    setSelectedAwbIds(new Set());
+  };
+
+  const toggleAwbSortOrder = () => {
+    setAwbSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
   };
 
   const handleSaveAwb = async () => {
@@ -117,7 +220,7 @@ const AwbManagement = () => {
         category: editingAwb.category,
       });
       toast.success("AWB updated");
-      await openCategoryAwbs(awbDrawer.courier, awbDrawer.category, awbDrawer.label);
+      await refreshAwbDrawer();
     } catch (err) {
       toast.error(err.message || "Failed to update AWB");
     }
@@ -128,9 +231,43 @@ const AwbManagement = () => {
     try {
       await deleteAwbAPI(awb._id);
       toast.success("AWB deleted");
-      await openCategoryAwbs(awbDrawer.courier, awbDrawer.category, awbDrawer.label);
+      setSelectedAwbIds((prev) => {
+        const next = new Set(prev);
+        next.delete(awb._id);
+        return next;
+      });
+      await refreshAwbDrawer();
     } catch (err) {
       toast.error(err.message || "Failed to delete AWB");
+    }
+  };
+
+  const handleBulkDeleteAwbs = async () => {
+    if (!selectedAwbIds.size) return;
+    if (
+      !window.confirm(
+        `Delete ${selectedAwbIds.size} selected AWB record(s) from the database?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await bulkDeleteAwbsAPI([...selectedAwbIds]);
+      if (res.failedCount > 0) {
+        toast.error(
+          `Deleted ${res.deletedCount}. ${res.failedCount} could not be deleted (booked or linked).`
+        );
+      } else {
+        toast.success(`Deleted ${res.deletedCount} AWB record(s)`);
+      }
+      setSelectedAwbIds(new Set());
+      await refreshAwbDrawer();
+    } catch (err) {
+      toast.error(err.message || "Failed to delete selected AWBs");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -224,6 +361,17 @@ const AwbManagement = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
+                    onClick={() => setWeightCategory('under1kg')}
+                    className={`py-2.5 rounded-xl border font-bold text-xs transition-all ${
+                      weightCategory === 'under1kg'
+                        ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    &lt;1 kg
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setWeightCategory('under3kg')}
                     className={`py-2.5 rounded-xl border font-bold text-xs transition-all ${
                       weightCategory === 'under3kg'
@@ -311,6 +459,7 @@ const AwbManagement = () => {
                 <thead>
                   <tr className="bg-[#FAFAFA] border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                     <th className="p-4">Courier Network Provider</th>
+                    <th className="p-4 text-center">Remaining (&lt;1 kg)</th>
                     <th className="p-4 text-center">Remaining (&lt; 3 kg)</th>
                     <th className="p-4 text-center">Remaining (&gt; 3 kg)</th>
                     <th className="p-4 text-center">Remaining (Prime)</th>
@@ -330,8 +479,13 @@ const AwbManagement = () => {
                           </div>
                         </td>
                         <td className="p-4 text-center">
-                          <button type="button" onClick={() => openCategoryAwbs(courier, "under3kg", "Remaining (<3 kg)")} className="bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-1 rounded-full font-mono font-bold">
+                          <button type="button" onClick={() => openCategoryAwbs(courier, "under1kg", "Remaining (<1 kg)")} className="bg-teal-50 text-teal-700 border border-teal-100 px-2.5 py-1 rounded-full font-mono font-bold">
                             {(courier.unbookedUnder1kg || 0).toLocaleString()} available
+                          </button>
+                        </td>
+                        <td className="p-4 text-center">
+                          <button type="button" onClick={() => openCategoryAwbs(courier, "under3kg", "Remaining (<3 kg)")} className="bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-1 rounded-full font-mono font-bold">
+                            {(courier.unbookedUnder3kg || 0).toLocaleString()} available
                           </button>
                         </td>
                         <td className="p-4 text-center">
@@ -366,7 +520,7 @@ const AwbManagement = () => {
 
                   {couriers.length === 0 && (
                     <tr>
-                      <td colSpan="6" className="p-12 text-center text-slate-400 font-medium">
+                      <td colSpan="7" className="p-12 text-center text-slate-400 font-medium">
                         No registered shipping channels mapped. Create one above.
                       </td>
                     </tr>
@@ -434,22 +588,127 @@ const AwbManagement = () => {
             <div className="flex items-center justify-between p-5 border-b">
               <div>
                 <h3 className="text-sm font-black uppercase">{awbDrawer.courier.name} — {awbDrawer.label}</h3>
-                <p className="text-xs text-slate-400">{awbs.length} AWB record(s)</p>
+                <p className="text-xs text-slate-400">
+                  {displayedAwbs.length} shown · {awbs.length} total AWB record(s)
+                </p>
               </div>
-              <button type="button" onClick={() => setAwbDrawer(null)}><X className="w-4 h-4" /></button>
+              <button type="button" onClick={closeAwbDrawer}><X className="w-4 h-4" /></button>
             </div>
-            <div className="overflow-auto max-h-[70vh]">
+
+            <div className="px-5 pt-4 space-y-3 border-b border-slate-100">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'all', label: 'All' },
+                  { id: 'available', label: 'Available' },
+                  { id: 'booked', label: 'Booked' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => handleAwbStatusTabChange(tab.id)}
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all ${
+                      awbStatusTab === tab.id
+                        ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex-1 flex gap-2">
+                  <input
+                    type="text"
+                    value={awbSearchInput}
+                    onChange={(e) => setAwbSearchInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAwbSearch();
+                      }
+                    }}
+                    placeholder="Search AWB number..."
+                    className="flex-1 border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs font-semibold text-slate-700"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAwbSearch}
+                    className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider px-4 py-2 rounded-xl flex items-center gap-1.5 shrink-0"
+                  >
+                    <Search className="w-3.5 h-3.5" /> Search
+                  </button>
+                  {appliedAwbSearch && (
+                    <button
+                      type="button"
+                      onClick={handleClearAwbSearch}
+                      className="border border-slate-200 text-slate-500 font-bold text-xs uppercase tracking-wider px-3 py-2 rounded-xl hover:bg-slate-50 shrink-0"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                {canWrite && selectedAwbIds.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleBulkDeleteAwbs}
+                    disabled={loading}
+                    className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs uppercase tracking-wider px-4 py-2 rounded-xl flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete ({selectedAwbIds.size})
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="overflow-auto max-h-[55vh]">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                <thead className="bg-slate-50 text-xs uppercase text-slate-500 sticky top-0">
                   <tr>
-                    <th className="p-3 text-left">AWB Number</th>
+                    {canWrite && (
+                      <th className="p-3 w-10">
+                        <input
+                          type="checkbox"
+                          checked={allDisplayedSelected}
+                          onChange={toggleSelectAllDisplayed}
+                          disabled={displayedAwbs.length === 0}
+                          className="rounded border-slate-300"
+                          title="Select all shown"
+                        />
+                      </th>
+                    )}
+                    <th className="p-3 text-left">
+                      <button
+                        type="button"
+                        onClick={toggleAwbSortOrder}
+                        className="inline-flex items-center gap-1.5 font-semibold hover:text-indigo-600 transition-colors"
+                      >
+                        AWB Number
+                        <ArrowUpDown className="w-3.5 h-3.5" />
+                        <span className="text-[10px] normal-case font-bold text-indigo-600">
+                          {awbSortOrder === 'asc' ? 'Asc' : 'Desc'}
+                        </span>
+                      </button>
+                    </th>
                     <th className="p-3 text-left">Status</th>
                     <th className="p-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {awbs.map((awb) => (
+                  {displayedAwbs.map((awb) => (
                     <tr key={awb._id} className="border-t">
+                      {canWrite && (
+                        <td className="p-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedAwbIds.has(awb._id)}
+                            onChange={() => toggleSelectAwb(awb._id)}
+                            className="rounded border-slate-300"
+                          />
+                        </td>
+                      )}
                       <td className="p-3 font-mono">
                         {editingAwb?._id === awb._id ? (
                           <input
@@ -494,8 +753,14 @@ const AwbManagement = () => {
                       </td>
                     </tr>
                   ))}
-                  {awbs.length === 0 && (
-                    <tr><td colSpan={3} className="p-8 text-center text-slate-400">No AWBs in this category</td></tr>
+                  {displayedAwbs.length === 0 && (
+                    <tr>
+                      <td colSpan={canWrite ? 4 : 3} className="p-8 text-center text-slate-400">
+                        {awbs.length === 0
+                          ? 'No AWBs in this category'
+                          : 'No AWBs match your filters'}
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>

@@ -23,10 +23,15 @@ const getAwbCategory = (weight, service, paymentMethod) => {
   if (isCodPayment(paymentMethod)) {
     return COD_TO_PAY_CATEGORY;
   }
-  if (String(service || "").toLowerCase() === "prime") {
+  const normalizedService = String(service || "").toLowerCase();
+  if (normalizedService === "prime") {
     return "prime";
   }
-  return Number(weight) > 3 ? "over3kg" : "under3kg";
+  const w = Number(weight);
+  if (w < 1 && normalizedService === "surface") {
+    return "under1kg";
+  }
+  return w > 3 ? "over3kg" : "under3kg";
 };
 
 module.exports = {

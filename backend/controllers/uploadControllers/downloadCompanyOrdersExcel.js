@@ -8,6 +8,35 @@ const {
   FINAL_STATUS_UPDATE_EXCLUDED_STATUSES,
 } = require("../../utils/companyScope");
 
+const formatAddressLine = (parts) =>
+  parts.filter((part) => part !== null && part !== undefined && String(part).trim()).join(", ");
+
+const buildFromAddress = (order, shipping, company) => {
+  if (shipping?.pickupLocation) {
+    return String(shipping.pickupLocation).trim();
+  }
+
+  const companyAddress = formatAddressLine([
+    company?.address,
+    company?.city,
+    company?.state,
+    company?.zip_code,
+  ]);
+
+  if (companyAddress) return companyAddress;
+
+  return formatAddressLine([order.consignorName, order.pickupPincode]);
+};
+
+const buildToAddress = (order) =>
+  formatAddressLine([
+    order.address,
+    order.address2,
+    order.destinationCity,
+    order.destinationState,
+    order.destinationPincode,
+  ]);
+
 const downloadCompanyOrdersExcel = async (req, res) => {
   try {
     const { companyID } = req.params;
@@ -15,7 +44,7 @@ const downloadCompanyOrdersExcel = async (req, res) => {
     const company = await Company.findOne({
       companyID: String(companyID).trim().toUpperCase(),
     })
-      .select("companyID companyName")
+      .select("companyID companyName address city state zip_code")
       .lean();
 
     if (!company) {
@@ -44,11 +73,13 @@ const downloadCompanyOrdersExcel = async (req, res) => {
 
       excelData.push({
         "AWB Number": shipping.awbNumber,
+        From: buildFromAddress(order, shipping, company),
+        To: buildToAddress(order),
         "Current Status": shipping.shippingStatus,
         "New Status": "",
-        "Location": "",
+        Location: "",
         "Failure Reason": "",
-        "Remarks": "",
+        Remarks: "",
         "Tracking Date & Time": "",
       });
     }

@@ -39,6 +39,8 @@ const updateAwb =
   require("../controllers/courierControllers/updateAwb.controller");
 const deleteAwb =
   require("../controllers/courierControllers/deleteAwb.controller");
+const bulkDeleteAwbs =
+  require("../controllers/courierControllers/bulkDeleteAwbs.controller");
 
 
 courierRouter.post(
@@ -125,6 +127,13 @@ courierRouter.delete(
   checkAuth,
   checkPermission("update", "write"),
   deleteAwb
+);
+
+courierRouter.post(
+  "/awb/bulk-delete",
+  checkAuth,
+  checkPermission("update", "write"),
+  bulkDeleteAwbs
 );
 
 module.exports = courierRouter;

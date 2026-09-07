@@ -1,7 +1,7 @@
 const Awb = require("../../models/awb/awb.model");
 const Shipping = require("../../models/upload/shipping.model");
 
-const ALLOWED_CATEGORIES = ["under3kg", "over3kg", "prime", "codToPay"];
+const ALLOWED_CATEGORIES = ["under1kg", "under3kg", "over3kg", "prime", "codToPay"];
 const ALLOWED_STATUSES = ["available", "booked"];
 
 const updateAwb = async (req, res) => {

@@ -19,6 +19,7 @@ const awbSchema =
       category: {
         type: String,
         enum: [
+          "under1kg",
           "under3kg",
           "over3kg",
           "prime",

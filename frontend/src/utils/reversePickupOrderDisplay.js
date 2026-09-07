@@ -1,6 +1,17 @@
 const formatAddressLine = (parts) =>
   parts.filter(Boolean).join(", ");
 
+export const formatPartyFullAddress = (party = {}) => {
+  const structured = formatAddressLine([
+    party.address,
+    party.city,
+    party.state,
+    party.pincode,
+  ]);
+  if (structured) return structured;
+  return party.location || "";
+};
+
 export const getReversePickupOrderParties = (order) => {
   if (!order?.isReversePickup) return null;
 
@@ -43,29 +54,30 @@ export const getReversePickupOrderParties = (order) => {
     };
   }
 
-  // Legacy orders created before mapping fix (consignor/consignee were swapped).
+  // Fallback when reverse pickup summary is unavailable — order fields follow
+  // reversePickupOrder.js (consignor = pickup/sender, consignee = delivery/receiver).
   return {
     pickup: {
       title: "Consignor (Sender)",
       subtitle: "Pickup Details",
-      name:
-        `${order.consigneeName || ""} ${order.consigneeLastName || ""}`.trim() ||
-        "N/A",
-      phone: order.billingPhone || "",
+      name: order.consignorName || "N/A",
+      phone: order.consignorPhone || "",
       email: order.consigneeEmail || "",
       address: "",
       city: "",
       state: "",
-      pincode: "",
+      pincode: order.pickupPincode || "",
       location: order.shipping?.pickupLocation || "",
     },
     delivery: {
       title: "Consignee (Receiver)",
       subtitle: "Delivery Details",
-      name: order.consignorName || "N/A",
-      phone: order.consignorPhone || "",
+      name:
+        `${order.consigneeName || ""} ${order.consigneeLastName || ""}`.trim() ||
+        "N/A",
+      phone: order.billingPhone || "",
       email: "",
-      address: order.address || "",
+      address: formatAddressLine([order.address, order.address2]),
       city: order.destinationCity || "",
       state: order.destinationState || "",
       pincode: order.destinationPincode || "",

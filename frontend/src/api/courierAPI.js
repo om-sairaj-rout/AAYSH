@@ -95,3 +95,9 @@ export const deleteAwbAPI = async (awbId) =>
   jsonRequest(`${BASE}/api/awb/${awbId}`, {
     method: "DELETE",
   });
+
+export const bulkDeleteAwbsAPI = async (awbIds) =>
+  jsonRequest(`${BASE}/api/awb/bulk-delete`, {
+    method: "POST",
+    body: JSON.stringify({ awbIds }),
+  });

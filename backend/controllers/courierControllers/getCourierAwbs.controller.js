@@ -1,7 +1,7 @@
 const Courier = require("../../models/awb/courier.model");
 const Awb = require("../../models/awb/awb.model");
 
-const ALLOWED_CATEGORIES = ["under3kg", "over3kg", "prime", "codToPay"];
+const ALLOWED_CATEGORIES = ["under1kg", "under3kg", "over3kg", "prime", "codToPay"];
 
 const getCourierAwbs = async (req, res) => {
   try {
