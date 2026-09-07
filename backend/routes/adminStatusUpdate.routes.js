@@ -10,19 +10,19 @@ const { checkAuth, checkPermission } = require('../middlewares/auth.middleware.j
 adminStatusUpdateRouter.get(
   "/users",
   checkAuth,
-  checkPermission("upload", "read"),
+  checkPermission("update", "read"),
   getAllUsers
 );
 adminStatusUpdateRouter.get(
   "/orders/:userId",
   checkAuth,
-  checkPermission("upload", "read"),
+  checkPermission("update", "read"),
   getOrdersByUserController
 );
 adminStatusUpdateRouter.put(
   "/order/:orderId",
   checkAuth,
-  checkPermission("upload", "write"),
+  checkPermission("update", "write"),
   updateOrderStatusController
 );
 

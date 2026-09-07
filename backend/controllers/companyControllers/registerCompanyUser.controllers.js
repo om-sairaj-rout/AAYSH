@@ -103,12 +103,16 @@ const registerCompanyUser = async (req, res) => {
 
     const sanitizedPermissions = sanitizePermissionsInput(
       permissions ||
-        (createAsManagedAdmin ? getFullManagedAdminPermissions() : {})
+        (createAsManagedAdmin ? getFullManagedAdminPermissions() : {}),
+      { stripAdminSections: !createAsManagedAdmin }
     );
     const resolvedPermissions = resolvePermissions(
       resolvedCompanyRole,
       sanitizedPermissions,
-      { permissionsManaged: createAsManagedAdmin }
+      {
+        permissionsManaged: createAsManagedAdmin,
+        userRole: createAsManagedAdmin ? "admin" : "user",
+      }
     );
 
     const salt = await bcrypt.genSalt(10);

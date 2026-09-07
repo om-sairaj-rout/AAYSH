@@ -13,6 +13,18 @@ export const PERMISSION_SECTIONS = {
   support: { label: "Support & Complaints" },
 };
 
+/** Platform-admin sections — only role=admin with permissionsManaged may access. */
+export const ADMIN_ONLY_SECTIONS = [
+  "update",
+  "settings",
+  "tickets",
+  "companies",
+];
+
+const COMPANY_SECTIONS = Object.keys(PERMISSION_SECTIONS).filter(
+  (key) => !ADMIN_ONLY_SECTIONS.includes(key)
+);
+
 export const COMPANY_ROLES = [
   { id: "owner", label: "Owner" },
   { id: "manager", label: "Manager" },
@@ -24,7 +36,7 @@ const PATH_SECTION_MAP = {
   "/dashboard": "dashboard",
   "/upload/order-reports": "upload",
   "/upload/template": "upload",
-  "/update/status": "upload",
+  "/update/status": "update",
   "/update/AWB": "update",
   "/update/serviceability": "update",
   "/update/courier-priority": "update",
@@ -65,6 +77,9 @@ export const getSectionForPath = (pathname = "") => {
 export const canAccess = (user, section, action = "read") => {
   if (!user) return false;
   if (isUnrestrictedAdmin(user)) return true;
+  if (ADMIN_ONLY_SECTIONS.includes(section) && user.role !== "admin") {
+    return false;
+  }
   const entry = user.permissions?.[section];
   if (!entry) return false;
   return action === "write" ? Boolean(entry.write) : Boolean(entry.read);
@@ -99,20 +114,40 @@ export const canWritePath = (user, pathname) => {
 };
 
 export const buildDefaultPermissions = (companyRole) => {
-  const allSections = Object.keys(PERMISSION_SECTIONS);
-  const full = () =>
-    allSections.reduce((acc, key) => {
+  const companyFullAccess = () =>
+    COMPANY_SECTIONS.reduce((acc, key) => {
       acc[key] = { read: true, write: true };
       return acc;
     }, {});
-  const readOnly = () =>
-    allSections.reduce((acc, key) => {
+
+  const companyReadOnly = () =>
+    COMPANY_SECTIONS.reduce((acc, key) => {
       acc[key] = { read: true, write: false };
       return acc;
     }, {});
 
-  if (companyRole === "owner") return full();
-  if (companyRole === "manager") return full();
+  const noAdminAccess = () =>
+    ADMIN_ONLY_SECTIONS.reduce((acc, key) => {
+      acc[key] = { read: false, write: false };
+      return acc;
+    }, {});
+
+  if (companyRole === "owner") {
+    return { ...companyFullAccess(), ...noAdminAccess() };
+  }
+  if (companyRole === "manager") {
+    return {
+      ...companyReadOnly(),
+      dashboard: { read: true, write: true },
+      upload: { read: true, write: true },
+      orders: { read: true, write: true },
+      shipments: { read: true, write: true },
+      pickup: { read: true, write: true },
+      reversePickup: { read: true, write: true },
+      team: { read: true, write: true },
+      ...noAdminAccess(),
+    };
+  }
   if (companyRole === "operator") {
     return {
       dashboard: { read: true, write: false },
@@ -129,7 +164,7 @@ export const buildDefaultPermissions = (companyRole) => {
       support: { read: true, write: false },
     };
   }
-  return readOnly();
+  return { ...companyReadOnly(), ...noAdminAccess() };
 };
 
 export const buildAdminDelegatedDefaultPermissions = () =>
@@ -142,6 +177,5 @@ export const getTeamPermissionSections = (manager) =>
   isUnrestrictedAdmin(manager)
     ? Object.entries(PERMISSION_SECTIONS)
     : Object.entries(PERMISSION_SECTIONS).filter(
-        ([key]) =>
-          !["update", "settings", "tickets", "companies"].includes(key)
+        ([key]) => !ADMIN_ONLY_SECTIONS.includes(key)
       );

@@ -1,5 +1,5 @@
 const { checkPermission } = require("../middlewares/auth.middleware");
-const { resolvePermissions } = require("../utils/permissions");
+const { resolvePermissions, userCanAccess } = require("../utils/permissions");
 
 let passed = 0;
 let failed = 0;
@@ -32,17 +32,24 @@ const runMiddleware = (middleware, user) =>
 const viewerUser = {
   role: "user",
   companyRole: "viewer",
-  permissions: resolvePermissions("viewer", {}),
+  permissions: resolvePermissions("viewer", {}, { userRole: "user" }),
 };
 
 const operatorUser = {
   role: "user",
   companyRole: "operator",
-  permissions: resolvePermissions("operator", {}),
+  permissions: resolvePermissions("operator", {}, { userRole: "user" }),
+};
+
+const ownerUser = {
+  role: "user",
+  companyRole: "owner",
+  permissions: resolvePermissions("owner", {}, { userRole: "user" }),
 };
 
 const adminUser = {
   role: "admin",
+  permissionsManaged: false,
   permissions: {},
 };
 
@@ -75,12 +82,31 @@ const adminUser = {
     checkPermission("orders", "write"),
     {
       role: "user",
-      permissions: resolvePermissions("viewer", {
-        orders: { read: true, write: false },
-      }),
+      permissions: resolvePermissions(
+        "viewer",
+        { orders: { read: true, write: false } },
+        { userRole: "user" }
+      ),
     }
   );
   assert(viewerReadNotWrite === 403, "read-only orders does not allow write");
+
+  const ownerUpdateDenied = await runMiddleware(
+    checkPermission("update", "read"),
+    ownerUser
+  );
+  assert(ownerUpdateDenied === 403, "company owner cannot access update APIs");
+
+  const ownerSettingsDenied = await runMiddleware(
+    checkPermission("settings", "write"),
+    ownerUser
+  );
+  assert(ownerSettingsDenied === 403, "company owner cannot access settings APIs");
+
+  assert(
+    !userCanAccess(ownerUser, "companies", "read"),
+    "owner userCanAccess denies companies section"
+  );
 
   console.log(`Middleware tests: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

@@ -18,7 +18,6 @@ const RegisterController = async (req, res) => {
       mobile_number,
       website,
       gstin,
-      role,
       address,
       zip_code,
       city,
@@ -121,7 +120,9 @@ const RegisterController = async (req, res) => {
       resolvedCompanyID = await generateCompanyId();
     }
 
-    const permissions = resolvePermissions(resolvedCompanyRole, {});
+    const permissions = resolvePermissions(resolvedCompanyRole, {}, {
+      userRole: "user",
+    });
 
     let newUser = null;
 
@@ -135,7 +136,7 @@ const RegisterController = async (req, res) => {
         mobile_number,
         website: website || companyRecord?.website || "",
         gstin: gstin || companyRecord?.gstin || "",
-        role: role || "user",
+        role: "user",
         companyRole: resolvedCompanyRole,
         permissions,
         address: address || companyRecord?.address || "",

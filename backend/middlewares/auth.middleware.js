@@ -46,14 +46,17 @@ const checkAuth = async (req, res, next) => {
         const permissions = resolvePermissions(
             userRecord.companyRole,
             storedPermissions,
-            { permissionsManaged: userRecord.permissionsManaged }
+            {
+              permissionsManaged: userRecord.permissionsManaged,
+              userRole: userRecord.role,
+            }
         );
 
         req.user = {
             id: decoded.id,
             companyName: decoded.companyName || decoded.username || userRecord.companyName,
             companyID: userRecord.companyID || decoded.companyID || "",
-            role: decoded.role || userRecord.role,
+            role: userRecord.role,
             companyRole: userRecord.companyRole || decoded.companyRole || "viewer",
             showWeight: userRecord.showWeight ?? decoded.showWeight,
             permissions,

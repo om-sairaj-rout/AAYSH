@@ -1,5 +1,6 @@
 const {
   ALL_SECTION_KEYS,
+  ADMIN_ONLY_SECTION_KEYS,
   DEFAULT_PERMISSIONS_BY_COMPANY_ROLE,
   PERMISSION_SECTIONS,
 } = require("../constants/permissions");
@@ -11,6 +12,19 @@ const normalizePermissionEntry = (entry = {}) => ({
 
 const isUnrestrictedAdmin = (user) =>
   Boolean(user?.role === "admin" && !user?.permissionsManaged);
+
+const allowsAdminOnlySections = (options = {}) =>
+  Boolean(options.permissionsManaged && options.userRole === "admin");
+
+const applyAdminSectionPolicy = (resolved, options = {}) => {
+  if (allowsAdminOnlySections(options)) {
+    return resolved;
+  }
+  ADMIN_ONLY_SECTION_KEYS.forEach((section) => {
+    resolved[section] = { read: false, write: false };
+  });
+  return resolved;
+};
 
 const resolveSectionPermission = (section, storedPermissions, defaults) => {
   const override = storedPermissions?.[section];
@@ -40,7 +54,7 @@ const resolvePermissions = (
         resolved[section] = { read: false, write: false };
       }
     });
-    return resolved;
+    return applyAdminSectionPolicy(resolved, options);
   }
 
   const defaults =
@@ -57,7 +71,7 @@ const resolvePermissions = (
     );
   });
 
-  return resolved;
+  return applyAdminSectionPolicy(resolved, options);
 };
 
 const canAccess = (permissions, section, action = "read") => {
@@ -92,13 +106,18 @@ const pathToSection = (pathname = "") => {
   return null;
 };
 
-const sanitizePermissionsInput = (input = {}) => {
+const sanitizePermissionsInput = (input = {}, options = {}) => {
   const sanitized = {};
   ALL_SECTION_KEYS.forEach((section) => {
     if (input[section]) {
       sanitized[section] = normalizePermissionEntry(input[section]);
     }
   });
+  if (options.stripAdminSections) {
+    ADMIN_ONLY_SECTION_KEYS.forEach((section) => {
+      delete sanitized[section];
+    });
+  }
   return sanitized;
 };
 
@@ -119,6 +138,9 @@ const isAdminCreatingOwnCompanyUser = (actor, companyID) =>
 const userCanAccess = (user, section, action = "read") => {
   if (!user) return false;
   if (isUnrestrictedAdmin(user)) return true;
+  if (ADMIN_ONLY_SECTION_KEYS.includes(section) && user.role !== "admin") {
+    return false;
+  }
   const entry = user.permissions?.[section];
   if (!entry) return false;
   return action === "write" ? Boolean(entry.write) : Boolean(entry.read);
@@ -135,4 +157,6 @@ module.exports = {
   isUnrestrictedAdmin,
   userCanAccess,
   ALL_SECTION_KEYS,
+  ADMIN_ONLY_SECTION_KEYS,
+  allowsAdminOnlySections,
 };

@@ -75,9 +75,12 @@ const updateCompanyUser = async (req, res) => {
 
     user.companyRole = nextRole;
 
-    const sanitizedPermissions = sanitizePermissionsInput(permissions);
+    const sanitizedPermissions = sanitizePermissionsInput(permissions, {
+      stripAdminSections: user.role !== "admin",
+    });
     user.permissions = resolvePermissions(nextRole, sanitizedPermissions, {
       permissionsManaged: user.permissionsManaged,
+      userRole: user.role,
     });
 
     await user.save();

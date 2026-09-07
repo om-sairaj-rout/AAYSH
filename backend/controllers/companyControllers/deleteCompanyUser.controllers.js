@@ -1,9 +1,9 @@
 const User = require("../../models/user.model");
 const Company = require("../../models/company.model");
-const { canManageCompanyUsers } = require("../../utils/permissions");
+const { canManageCompanyUsers, isUnrestrictedAdmin } = require("../../utils/permissions");
 
 const assertCanManageTargetCompany = (req, companyID) => {
-  if (req.user.role === "admin") return true;
+  if (isUnrestrictedAdmin(req.user)) return true;
   if (req.user.companyID !== companyID) return false;
   return canManageCompanyUsers(req.user);
 };

@@ -11,7 +11,10 @@ const mapUserResponse = (user) => {
   const permissions = resolvePermissions(
     user.companyRole,
     storedPermissions,
-    { permissionsManaged: user.permissionsManaged }
+    {
+      permissionsManaged: user.permissionsManaged,
+      userRole: user.role,
+    }
   );
 
   return {

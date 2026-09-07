@@ -50,22 +50,35 @@ const PERMISSION_SECTIONS = {
 
 const ALL_SECTION_KEYS = Object.keys(PERMISSION_SECTIONS);
 
-const fullAccess = () =>
-  ALL_SECTION_KEYS.reduce((acc, key) => {
+/** Platform-admin sections — only role=admin with permissionsManaged may access. */
+const ADMIN_ONLY_SECTION_KEYS = ["update", "settings", "tickets", "companies"];
+
+const COMPANY_SECTION_KEYS = ALL_SECTION_KEYS.filter(
+  (key) => !ADMIN_ONLY_SECTION_KEYS.includes(key)
+);
+
+const companyFullAccess = () =>
+  COMPANY_SECTION_KEYS.reduce((acc, key) => {
     acc[key] = { read: true, write: true };
     return acc;
   }, {});
 
-const readOnlyAccess = () =>
-  ALL_SECTION_KEYS.reduce((acc, key) => {
+const companyReadOnlyAccess = () =>
+  COMPANY_SECTION_KEYS.reduce((acc, key) => {
     acc[key] = { read: true, write: false };
     return acc;
   }, {});
 
+const noAdminAccess = () =>
+  ADMIN_ONLY_SECTION_KEYS.reduce((acc, key) => {
+    acc[key] = { read: false, write: false };
+    return acc;
+  }, {});
+
 const DEFAULT_PERMISSIONS_BY_COMPANY_ROLE = {
-  owner: fullAccess(),
+  owner: { ...companyFullAccess(), ...noAdminAccess() },
   manager: {
-    ...readOnlyAccess(),
+    ...companyReadOnlyAccess(),
     dashboard: { read: true, write: true },
     upload: { read: true, write: true },
     orders: { read: true, write: true },
@@ -73,6 +86,7 @@ const DEFAULT_PERMISSIONS_BY_COMPANY_ROLE = {
     pickup: { read: true, write: true },
     reversePickup: { read: true, write: true },
     team: { read: true, write: true },
+    ...noAdminAccess(),
   },
   operator: {
     dashboard: { read: true, write: false },
@@ -88,7 +102,7 @@ const DEFAULT_PERMISSIONS_BY_COMPANY_ROLE = {
     companies: { read: false, write: false },
     support: { read: true, write: false },
   },
-  viewer: readOnlyAccess(),
+  viewer: { ...companyReadOnlyAccess(), ...noAdminAccess() },
 };
 
 const COMPANY_ROLES = ["owner", "manager", "operator", "viewer"];
@@ -96,6 +110,8 @@ const COMPANY_ROLES = ["owner", "manager", "operator", "viewer"];
 module.exports = {
   PERMISSION_SECTIONS,
   ALL_SECTION_KEYS,
+  ADMIN_ONLY_SECTION_KEYS,
+  COMPANY_SECTION_KEYS,
   DEFAULT_PERMISSIONS_BY_COMPANY_ROLE,
   COMPANY_ROLES,
 };

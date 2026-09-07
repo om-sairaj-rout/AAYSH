@@ -1,5 +1,9 @@
 const { getCompanyDetailPayload } = require("../../utils/companyUsers");
-const { canManageCompanyUsers, isUnrestrictedAdmin } = require("../../utils/permissions");
+const {
+  canManageCompanyUsers,
+  isUnrestrictedAdmin,
+  userCanAccess,
+} = require("../../utils/permissions");
 
 const getCompanyDetail = async (req, res) => {
   try {
@@ -14,8 +18,11 @@ const getCompanyDetail = async (req, res) => {
     }
 
     const isSameCompany = req.user.companyID === companyID;
+    const canViewAllCompanies =
+      isUnrestrictedAdmin(req.user) ||
+      userCanAccess(req.user, "companies", "read");
 
-    if (!isUnrestrictedAdmin(req.user) && !isSameCompany) {
+    if (!canViewAllCompanies && !isSameCompany) {
       return res.status(403).json({
         success: false,
         message: "Forbidden access",
