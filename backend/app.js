@@ -21,6 +21,7 @@ const trackingRouter = require('./routes/tracking.routes');
 const pickupRouter = require('./routes/pickupRoute.controllers');
 const productRouter = require('./routes/product.routes');
 const reversePickupRouter = require('./routes/reversePickup.routes');
+const pickupScheduleRouter = require('./routes/pickupSchedule.routes');
 const ticketRouter = require('./routes/ticket.routes');
 
 connectToDB();
@@ -61,6 +62,7 @@ app.use('/api', uploadRouter);
 app.use('/api', orderRouter);
 app.use('/api', productRouter);
 app.use('/api', reversePickupRouter);
+app.use('/api', pickupScheduleRouter);
 app.use('/api', ticketRouter);
 app.use('/api', dashboardRouter);
 app.use('/api', courierRouter);

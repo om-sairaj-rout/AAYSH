@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import {
   X,
   Plus,
@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { toast } from '../utils/toast';
 import { createOrder, getNextOrderId, getOrderIdSequences } from "../api/ordersAPI";
+import { completePickupScheduleAPI } from "../api/pickupScheduleAPI";
+import { getCompanyDetail } from "../api/companyAPI";
 import { getProducts } from "../api/productsAPI";
 import { todayISODateOnly } from "../utils/dateTime";
 
@@ -177,15 +179,148 @@ const resolveConsignorDefaults = (company, user, isAdmin = false) => {
 };
 
 const normalizeCompanyId = (companyId) => {
-  const value = String(companyId || "").trim();
+  const value = String(companyId || "").trim().toUpperCase();
   return value && value !== "ALL" ? value : "";
+};
+
+const buildCompanyFromPickupMeta = (pickupSchedule) => {
+  if (!pickupSchedule) return null;
+
+  const consignorName = String(pickupSchedule.consignorName || "").trim();
+  const consignorPhone = String(pickupSchedule.consignorPhone || "").trim();
+  const companyPickupAddress = String(
+    pickupSchedule.companyPickupAddress || ""
+  ).trim();
+  const companyID = normalizeCompanyId(pickupSchedule.companyID);
+
+  if (!consignorName && !consignorPhone && !companyPickupAddress && !companyID) {
+    return null;
+  }
+
+  return {
+    companyID,
+    companyName: consignorName,
+    consignorName,
+    consignorPhone,
+    companyPickupAddress,
+  };
+};
+
+const buildCompanyFromDetail = (detail) => {
+  if (!detail?.company) return null;
+
+  const company = detail.company;
+  const owner = detail.owner || null;
+  const users = Array.isArray(detail.users) ? detail.users : [];
+
+  const consignorContacts = users.map((companyUser) => ({
+    name: String(
+      companyUser.fullName || companyUser.companyName || company.companyName || ""
+    ).trim(),
+    companyName: String(companyUser.companyName || company.companyName || "").trim(),
+    phone: String(companyUser.mobile_number || "").trim(),
+    role: companyUser.companyRole || "",
+  }));
+
+  return {
+    ...company,
+    owner,
+    consignorName: String(company.companyName || "").trim(),
+    consignorPhone: String(owner?.mobile_number || "").trim(),
+    consignorContacts,
+  };
+};
+
+const fetchCompanyForCompletePickup = async (companyID) => {
+  if (!companyID) return null;
+
+  try {
+    const detail = await getCompanyDetail(companyID);
+    return buildCompanyFromDetail(detail);
+  } catch {
+    return null;
+  }
+};
+
+const buildCompletePickupForm = async ({
+  user,
+  isAdmin,
+  companiesList,
+  pickupSchedule,
+  defaultCompanyId,
+}) => {
+  const companyId =
+    normalizeCompanyId(pickupSchedule?.companyID) ||
+    normalizeCompanyId(defaultCompanyId) ||
+    normalizeCompanyId(user?.companyID);
+
+  let company =
+    buildCompanyFromPickupMeta(pickupSchedule) ||
+    resolveCompanyForForm(user, isAdmin, companiesList, companyId);
+
+  if (companyId) {
+    const fetchedCompany = await fetchCompanyForCompletePickup(companyId);
+    if (fetchedCompany) {
+      company = {
+        ...company,
+        ...fetchedCompany,
+        consignorName:
+          fetchedCompany.consignorName || company?.consignorName || "",
+        consignorPhone:
+          fetchedCompany.consignorPhone || company?.consignorPhone || "",
+      };
+    }
+  }
+
+  const consignorDefaults = resolveConsignorDefaults(company, user, isAdmin);
+  const base = buildDefaultForm(user, isAdmin, companiesList, companyId);
+  const companyAddress =
+    String(pickupSchedule?.companyPickupAddress || "").trim() ||
+    formatCompanyAddress(company) ||
+    String(pickupSchedule?.pickupLocation || "").trim();
+
+  const consignor_name =
+    String(pickupSchedule?.consignorName || "").trim() ||
+    consignorDefaults.consignor_name ||
+    base.consignor_name;
+
+  const consignor_phone =
+    String(pickupSchedule?.consignorPhone || "").trim() ||
+    consignorDefaults.consignor_phone ||
+    base.consignor_phone;
+
+  const pickup_location =
+    companyAddress || base.pickup_location;
+
+  return {
+    form: {
+      ...base,
+      order_id_mode: "auto",
+      order_id: "",
+      company_id: companyId || base.company_id,
+      consignor_name,
+      consignor_phone,
+      pickup_location,
+      weight: pickupSchedule?.weight || base.weight,
+      no_of_boxes: pickupSchedule?.noOfBoxes || base.no_of_boxes,
+    },
+    sequenceLocked: isCompanySequenceLocked(user, isAdmin, companiesList, companyId),
+  };
 };
 
 const resolveCompanyForForm = (user, isAdmin, companiesList, selectedCompanyId) => {
   const companyId = normalizeCompanyId(selectedCompanyId);
 
   if (isAdmin && companyId) {
-    return companiesList.find((item) => item.companyID === companyId) || null;
+    const match = companiesList.find(
+      (item) => normalizeCompanyId(item.companyID) === companyId
+    );
+    if (!match) return null;
+
+    return {
+      ...match,
+      companyName: match.companyName || match.name || "",
+    };
   }
 
   if (user?.company) {
@@ -252,20 +387,81 @@ const buildDefaultForm = (user, isAdmin, companiesList, selectedCompanyId) => {
   };
 };
 
+const EMPTY_COMPANIES_LIST = [];
+
 const inputClass =
   "w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100";
 
 const labelClass = "block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1.5";
 
-const CreateOrderDialog = ({
+const buildSubmitPayload = (form, orderDocuments, { isAdmin, isCompletePickup, pickupSchedule }) => {
+  const payload = {
+    ...form,
+    order_id_mode: form.order_id_mode,
+    order_id_sequence: form.order_id_sequence,
+    pickup_location: form.pickup_location.trim(),
+    invoice_no: form.invoice_no.trim(),
+    order_items: form.order_items.map((item) => ({
+      name: item.name.trim(),
+      sku: item.sku.trim(),
+      units: Number(item.units) || 1,
+      selling_price: Number(item.selling_price) || 0,
+      discount: Number(item.discount) || 0,
+      tax: Number(item.tax) || 0,
+      hsn: String(item.hsn || ""),
+    })),
+    weight: Number(form.weight) || 0,
+    length: Number(form.length) || 0,
+    breadth: Number(form.breadth) || 0,
+    height: Number(form.height) || 0,
+    no_of_boxes: Number(form.no_of_boxes) > 0 ? Number(form.no_of_boxes) : 1,
+    shipping_charges: Number(form.shipping_charges) || 0,
+    giftwrap_charges: Number(form.giftwrap_charges) || 0,
+    transaction_charges: Number(form.transaction_charges) || 0,
+  };
+
+  if (String(form.invoice_value).trim() !== "") {
+    payload.invoice_value = Number(form.invoice_value);
+  }
+
+  if (!isAdmin) {
+    delete payload.company_id;
+  }
+
+  if (form.order_id_mode === "auto") {
+    delete payload.order_id;
+  } else {
+    payload.order_id = form.order_id.trim();
+    delete payload.order_id_sequence;
+  }
+
+  if (isCompletePickup) {
+    if (pickupSchedule?.companyID) {
+      payload.company_id = pickupSchedule.companyID;
+    }
+    payload.order_id_mode = "auto";
+    payload.order_id_sequence = form.order_id_sequence;
+    delete payload.order_id;
+    payload.document_types = orderDocuments.map((doc) => doc.documentType);
+  }
+
+  return payload;
+};
+
+const CreateOrderDialog = forwardRef(({
   open,
   onClose,
   user,
   isAdmin,
-  companiesList = [],
+  companiesList = EMPTY_COMPANIES_LIST,
   defaultCompanyId = "ALL",
   onSuccess,
-}) => {
+  mode = "create",
+  pickupSchedule = null,
+  embedded = false,
+  hideSubmit = false,
+}, ref) => {
+  const isCompletePickup = mode === "completePickup" && Boolean(pickupSchedule);
   const [form, setForm] = useState(() =>
     buildDefaultForm(user, isAdmin, companiesList, defaultCompanyId)
   );
@@ -278,11 +474,21 @@ const CreateOrderDialog = ({
   const [sequenceLocked, setSequenceLocked] = useState(false);
   const [orderDocuments, setOrderDocuments] = useState([]);
   const [pendingDocumentType, setPendingDocumentType] = useState("INVOICE");
+  const formInitKeyRef = useRef("");
 
-  const activeCompanyId = useMemo(
-    () => resolveActiveCompanyId(form, isAdmin, user, defaultCompanyId),
-    [form.company_id, isAdmin, user, defaultCompanyId]
-  );
+  const activeCompanyId = useMemo(() => {
+    if (isCompletePickup && pickupSchedule?.companyID) {
+      return pickupSchedule.companyID;
+    }
+    return resolveActiveCompanyId(form, isAdmin, user, defaultCompanyId);
+  }, [
+    form.company_id,
+    isAdmin,
+    user,
+    defaultCompanyId,
+    isCompletePickup,
+    pickupSchedule,
+  ]);
 
   const fetchNextOrderId = async (sequence, companyId) => {
     if (!companyId) {
@@ -323,7 +529,67 @@ const CreateOrderDialog = ({
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      formInitKeyRef.current = "";
+      return;
+    }
+
+    const initKey = isCompletePickup
+      ? `complete:${pickupSchedule?._id || ""}`
+      : `create:${defaultCompanyId}:${isAdmin}`;
+
+    if (formInitKeyRef.current === initKey) {
+      return;
+    }
+    formInitKeyRef.current = initKey;
+
+    if (isCompletePickup && pickupSchedule) {
+      const pickupMeta = buildCompanyFromPickupMeta(pickupSchedule);
+      const base = buildDefaultForm(user, isAdmin, companiesList, pickupMeta?.companyID);
+      const instantCompanyAddress =
+        String(pickupSchedule.companyPickupAddress || "").trim() ||
+        String(pickupSchedule.pickupLocation || "").trim();
+
+      setForm({
+        ...base,
+        order_id_mode: "auto",
+        order_id: "",
+        company_id: pickupMeta?.companyID || base.company_id,
+        consignor_name:
+          String(pickupSchedule.consignorName || "").trim() ||
+          pickupMeta?.consignorName ||
+          base.consignor_name,
+        consignor_phone:
+          String(pickupSchedule.consignorPhone || "").trim() ||
+          pickupMeta?.consignorPhone ||
+          base.consignor_phone,
+        pickup_location: instantCompanyAddress || base.pickup_location,
+        no_of_boxes: pickupSchedule.noOfBoxes || base.no_of_boxes,
+      });
+      setSuccessMessage("");
+      setProductSearch("");
+      setOrderDocuments([]);
+      setPendingDocumentType("INVOICE");
+
+      let cancelled = false;
+
+      buildCompletePickupForm({
+        user,
+        isAdmin,
+        companiesList,
+        pickupSchedule,
+        defaultCompanyId,
+      }).then((result) => {
+        if (cancelled || formInitKeyRef.current !== initKey) return;
+
+        setForm(result.form);
+        setSequenceLocked(result.sequenceLocked);
+      });
+
+      return () => {
+        cancelled = true;
+      };
+    }
 
     setForm(buildDefaultForm(user, isAdmin, companiesList, defaultCompanyId));
     setSuccessMessage("");
@@ -333,13 +599,22 @@ const CreateOrderDialog = ({
     setSequenceLocked(
       isCompanySequenceLocked(user, isAdmin, companiesList, defaultCompanyId)
     );
-  }, [open, user, isAdmin, companiesList, defaultCompanyId]);
+  }, [
+    open,
+    user,
+    isAdmin,
+    companiesList,
+    defaultCompanyId,
+    isCompletePickup,
+    pickupSchedule,
+  ]);
 
   useEffect(() => {
-    if (!open || form.order_id_mode !== "auto") return;
+    if (!open || isCompletePickup || form.order_id_mode !== "auto") return;
     fetchNextOrderId(form.order_id_sequence, activeCompanyId);
   }, [
     open,
+    isCompletePickup,
     form.order_id_mode,
     form.order_id_sequence,
     activeCompanyId,
@@ -417,8 +692,6 @@ const CreateOrderDialog = ({
       ),
     [form.weight, form.length, form.breadth, form.height]
   );
-
-  if (!open) return null;
 
   const updateField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -531,17 +804,23 @@ const CreateOrderDialog = ({
   };
 
   const validateForm = () => {
-    if (isAdmin && !normalizeCompanyId(form.company_id)) {
+    if (
+      isAdmin &&
+      !normalizeCompanyId(form.company_id) &&
+      !(isCompletePickup && pickupSchedule?.companyID)
+    ) {
       toast.validation("Please select a company");
       return false;
     }
-    if (form.order_id_mode === "manual" && !form.order_id.trim()) {
-      toast.validation("Order ID is required");
-      return false;
-    }
-    if (form.order_id_mode === "auto" && isAdmin && !activeCompanyId) {
-      toast.validation("Please select a company before creating an order");
-      return false;
+    if (!isCompletePickup) {
+      if (form.order_id_mode === "manual" && !form.order_id.trim()) {
+        toast.validation("Order ID is required");
+        return false;
+      }
+      if (form.order_id_mode === "auto" && isAdmin && !activeCompanyId) {
+        toast.validation("Please select a company before creating an order");
+        return false;
+      }
     }
     if (!form.pickup_location.trim()) {
       toast.validation("Pickup location is required");
@@ -582,6 +861,19 @@ const CreateOrderDialog = ({
     return true;
   };
 
+  useImperativeHandle(ref, () => ({
+    validate: validateForm,
+    getPayload: () =>
+      buildSubmitPayload(form, orderDocuments, {
+        isAdmin,
+        isCompletePickup,
+        pickupSchedule,
+      }),
+    getDocuments: () => orderDocuments,
+  }));
+
+  if (!open) return null;
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!validateForm()) return;
@@ -590,44 +882,32 @@ const CreateOrderDialog = ({
       setSubmitting(true);
       setSuccessMessage("");
 
-      const payload = {
-        ...form,
-        order_id_mode: form.order_id_mode,
-        order_id_sequence: form.order_id_sequence,
-        pickup_location: form.pickup_location.trim(),
-        invoice_no: form.invoice_no.trim(),
-        order_items: form.order_items.map((item) => ({
-          name: item.name.trim(),
-          sku: item.sku.trim(),
-          units: Number(item.units) || 1,
-          selling_price: Number(item.selling_price) || 0,
-          discount: Number(item.discount) || 0,
-          tax: Number(item.tax) || 0,
-          hsn: String(item.hsn || ""),
-        })),
-        weight: Number(form.weight) || 0,
-        length: Number(form.length) || 0,
-        breadth: Number(form.breadth) || 0,
-        height: Number(form.height) || 0,
-        no_of_boxes: Number(form.no_of_boxes) > 0 ? Number(form.no_of_boxes) : 1,
-        shipping_charges: Number(form.shipping_charges) || 0,
-        giftwrap_charges: Number(form.giftwrap_charges) || 0,
-        transaction_charges: Number(form.transaction_charges) || 0,
-      };
+      const payload = buildSubmitPayload(form, orderDocuments, {
+        isAdmin,
+        isCompletePickup,
+        pickupSchedule,
+      });
 
-      if (String(form.invoice_value).trim() !== "") {
-        payload.invoice_value = Number(form.invoice_value);
-      }
-
-      if (!isAdmin) {
-        delete payload.company_id;
-      }
-
-      if (form.order_id_mode === "auto") {
-        delete payload.order_id;
-      } else {
-        payload.order_id = form.order_id.trim();
-        delete payload.order_id_sequence;
+      if (isCompletePickup) {
+        const response = await completePickupScheduleAPI(
+          pickupSchedule._id,
+          payload,
+          orderDocuments
+        );
+        if (response.awbAssigned) {
+          toast.success(response.message || "Order created and AWB assigned");
+        } else {
+          toast.success(
+            response.message ||
+              "Order created. AWB assignment failed — edit and ship from All Orders when ready."
+          );
+          if (response.awbFailureReason) {
+            toast.warning(response.awbFailureReason);
+          }
+        }
+        onSuccess?.(response);
+        onClose();
+        return;
       }
 
       const response = await createOrder(payload, { documents: orderDocuments });
@@ -660,20 +940,33 @@ const CreateOrderDialog = ({
     }
   };
 
+  const wrapperClass = embedded
+    ? "w-full"
+    : "modal-overlay bg-slate-900/55 backdrop-blur-sm";
+
+  const panelClass = embedded
+    ? "w-full overflow-hidden flex flex-col"
+    : "bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl border border-slate-100 w-full max-w-5xl max-h-[92vh] overflow-hidden flex flex-col";
+
   return (
-    <div className="modal-overlay bg-slate-900/55 backdrop-blur-sm">
+    <div className={wrapperClass}>
       <div
-        className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl border border-slate-100 w-full max-w-5xl max-h-[92vh] overflow-hidden flex flex-col"
+        className={panelClass}
         onMouseDown={(event) => event.stopPropagation()}
       >
+        {!embedded && (
         <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-100 bg-slate-50/80">
           <div>
             <div className="flex items-center gap-2">
               <Sparkles size={18} className="text-indigo-600" />
-              <h2 className="text-xl font-bold text-[#1B2B4B]">Create Order</h2>
+              <h2 className="text-xl font-bold text-[#1B2B4B]">
+                {isCompletePickup ? "Complete Pickup" : "Create Order"}
+              </h2>
             </div>
             <p className="text-sm text-slate-500 mt-1">
-              Smart order form with catalog shortcuts, live totals, and auto-filled company details.
+              {isCompletePickup
+                ? `Finish order details for schedule ${pickupSchedule.scheduleId}. Order is created even if AWB assignment fails.`
+                : "Smart order form with catalog shortcuts, live totals, and auto-filled company details."}
             </p>
           </div>
           <button
@@ -685,6 +978,7 @@ const CreateOrderDialog = ({
             <X size={20} />
           </button>
         </div>
+        )}
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-6">
@@ -702,131 +996,140 @@ const CreateOrderDialog = ({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className={labelClass}>Order ID Generation</label>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setForm((prev) => ({ ...prev, order_id_mode: "auto" }))
-                      }
-                      className={`rounded-xl px-4 py-2 text-sm font-semibold border ${
-                        form.order_id_mode === "auto"
-                          ? "bg-indigo-600 text-white border-indigo-600"
-                          : "bg-white text-slate-600 border-slate-200"
-                      }`}
-                    >
-                      Auto-generate
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setForm((prev) => ({
-                          ...prev,
-                          order_id_mode: "manual",
-                          order_id: "",
-                        }))
-                      }
-                      className={`rounded-xl px-4 py-2 text-sm font-semibold border ${
-                        form.order_id_mode === "manual"
-                          ? "bg-indigo-600 text-white border-indigo-600"
-                          : "bg-white text-slate-600 border-slate-200"
-                      }`}
-                    >
-                      Manual entry
-                    </button>
+                {isCompletePickup ? (
+                  <div className="md:col-span-2 rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-3 text-xs text-slate-600">
+                    Order ID will be assigned automatically when you submit, using your
+                    company&apos;s configured sequence.
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="md:col-span-2">
+                      <label className={labelClass}>Order ID Generation</label>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((prev) => ({ ...prev, order_id_mode: "auto" }))
+                          }
+                          className={`rounded-xl px-4 py-2 text-sm font-semibold border ${
+                            form.order_id_mode === "auto"
+                              ? "bg-indigo-600 text-white border-indigo-600"
+                              : "bg-white text-slate-600 border-slate-200"
+                          }`}
+                        >
+                          Auto-generate
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              order_id_mode: "manual",
+                              order_id: "",
+                            }))
+                          }
+                          className={`rounded-xl px-4 py-2 text-sm font-semibold border ${
+                            form.order_id_mode === "manual"
+                              ? "bg-indigo-600 text-white border-indigo-600"
+                              : "bg-white text-slate-600 border-slate-200"
+                          }`}
+                        >
+                          Manual entry
+                        </button>
+                      </div>
+                    </div>
 
-                {form.order_id_mode === "auto" && (
-                  <div className="md:col-span-2">
-                    <label className={labelClass}>Order ID Generation Sequence</label>
-                    <select
-                      value={form.order_id_sequence}
-                      onChange={(e) => handleSequenceChange(e.target.value)}
-                      disabled={sequenceLocked}
-                      className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-500`}
-                    >
-                      {(sequences.length
-                        ? sequences
-                        : [
-                            {
-                              id: "numeric",
-                              label: "Numeric",
-                              description: "Example: 100001, 100002, 100003",
-                            },
-                            {
-                              id: "alphanumeric",
-                              label: "Alphanumeric",
-                              description: "Example: ORD100001, ORD100002, ORD100003",
-                            },
-                          ]
-                      ).map((sequence) => (
-                        <option key={sequence.id} value={sequence.id}>
-                          {sequence.label} — {sequence.description || sequence.example}
-                        </option>
-                      ))}
-                    </select>
-                    {sequenceLocked ? (
-                      <p className="mt-2 text-xs text-slate-500">
-                        This company&apos;s order ID format is fixed and cannot be changed
-                        after the first auto-generated order.
-                      </p>
-                    ) : (
-                      <p className="mt-2 text-xs text-slate-500">
-                        Choose the format for this company. It will be locked after the first
-                        auto-generated order.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                <div className="md:col-span-2">
-                  <label className={labelClass}>
-                    {form.order_id_mode === "auto" ? "Next Order ID" : "Order ID *"}
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      required={form.order_id_mode === "manual"}
-                      value={form.order_id}
-                      readOnly={form.order_id_mode === "auto"}
-                      onChange={(e) => updateField("order_id", e.target.value)}
-                      placeholder={
-                        form.order_id_mode === "auto"
-                          ? isAdmin && !activeCompanyId
-                            ? "Select a company to preview the next order ID"
-                            : "Loading next order ID..."
-                          : "Enter a unique order ID"
-                      }
-                      className={`${inputClass} ${
-                        form.order_id_mode === "auto" ? "bg-slate-50" : ""
-                      }`}
-                    />
                     {form.order_id_mode === "auto" && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          fetchNextOrderId(form.order_id_sequence, activeCompanyId)
-                        }
-                        disabled={loadingOrderId || !activeCompanyId}
-                        className="shrink-0 rounded-xl border border-slate-200 px-3 text-slate-500 hover:bg-slate-50 disabled:opacity-50"
-                        title="Refresh next order ID preview"
-                      >
-                        <RefreshCw
-                          size={16}
-                          className={loadingOrderId ? "animate-spin" : ""}
-                        />
-                      </button>
+                      <div className="md:col-span-2">
+                        <label className={labelClass}>Order ID Generation Sequence</label>
+                        <select
+                          value={form.order_id_sequence}
+                          onChange={(e) => handleSequenceChange(e.target.value)}
+                          disabled={sequenceLocked}
+                          className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-500`}
+                        >
+                          {(sequences.length
+                            ? sequences
+                            : [
+                                {
+                                  id: "numeric",
+                                  label: "Numeric",
+                                  description: "Example: 100001, 100002, 100003",
+                                },
+                                {
+                                  id: "alphanumeric",
+                                  label: "Alphanumeric",
+                                  description: "Example: ORD100001, ORD100002, ORD100003",
+                                },
+                              ]
+                          ).map((sequence) => (
+                            <option key={sequence.id} value={sequence.id}>
+                              {sequence.label} — {sequence.description || sequence.example}
+                            </option>
+                          ))}
+                        </select>
+                        {sequenceLocked ? (
+                          <p className="mt-2 text-xs text-slate-500">
+                            This company&apos;s order ID format is fixed and cannot be changed
+                            after the first auto-generated order.
+                          </p>
+                        ) : (
+                          <p className="mt-2 text-xs text-slate-500">
+                            Choose the format for this company. It will be locked after the first
+                            auto-generated order.
+                          </p>
+                        )}
+                      </div>
                     )}
-                  </div>
-                  {form.order_id_mode === "auto" && (
-                    <p className="mt-1.5 text-[11px] text-slate-400">
-                      Order IDs are generated on the server using a global sequence for the
-                      selected format. Your company&apos;s format is locked after the first
-                      auto-generated order.
-                    </p>
-                  )}
-                </div>
+
+                    <div className="md:col-span-2">
+                      <label className={labelClass}>
+                        {form.order_id_mode === "auto" ? "Next Order ID" : "Order ID *"}
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          required={form.order_id_mode === "manual"}
+                          value={form.order_id}
+                          readOnly={form.order_id_mode === "auto"}
+                          onChange={(e) => updateField("order_id", e.target.value)}
+                          placeholder={
+                            form.order_id_mode === "auto"
+                              ? isAdmin && !activeCompanyId
+                                ? "Select a company to preview the next order ID"
+                                : "Loading next order ID..."
+                              : "Enter a unique order ID"
+                          }
+                          className={`${inputClass} ${
+                            form.order_id_mode === "auto" ? "bg-slate-50" : ""
+                          }`}
+                        />
+                        {form.order_id_mode === "auto" && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              fetchNextOrderId(form.order_id_sequence, activeCompanyId)
+                            }
+                            disabled={loadingOrderId || !activeCompanyId}
+                            className="shrink-0 rounded-xl border border-slate-200 px-3 text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                            title="Refresh next order ID preview"
+                          >
+                            <RefreshCw
+                              size={16}
+                              className={loadingOrderId ? "animate-spin" : ""}
+                            />
+                          </button>
+                        )}
+                      </div>
+                      {form.order_id_mode === "auto" && (
+                        <p className="mt-1.5 text-[11px] text-slate-400">
+                          Order IDs are generated on the server using a global sequence for the
+                          selected format. Your company&apos;s format is locked after the first
+                          auto-generated order.
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 <div>
                   <label className={labelClass}>Order Date</label>
@@ -838,7 +1141,7 @@ const CreateOrderDialog = ({
                   />
                 </div>
 
-                {isAdmin && (
+                {isAdmin && !isCompletePickup && (
                   <div className="md:col-span-2">
                     <label className={labelClass}>Company</label>
                     <select
@@ -1263,6 +1566,7 @@ const CreateOrderDialog = ({
             </section>
           </div>
 
+          {!hideSubmit && (
           <div className="sticky bottom-0 border-t border-slate-100 bg-white px-6 py-4 flex justify-end">
             <button
               type="submit"
@@ -1270,13 +1574,22 @@ const CreateOrderDialog = ({
               className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 text-sm font-bold disabled:opacity-50"
             >
               <Plus size={16} />
-              {submitting ? "Creating Order..." : "Create Order"}
+              {submitting
+                ? isCompletePickup
+                  ? "Creating Order..."
+                  : "Creating Order..."
+                : isCompletePickup
+                ? "Create Order & Assign AWB"
+                : "Create Order"}
             </button>
           </div>
+          )}
         </form>
       </div>
     </div>
   );
-};
+});
+
+CreateOrderDialog.displayName = "CreateOrderDialog";
 
 export default CreateOrderDialog;

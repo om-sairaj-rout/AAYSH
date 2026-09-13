@@ -9,6 +9,14 @@ import {
     failPickupAPI,
 } from "../api/shipingAPI";
 import { formatDisplayDate } from "../utils/dateTime";
+import CompletePickupOrdersDialog from "../components/CompletePickupOrdersDialog";
+import PickupScheduleOrdersDialog from "../components/PickupScheduleOrdersDialog";
+import ReschedulePickupScheduleModal from "../components/ReschedulePickupScheduleModal";
+import PickupBoxesCell from "../components/PickupBoxesCell";
+import {
+  cancelPickupScheduleAPI,
+  reschedulePickupScheduleAPI,
+} from "../api/pickupScheduleAPI";
 
 /* ================= SINGLE FAIL PICKUP REASON MODAL ================= */
 const FailPickupModal = ({ isOpen, onClose, pickup, onConfirmFail }) => {
@@ -236,6 +244,9 @@ const AdminPickupPage = () => {
   const [isBulkFailModalOpen, setIsBulkFailModalOpen] = useState(false);
 
   const [refreshToken, setRefreshToken] = useState(0);
+  const [completeSchedule, setCompleteSchedule] = useState(null);
+  const [rescheduleSchedule, setRescheduleSchedule] = useState(null);
+  const [viewOrdersPickup, setViewOrdersPickup] = useState(null);
 
   const isTodayTab = activeTab === "Today's Pickups";
   const isPendingTab = activeTab === "Pending Pickups";
@@ -261,7 +272,7 @@ const AdminPickupPage = () => {
         const res = await getAdminPickupsAPI({
           tab: ADMIN_TAB_TO_QUERY[activeTab] || "all",
           search: searchQuery.trim() || undefined,
-          userId: selectedCompany,
+          companyId: selectedCompany,
           page: currentPage,
           perPage,
         });
@@ -303,6 +314,7 @@ const AdminPickupPage = () => {
 
   const selectablePickups = filteredPickups.filter(
     (p) =>
+      !p.isPickupSchedule &&
       p.pickupStatus !== "Completed" &&
       p.pickupStatus !== "Failed"
   );
@@ -436,7 +448,10 @@ const AdminPickupPage = () => {
               >
                 <option value="ALL">All Companies</option>
                 {companiesList.map((company) => (
-                  <option key={String(company.id)} value={String(company.id)}>
+                  <option
+                    key={String(company.companyID || company.id)}
+                    value={String(company.companyID || company.id)}
+                  >
                     {company.name || company.email}
                   </option>
                 ))}
@@ -581,6 +596,7 @@ const AdminPickupPage = () => {
                 <th className="p-3.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">Courier</th>
                 <th className="p-3.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">Seller & Location</th>
                 <th className="p-3.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">Pickup Date</th>
+                <th className="p-3.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">No. of Boxes</th>
                 <th className="p-3.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">Status</th>
                 {/* Show Admin Actions Header for actionable tabs */}
                 {isActionTab && (
@@ -592,13 +608,13 @@ const AdminPickupPage = () => {
             <tbody className="divide-y divide-slate-100 text-[13px] font-medium text-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan={isActionTab ? 7 : 5} className="p-8 text-center text-slate-400 font-medium">
+                  <td colSpan={isActionTab ? 8 : 6} className="p-8 text-center text-slate-400 font-medium">
                     Loading admin pickup database...
                   </td>
                 </tr>
               ) : filteredPickups.length === 0 ? (
                 <tr>
-                  <td colSpan={isActionTab ? 7 : 5} className="p-8 text-center text-slate-400 font-medium">
+                  <td colSpan={isActionTab ? 8 : 6} className="p-8 text-center text-slate-400 font-medium">
                     {selectedCompany !== "ALL"
                       ? `No pickups found for this company in "${activeTab}". Try the "All Pickups" or "Completed Pickups" tab.`
                       : "No matching pickup records found."}
@@ -619,6 +635,7 @@ const AdminPickupPage = () => {
                           <input
                             type="checkbox"
                             disabled={
+    pickup.isPickupSchedule ||
     pickup.pickupStatus === "Completed" ||
     pickup.pickupStatus === "Failed"
   }
@@ -631,8 +648,41 @@ const AdminPickupPage = () => {
 
                       {/* Order / AWB */}
                       <td className="p-3.5">
-                        <div className="font-bold text-slate-800">#{pickup.externalOrderId || pickup.orderId}</div>
-                        <div className="font-mono text-xs text-indigo-600 font-semibold">{pickup.awbNumber || 'No AWB'}</div>
+                        {pickup.hasMultipleOrders ? (
+                          <button
+                            type="button"
+                            onClick={() => setViewOrdersPickup(pickup)}
+                            className="text-left group"
+                          >
+                            <div className="font-bold text-indigo-700 group-hover:underline">
+                              {pickup.orderCount} orders
+                            </div>
+                            <div className="text-xs text-slate-500">Click to view all orders</div>
+                          </button>
+                        ) : pickup.isPickupSchedule ? (
+                          pickup.externalOrderId ? (
+                            <>
+                              <div className="font-bold text-slate-800">
+                                #{pickup.externalOrderId}
+                              </div>
+                              <div className="font-mono text-xs text-indigo-600 font-semibold">
+                                {pickup.awbNumber || "No AWB"}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="font-bold text-indigo-700">
+                                {pickup.scheduleId}
+                              </div>
+                              <div className="text-xs text-slate-500">No order yet</div>
+                            </>
+                          )
+                        ) : (
+                          <>
+                            <div className="font-bold text-slate-800">#{pickup.externalOrderId || pickup.orderId}</div>
+                            <div className="font-mono text-xs text-indigo-600 font-semibold">{pickup.awbNumber || 'No AWB'}</div>
+                          </>
+                        )}
                       </td>
 
                       {/* Courier */}
@@ -657,6 +707,11 @@ const AdminPickupPage = () => {
                         </span>
                       </td>
 
+                      {/* No. of Boxes */}
+                      <td className="p-3.5 text-center">
+                        <PickupBoxesCell pickup={pickup} />
+                      </td>
+
                       {/* Status Badge */}
                       <td className="p-3.5">
                         <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${
@@ -665,7 +720,11 @@ const AdminPickupPage = () => {
                           currentStatus === 'Future' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' :
                           'bg-amber-100 text-amber-800 border-amber-200'
                         }`}>
-                          {currentStatus || 'Scheduled'}
+                          {pickup.isPickupSchedule &&
+                          currentStatus === "Completed" &&
+                          pickup.failureReason
+                            ? "Order Created"
+                            : currentStatus || "Scheduled"}
                         </span>
                         {pickup.failureReason && (
                           <p className="text-[11px] text-rose-500 mt-1 max-w-xs truncate" title={pickup.failureReason}>
@@ -677,7 +736,39 @@ const AdminPickupPage = () => {
                       {/* Admin Controls for actionable tabs */}
                       {canWrite && isActionTab && (
                         <td className="p-3.5 text-right whitespace-nowrap">
-                          {!isTerminalStatus ? (
+                          {!isTerminalStatus && pickup.isPickupSchedule ? (
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setCompleteSchedule(pickup)}
+                                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg transition-colors"
+                              >
+                                Complete
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setRescheduleSchedule(pickup)}
+                                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition-colors"
+                              >
+                                Reschedule
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    await cancelPickupScheduleAPI(pickup._id);
+                                    toast.success("Pickup schedule cancelled");
+                                    refreshPickups();
+                                  } catch (err) {
+                                    toast.error(err.message);
+                                  }
+                                }}
+                                className="px-2.5 py-1 text-rose-600 font-bold text-xs rounded-lg transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : !isTerminalStatus ? (
                             <div className="flex items-center justify-end gap-1.5">
                               <button
                                 onClick={() => handleCompletePickup(pickup._id)}
@@ -744,6 +835,41 @@ const AdminPickupPage = () => {
         </div>
 
       </div>
+
+      <CompletePickupOrdersDialog
+        open={Boolean(completeSchedule)}
+        onClose={() => setCompleteSchedule(null)}
+        user={user}
+        isAdmin={true}
+        companiesList={companiesList}
+        pickupSchedule={completeSchedule}
+        onSuccess={() => {
+          setCompleteSchedule(null);
+          refreshPickups();
+        }}
+      />
+
+      <PickupScheduleOrdersDialog
+        open={Boolean(viewOrdersPickup)}
+        pickup={viewOrdersPickup}
+        onClose={() => setViewOrdersPickup(null)}
+      />
+
+      <ReschedulePickupScheduleModal
+        isOpen={Boolean(rescheduleSchedule)}
+        schedule={rescheduleSchedule}
+        onClose={() => setRescheduleSchedule(null)}
+        onConfirm={async (payload) => {
+          try {
+            await reschedulePickupScheduleAPI(rescheduleSchedule._id, payload);
+            toast.success("Pickup rescheduled");
+            setRescheduleSchedule(null);
+            refreshPickups();
+          } catch (err) {
+            toast.error(err.message);
+          }
+        }}
+      />
 
       {/* Single Fail Modal */}
       <FailPickupModal

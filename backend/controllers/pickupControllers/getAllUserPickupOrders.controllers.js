@@ -10,6 +10,13 @@ const {
   buildPaginationMeta,
 } = require("../../utils/pagination");
 const { buildOrderScopeForUser } = require("../../utils/companyScope");
+const {
+  buildScheduleScopeForUser,
+  listSchedulesForPickupTab,
+  countSchedulesByPickupTabs,
+  mergeAndPaginatePickups,
+  addScheduleCounts,
+} = require("../../utils/pickupScheduleListMerge");
 
 const buildTabMatch = (tab) => {
   const todayStart = startOfDayIST(new Date());
@@ -53,19 +60,24 @@ const buildTabMatch = (tab) => {
   }
 };
 
-const formatPickup = (item) => ({
-  _id: String(item._id),
-  orderId: item.order?._id ? String(item.order._id) : undefined,
-  externalOrderId: item.order?.externalOrderId || "",
-  awbNumber: item.awbNumber,
-  courierName: item.courierName,
-  pickupLocation: item.pickupLocation || "",
-  pickupDate: toISTDate(item.pickupDate),
-  pickupTime: item.pickupTime,
-  packagesCount: item.order?.noOfBoxes || 1,
-  pickupStatus: item.pickupStatus,
-  failureReason: item.pickupStatus === "Failed" ? item.failureReason : "",
-});
+const formatPickup = (item) => {
+  const boxes = item.order?.noOfBoxes || 1;
+  return {
+    _id: String(item._id),
+    orderId: item.order?._id ? String(item.order._id) : undefined,
+    externalOrderId: item.order?.externalOrderId || "",
+    awbNumber: item.awbNumber,
+    courierName: item.courierName,
+    pickupLocation: item.pickupLocation || "",
+    pickupDate: toISTDate(item.pickupDate),
+    pickupTime: item.pickupTime,
+    packagesCount: boxes,
+    noOfBoxes: boxes,
+    orderBoxCounts: [boxes],
+    pickupStatus: item.pickupStatus,
+    failureReason: item.pickupStatus === "Failed" ? item.failureReason : "",
+  };
+};
 
 const getUserPickups = async (req, res) => {
   try {
@@ -97,6 +109,7 @@ const getUserPickups = async (req, res) => {
               $project: {
                 externalOrderId: 1,
                 orderItems: 1,
+                noOfBoxes: 1,
               },
             },
           ],
@@ -121,37 +134,19 @@ const getUserPickups = async (req, res) => {
       pipeline.push({ $match: { $or: searchOr } });
     }
 
-    pipeline.push(
-      { $sort: { pickupDate: 1, createdAt: -1 } },
-      {
-        $facet: {
-          metadata: [{ $count: "total" }],
-          counts: [
-            {
-              $lookup: {
-                from: "orders",
-                localField: "orderId",
-                foreignField: "_id",
-                as: "orderForCount",
-                pipeline: [{ $match: orderScope }],
-              },
-            },
-            { $match: { orderForCount: { $ne: [] } } },
-            {
-              $group: {
-                _id: "$pickupStatus",
-                count: { $sum: 1 },
-              },
-            },
-          ],
-          data: [{ $skip: skip }, { $limit: perPage }],
-        },
-      }
-    );
+    pipeline.push({ $sort: { pickupDate: 1, createdAt: -1 } });
 
-    const [result] = await Shipping.aggregate(pipeline);
-    const total = result.metadata[0]?.total || 0;
-    const data = (result.data || []).map(formatPickup);
+    const shipmentRows = (await Shipping.aggregate(pipeline)).map(formatPickup);
+    const scheduleScope = buildScheduleScopeForUser(req.user);
+    const scheduleRows = await listSchedulesForPickupTab({
+      tab,
+      search: searchTerm,
+      baseScope: scheduleScope,
+    });
+    const { data, total } = mergeAndPaginatePickups(shipmentRows, scheduleRows, {
+      skip,
+      perPage,
+    });
 
     const todayStart = startOfDayIST(new Date());
     const todayEnd = endOfDayIST(new Date());
@@ -229,19 +224,21 @@ const getUserPickups = async (req, res) => {
     ]);
 
     const countFacet = countRows[0] || {};
+    const scheduleCounts = await countSchedulesByPickupTabs(scheduleScope);
+    const shipmentCounts = {
+      today: countFacet.today?.[0]?.count || 0,
+      future: countFacet.future?.[0]?.count || 0,
+      failed: countFacet.failed?.[0]?.count || 0,
+      cancelled: countFacet.cancelled?.[0]?.count || 0,
+      completed: countFacet.completed?.[0]?.count || 0,
+      scheduled: countFacet.scheduled?.[0]?.count || 0,
+      all: countFacet.all?.[0]?.count || 0,
+    };
 
     return res.status(200).json({
       success: true,
       data,
-      counts: {
-        today: countFacet.today?.[0]?.count || 0,
-        future: countFacet.future?.[0]?.count || 0,
-        failed: countFacet.failed?.[0]?.count || 0,
-        cancelled: countFacet.cancelled?.[0]?.count || 0,
-        completed: countFacet.completed?.[0]?.count || 0,
-        scheduled: countFacet.scheduled?.[0]?.count || 0,
-        all: countFacet.all?.[0]?.count || 0,
-      },
+      counts: addScheduleCounts(shipmentCounts, scheduleCounts),
       meta: {
         pagination: buildPaginationMeta(total, page, perPage, data.length),
       },

@@ -28,6 +28,7 @@ const buildPickupParams = ({
   tab,
   search,
   userId,
+  companyId,
 } = {}) => {
   const params = new URLSearchParams({
     page: String(page),
@@ -42,7 +43,9 @@ const buildPickupParams = ({
     params.append("search", search);
   }
 
-  if (userId && userId !== "ALL") {
+  if (companyId && companyId !== "ALL") {
+    params.append("company_id", companyId);
+  } else if (userId && userId !== "ALL") {
     params.append("user_id", userId);
   }
 

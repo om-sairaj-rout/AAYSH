@@ -298,6 +298,19 @@ const OrderSchema = new mongoose.Schema(
       index: true,
     },
 
+    isPickupFirst: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    pickupScheduleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PickupSchedule",
+      default: null,
+      index: true,
+    },
+
   pickupPincode: {
       type: String,
       default: "",

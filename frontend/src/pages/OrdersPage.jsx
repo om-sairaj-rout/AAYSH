@@ -12,6 +12,7 @@ import {
   Paperclip,
   Ban,
   Upload,
+  Download,
 } from 'lucide-react';
 import { getOrders, cancelOrder, cancelShipments, getOrderDocumentUrl, uploadOrderDocuments } from '../api/ordersAPI';
 import { useConfirm } from '../components/ConfirmDialog';
@@ -152,12 +153,16 @@ const ViewDropdown = ({
   onViewInvoice,
   onViewManifest,
   onViewReversePickupDoc,
+  onViewCompanyDocument,
+  onDownloadCompanyDocument,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const hasAwb = Boolean(order.shipping?.awbNumber?.trim());
   const showReversePickupDoc = Boolean(order.reversePickup?.documentDownloadable);
-  const hasAnyView = hasAwb || showReversePickupDoc;
+  const companyDocuments = order.companyDocuments || [];
+  const hasAnyView =
+    hasAwb || showReversePickupDoc || companyDocuments.length > 0;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -245,6 +250,52 @@ const ViewDropdown = ({
                 <span>View Reverse Pickup Doc</span>
               </button>
             )}
+            {companyDocuments.length > 0 && (
+              <>
+                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400 bg-slate-50">
+                  Uploaded Documents
+                </div>
+                {companyDocuments.map((doc) => (
+                  <div
+                    key={`${order._id}-${doc.index}`}
+                    className="px-3 py-2 hover:bg-slate-50"
+                  >
+                    <p className="text-[11px] font-semibold text-slate-700 truncate">
+                      {DOCUMENT_TYPE_LABELS[doc.documentType] || doc.documentType}
+                    </p>
+                    <p className="text-[10px] text-slate-400 truncate mb-1.5">
+                      {doc.fileName || 'Document'}
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsOpen(false);
+                          onViewCompanyDocument?.(order, doc);
+                        }}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100"
+                      >
+                        <Eye className="w-3 h-3" />
+                        View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsOpen(false);
+                          onDownloadCompanyDocument?.(order, doc);
+                        }}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-slate-600 bg-slate-100 rounded-md hover:bg-slate-200"
+                      >
+                        <Download className="w-3 h-3" />
+                        Download
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         </div>
       )}
@@ -260,6 +311,7 @@ const OrderDetailsModal = ({
   canWrite,
   onDocumentsUpdated,
   onViewDocument,
+  onDownloadDocument,
 }) => {
   const [pendingDocumentType, setPendingDocumentType] = useState('INVOICE');
   const [uploadingDocument, setUploadingDocument] = useState(false);
@@ -514,14 +566,24 @@ const OrderDetailsModal = ({
                           : ''}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => onViewDocument?.(order, doc)}
-                      className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 font-semibold text-slate-600 hover:bg-slate-50"
-                    >
-                      <Eye size={14} />
-                      View
-                    </button>
+                    <div className="shrink-0 flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onViewDocument?.(order, doc)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 font-semibold text-slate-600 hover:bg-slate-50"
+                      >
+                        <Eye size={14} />
+                        View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDownloadDocument?.(order, doc)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 font-semibold text-slate-600 hover:bg-slate-50"
+                      >
+                        <Download size={14} />
+                        Download
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -778,6 +840,27 @@ const OrdersPage = () => {
         fileName: doc.fileName || 'order-document',
       }
     );
+  };
+
+  const handleDownloadCompanyDocument = async (order, doc) => {
+    try {
+      const { url } = await getOrderDocumentUrl(order._id, doc.index);
+      if (!url) {
+        toast.error('Download URL not available');
+        return;
+      }
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = doc.fileName || 'order-document';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      toast.error(error.message || 'Failed to download document');
+    }
   };
 
   const handleOrderDocumentsUpdated = (orderId, documents) => {
@@ -1489,6 +1572,8 @@ const OrdersPage = () => {
                           onViewInvoice={handleViewInvoice}
                           onViewManifest={handleViewManifest}
                           onViewReversePickupDoc={handleViewReversePickupDoc}
+                          onViewCompanyDocument={handleViewCompanyDocument}
+                          onDownloadCompanyDocument={handleDownloadCompanyDocument}
                         />
                         {canWrite && canCancelShipment(order) && (
                           <button
@@ -1571,6 +1656,7 @@ const OrdersPage = () => {
         canWrite={canWrite}
         onDocumentsUpdated={handleOrderDocumentsUpdated}
         onViewDocument={handleViewCompanyDocument}
+        onDownloadDocument={handleDownloadCompanyDocument}
       />
 
       <CreateOrderDialog
