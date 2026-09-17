@@ -8,6 +8,7 @@ const {
   getNextOrderIdPreview,
   resolveCompanyOrderIdSequence,
   resolveOrderExternalId,
+  assertManualOrderIdAllowed,
 } = require("../utils/generateOrderId");
 
 const TEST_COMPANY_A = "TEST-ORDER-ID-A";
@@ -26,16 +27,19 @@ const ensureCompany = async (companyID, sequence = "alphanumeric") => {
   );
 };
 
-const run = async () => {
-  await mongoose.connect(process.env.MONGODB_URI);
-
+const cleanupTestData = async () => {
   await Order.deleteMany({
     companyID: { $in: [TEST_COMPANY_A, TEST_COMPANY_B] },
   });
-  await OrderIdCounter.deleteMany({ _id: { $in: ["numeric", "alphanumeric"] } });
   await Company.deleteMany({
     companyID: { $in: [TEST_COMPANY_A, TEST_COMPANY_B] },
   });
+};
+
+const run = async () => {
+  await mongoose.connect(process.env.MONGODB_URI);
+
+  await cleanupTestData();
 
   await ensureCompany(TEST_COMPANY_A, "alphanumeric");
   await ensureCompany(TEST_COMPANY_B, "alphanumeric");
@@ -104,6 +108,29 @@ const run = async () => {
     throw new Error("Company A should be locked to numeric after auto order");
   }
 
+  const lockedWithWrongHint = await resolveCompanyOrderIdSequence({
+    companyID: TEST_COMPANY_A,
+    requestedSequence: "alphanumeric",
+  });
+  if (lockedWithWrongHint.sequenceType !== "numeric") {
+    throw new Error("Locked company should ignore mismatched sequence hint");
+  }
+
+  let rejectedInvalidManual = false;
+  try {
+    await assertManualOrderIdAllowed("MINDA001", TEST_COMPANY_A);
+  } catch (error) {
+    rejectedInvalidManual = error.statusCode === 400;
+  }
+  if (!rejectedInvalidManual) {
+    throw new Error("Locked numeric company must reject non-numeric manual IDs");
+  }
+
+  const validManual = await assertManualOrderIdAllowed("100099", TEST_COMPANY_A);
+  if (validManual !== "100099") {
+    throw new Error("Valid numeric manual ID should be accepted");
+  }
+
   await Company.findOneAndUpdate(
     { companyID: TEST_COMPANY_B },
     { orderIdSequenceLocked: false, defaultOrderIdSequence: "alphanumeric" }
@@ -135,13 +162,7 @@ const run = async () => {
     throw new Error(`Duplicate IDs in concurrent allocation: ${allocations.join(", ")}`);
   }
 
-  await Order.deleteMany({
-    companyID: { $in: [TEST_COMPANY_A, TEST_COMPANY_B] },
-  });
-  await OrderIdCounter.deleteMany({ _id: { $in: ["numeric", "alphanumeric"] } });
-  await Company.deleteMany({
-    companyID: { $in: [TEST_COMPANY_A, TEST_COMPANY_B] },
-  });
+  await cleanupTestData();
 
   console.log("Order ID sequence tests passed");
   await mongoose.disconnect();
@@ -149,6 +170,11 @@ const run = async () => {
 
 run().catch(async (error) => {
   console.error(error);
+  try {
+    await cleanupTestData();
+  } catch (cleanupError) {
+    console.error("Cleanup after failure failed:", cleanupError.message);
+  }
   await mongoose.disconnect();
   process.exit(1);
 });

@@ -30,6 +30,7 @@ const PERMISSION_SECTIONS = {
       "/update/courier-priority",
       "/update/order-updates",
       "/update/status",
+      "/update/rates",
     ],
   },
   settings: {

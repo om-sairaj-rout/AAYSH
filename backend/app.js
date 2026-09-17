@@ -23,6 +23,7 @@ const productRouter = require('./routes/product.routes');
 const reversePickupRouter = require('./routes/reversePickup.routes');
 const pickupScheduleRouter = require('./routes/pickupSchedule.routes');
 const ticketRouter = require('./routes/ticket.routes');
+const rateRouter = require('./routes/rate.routes');
 
 connectToDB();
 
@@ -69,6 +70,7 @@ app.use('/api', courierRouter);
 app.use('/api', assignAwbRouter);
 app.use('/api', generateLabelRouter);
 app.use('/api', contactRouter)
+app.use('/api', rateRouter)
 
 
 app.listen(3000, () => {

@@ -26,6 +26,7 @@ const buildCompanyMetaMap = async (companyIDs = []) => {
   companies.forEach((company) => {
     const owner = ownerByCompany.get(company.companyID);
     map.set(company.companyID, {
+      companyName: String(company.companyName || "").trim(),
       consignorName: String(company.companyName || "").trim(),
       consignorPhone: String(owner?.mobile_number || "").trim(),
       companyPickupAddress: formatCompanyAddress(company),
@@ -38,6 +39,7 @@ const buildCompanyMetaMap = async (companyIDs = []) => {
     if (!owner) return;
 
     map.set(companyID, {
+      companyName: String(owner.companyName || owner.fullName || "").trim(),
       consignorName: String(owner.companyName || owner.fullName || "").trim(),
       consignorPhone: String(owner.mobile_number || "").trim(),
       companyPickupAddress: formatCompanyAddress(owner),
@@ -207,6 +209,7 @@ const formatScheduleAsPickupRow = (
     weight: formatted.weight,
     notes: formatted.notes,
     companyID: formatted.companyID,
+    companyName: companyMeta?.companyName || companyMeta?.consignorName || "",
     consignorName: companyMeta?.consignorName || "",
     consignorPhone: companyMeta?.consignorPhone || "",
     companyPickupAddress: companyMeta?.companyPickupAddress || "",

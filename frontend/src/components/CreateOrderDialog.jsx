@@ -440,8 +440,8 @@ const buildSubmitPayload = (form, orderDocuments, { isAdmin, isCompletePickup, p
       payload.company_id = pickupSchedule.companyID;
     }
     payload.order_id_mode = "auto";
-    payload.order_id_sequence = form.order_id_sequence;
     delete payload.order_id;
+    delete payload.order_id_sequence;
     payload.document_types = orderDocuments.map((doc) => doc.documentType);
   }
 

@@ -54,6 +54,40 @@ const readGlobalCounter = async (sequenceType) => {
 const orderIdExists = async (orderId) =>
   Boolean(await Order.exists({ externalOrderId: String(orderId || "").trim() }));
 
+const validationError = (message) => {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+};
+
+const assertManualOrderIdAllowed = async (manualOrderId, companyID) => {
+  const trimmed = String(manualOrderId || "").trim();
+  if (!trimmed) {
+    throw validationError("Order ID is required for manual entry");
+  }
+
+  const resolved = await resolveCompanyOrderIdSequence({
+    companyID,
+    requestedSequence: "",
+  });
+
+  if (resolved.sequenceLocked) {
+    const config = getSequenceConfig(resolved.sequenceType);
+    const parsed = config.parse(trimmed);
+    if (parsed <= 0) {
+      throw validationError(
+        `Order ID "${trimmed}" is not valid for this company's ${config.label} sequence (${config.description}).`
+      );
+    }
+  }
+
+  if (await orderIdExists(trimmed)) {
+    throw validationError("Duplicate Order ID already exists");
+  }
+
+  return trimmed;
+};
+
 const findNextAvailableOrderId = async (sequenceType, startSeq, maxScan = 1000) => {
   const config = getSequenceConfig(sequenceType);
   let seq = Math.max(startSeq, config.startAt);
@@ -107,11 +141,6 @@ const resolveCompanyOrderIdSequence = async ({
   const lockedSequence = company.defaultOrderIdSequence || "alphanumeric";
 
   if (company.orderIdSequenceLocked) {
-    if (requested && requested !== lockedSequence) {
-      throw new Error(
-        `This company uses the ${ORDER_ID_SEQUENCES[lockedSequence].label} order ID sequence and it cannot be changed.`
-      );
-    }
     return {
       companyID: normalizedCompanyID,
       sequenceType: lockedSequence,
@@ -230,10 +259,7 @@ const resolveOrderExternalId = async ({ body = {}, companyID }) => {
   const manualOrderId = String(body.order_id || "").trim();
 
   if (mode === "manual" || (!mode && manualOrderId)) {
-    if (!manualOrderId) {
-      throw new Error("Order ID is required for manual entry");
-    }
-    return manualOrderId;
+    return assertManualOrderIdAllowed(manualOrderId, companyID);
   }
 
   const resolved = await resolveCompanyOrderIdSequence({
@@ -260,6 +286,7 @@ module.exports = {
   allocateOrderExternalId,
   syncOrderIdCounterFromExternalIds,
   resolveOrderExternalId,
+  assertManualOrderIdAllowed,
   formatOrderId,
   orderIdExists,
 };

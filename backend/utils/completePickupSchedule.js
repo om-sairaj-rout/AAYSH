@@ -6,6 +6,7 @@ const {
   parseDocumentTypes,
 } = require("./createOrderWithShipping");
 const Shipping = require("../models/upload/shipping.model");
+const Order = require("../models/upload/order.model");
 const { parseISODateOnly, toISTDate } = require("./dateTime");
 
 const mergeScheduleIntoOrderBody = (schedule, rawBody) => {
@@ -110,35 +111,56 @@ const completePickupScheduleFlow = async ({
 
   const created = [];
 
-  for (const orderInput of ordersInput) {
-    const mergedBody = mergeScheduleIntoOrderBody(schedule, orderInput.rawBody);
-    const { order, shipping } = await createOrderWithShipping({
-      body: mergedBody,
-      user,
-      files: orderInput.files,
-      documentTypes: orderInput.documentTypes,
-      options: {
-        isPickupFirst: true,
-        pickupScheduleId: schedule._id,
-        serviceType: schedule.preferredServiceType || "surface",
-        companyID: schedule.companyID,
-      },
-    });
-
-    if (parsedPickupDate) {
-      await Shipping.updateOne(
-        { _id: shipping._id },
-        {
-          $set: {
-            pickupDate: parsedPickupDate,
-            pickupTime: schedule.pickupTime || "11:00",
-            pickupLocation: schedule.pickupLocation,
-          },
-        }
-      );
+  const rollbackCreatedOrders = async () => {
+    for (const row of created) {
+      if (row.shipping?._id) {
+        await Shipping.deleteOne({ _id: row.shipping._id });
+      }
+      if (row.order?._id) {
+        await Order.deleteOne({ _id: row.order._id });
+      }
     }
+    created.length = 0;
+  };
 
-    created.push({ order, shipping });
+  try {
+    for (const orderInput of ordersInput) {
+      const mergedBody = mergeScheduleIntoOrderBody(schedule, orderInput.rawBody);
+      mergedBody.order_id_mode = "auto";
+      delete mergedBody.order_id;
+      delete mergedBody.order_id_sequence;
+
+      const { order, shipping } = await createOrderWithShipping({
+        body: mergedBody,
+        user,
+        files: orderInput.files,
+        documentTypes: orderInput.documentTypes,
+        options: {
+          isPickupFirst: true,
+          pickupScheduleId: schedule._id,
+          serviceType: schedule.preferredServiceType || "surface",
+          companyID: schedule.companyID,
+        },
+      });
+
+      if (parsedPickupDate) {
+        await Shipping.updateOne(
+          { _id: shipping._id },
+          {
+            $set: {
+              pickupDate: parsedPickupDate,
+              pickupTime: schedule.pickupTime || "11:00",
+              pickupLocation: schedule.pickupLocation,
+            },
+          }
+        );
+      }
+
+      created.push({ order, shipping });
+    }
+  } catch (error) {
+    await rollbackCreatedOrders();
+    throw error;
   }
 
   let awbResults = [];

@@ -83,6 +83,7 @@ const Header = ({ setIsSidebarOpen }) => {
     "/user/remove-account": "Remove User Account",
     "/update/AWB": "AWB Management",
     "/update/status": "Update Status",
+    "/update/rates": "Rate Management",
     "/pickup": "Pickup Management",
     "/pickup/reverse": "Reverse Pickup",
     "/contact": "Support & Complaints",

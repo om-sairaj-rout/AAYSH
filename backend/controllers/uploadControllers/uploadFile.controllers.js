@@ -22,6 +22,7 @@ const {
 } = require("../../utils/dateTime");
 const {
   resolveOrderExternalId,
+  assertManualOrderIdAllowed,
   syncOrderIdCounterFromExternalIds,
 } = require("../../utils/generateOrderId");
 
@@ -161,6 +162,20 @@ const uploadFileController = async (req, res) => {
       const row = rawData[index];
       const providedOrderId = row["Order ID"]?.toString().trim() || "";
       let externalOrderId = providedOrderId;
+
+      if (providedOrderId) {
+        try {
+          externalOrderId = await assertManualOrderIdAllowed(
+            providedOrderId,
+            companyID
+          );
+        } catch (error) {
+          return res.status(400).json({
+            success: false,
+            message: `Row ${index + 2}: ${error.message}`,
+          });
+        }
+      }
 
       if (!externalOrderId) {
         try {

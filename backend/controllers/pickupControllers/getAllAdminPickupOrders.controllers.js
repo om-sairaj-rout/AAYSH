@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Shipping = require("../../models/upload/shipping.model");
 const PickupSchedule = require("../../models/pickupSchedule.model");
 const User = require("../../models/user.model");
+const Company = require("../../models/company.model");
 const { toISTDate, startOfDayIST, endOfDayIST } = require("../../utils/dateTime");
 const {
   parsePagination,
@@ -113,95 +114,31 @@ const resolveCompanyFilterId = async ({ company_id, user_id }) => {
   return String(userFilterId).trim().toUpperCase();
 };
 
+const isTestCompanyId = (companyID) =>
+  /^TEST-ORDER-ID/i.test(String(companyID || "").trim());
+
 const buildAdminCompanyOptions = async () => {
-  const shipmentCompanies = await Shipping.aggregate([
-    {
-      $match: {
-        awbNumber: { $ne: "" },
-        pickupStatus: { $in: ["Scheduled", "Failed", "Completed", "Cancelled"] },
-        shippingStatus: { $ne: "Cancelled" },
-      },
-    },
-    {
-      $lookup: {
-        from: "orders",
-        localField: "orderId",
-        foreignField: "_id",
-        as: "order",
-        pipeline: buildOrderLookupPipeline(),
-      },
-    },
-    { $match: { order: { $ne: [] } } },
-    { $unwind: "$order" },
-    {
-      $group: {
-        _id: "$order.companyID",
-        companyName: { $first: "$order.uploadedBy.companyName" },
-        email: { $first: "$order.uploadedBy.email" },
-      },
-    },
-    { $match: { _id: { $nin: [null, ""] } } },
+  const [companies, owners] = await Promise.all([
+    Company.find({ isActive: { $ne: false } })
+      .select("companyID companyName")
+      .sort({ companyName: 1 })
+      .lean(),
+    User.find({ companyRole: "owner" })
+      .select("companyID email")
+      .lean(),
   ]);
 
-  const scheduleCompanies = await PickupSchedule.aggregate([
-    {
-      $group: {
-        _id: "$companyID",
-      },
-    },
-    { $match: { _id: { $nin: [null, ""] } } },
-    {
-      $lookup: {
-        from: "users",
-        let: { companyId: "$_id" },
-        pipeline: [
-          {
-            $match: {
-              $expr: { $eq: ["$companyID", "$$companyId"] },
-            },
-          },
-          { $limit: 1 },
-          {
-            $project: {
-              companyName: 1,
-              email: 1,
-            },
-          },
-        ],
-        as: "user",
-      },
-    },
-    {
-      $unwind: {
-        path: "$user",
-        preserveNullAndEmptyArrays: true,
-      },
-    },
-    {
-      $project: {
-        _id: 1,
-        companyName: { $ifNull: ["$user.companyName", "$_id"] },
-        email: "$user.email",
-      },
-    },
-  ]);
-
-  const companyMap = new Map();
-
-  [...shipmentCompanies, ...scheduleCompanies].forEach((row) => {
-    const companyID = String(row._id || "").trim().toUpperCase();
-    if (!companyID || companyMap.has(companyID)) return;
-
-    companyMap.set(companyID, {
-      companyID,
-      companyName: row.companyName || companyID,
-      email: row.email || "",
-    });
-  });
-
-  return Array.from(companyMap.values()).sort((a, b) =>
-    String(a.companyName || "").localeCompare(String(b.companyName || ""))
+  const ownerByCompany = new Map(
+    owners.map((owner) => [owner.companyID, owner])
   );
+
+  return companies
+    .filter((company) => !isTestCompanyId(company.companyID))
+    .map((company) => ({
+      companyID: company.companyID,
+      companyName: company.companyName || company.companyID,
+      email: ownerByCompany.get(company.companyID)?.email || "",
+    }));
 };
 
 const buildSearchMatch = (searchTerm) => {

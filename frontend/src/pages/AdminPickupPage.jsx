@@ -452,7 +452,7 @@ const AdminPickupPage = () => {
                     key={String(company.companyID || company.id)}
                     value={String(company.companyID || company.id)}
                   >
-                    {company.name || company.email}
+                    {company.name || company.companyName || company.companyID}
                   </option>
                 ))}
               </select>
@@ -693,7 +693,12 @@ const AdminPickupPage = () => {
 
                       {/* Seller & Location */}
                       <td className="p-3.5">
-                        <div className="font-bold text-slate-800">{pickup.userId?.companyName}</div>
+                        <div className="font-bold text-slate-800">
+                          {pickup.companyName ||
+                            pickup.userId?.companyName ||
+                            pickup.consignorName ||
+                            "—"}
+                        </div>
                         <div className="text-xs text-slate-500">{pickup.pickupLocation}</div>
                       </td>
 

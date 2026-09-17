@@ -61,8 +61,8 @@ const createCustomOrder = async (req, res) => {
       });
     }
 
-    if (error.statusCode === 400) {
-      return res.status(400).json({
+    if (error.statusCode === 400 || error.statusCode === 409) {
+      return res.status(error.statusCode).json({
         success: false,
         error: error.message,
       });
@@ -70,8 +70,7 @@ const createCustomOrder = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      error: "Failed to create order",
-      message: error.message,
+      error: error.message || "Failed to create order",
     });
   }
 };

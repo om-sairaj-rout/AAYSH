@@ -20,6 +20,8 @@ import {
   ArrowLeftRight,
   Headphones,
   RefreshCw,
+  Calculator,
+  IndianRupee,
 } from "lucide-react";
 import { TICKET_UNREAD_CHANGED_EVENT } from "../utils/ticketHelpers";
 import aayshlogo from "../assets/aaysh_logo.png";
@@ -89,6 +91,11 @@ const SideBar = ({ isOpen, setIsOpen }) => {
             { name: "Product Catalog", path: "/catalog/products" },
           ],
         },
+        // {
+        //   name: "Rate Calculator",
+        //   icon: <Calculator size={20} />,
+        //   path: "/rate-calculator",
+        // },
       ],
     },
     {
@@ -123,6 +130,11 @@ const SideBar = ({ isOpen, setIsOpen }) => {
           icon: <SlidersHorizontal size={20} />,
           path: "/update/courier-priority",
         },
+        // {
+        //   name: "Rate Management",
+        //   icon: <IndianRupee size={20} />,
+        //   path: "/update/rates",
+        // },
         {
           name: "Order Update Management",
           icon: <RefreshCw size={20} />,
