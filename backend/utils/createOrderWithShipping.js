@@ -18,6 +18,7 @@ const {
   normalizeCreateOrderPayload,
   validateNormalizedCreateOrder,
 } = require("./normalizeCreateOrderPayload");
+const { enrichNormalizedOrderFromCatalog } = require("./catalogOrderEnrichment");
 
 const { generateUniqueShipmentId } = require("./generateShipmentId");
 
@@ -35,14 +36,7 @@ const createOrderWithShipping = async ({
   documentTypes = [],
   options = {},
 }) => {
-  const normalized = normalizeCreateOrderPayload(body);
-
-  const validationError = validateNormalizedCreateOrder(normalized);
-  if (validationError) {
-    const error = new Error(validationError);
-    error.statusCode = 400;
-    throw error;
-  }
+  let normalized = normalizeCreateOrderPayload(body);
 
   const companyID = String(
     normalized.company_id || user?.companyID || options.companyID || ""
@@ -52,6 +46,18 @@ const createOrderWithShipping = async ({
 
   if (!companyID) {
     const error = new Error("Company ID is required to create an order");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  normalized = await enrichNormalizedOrderFromCatalog({
+    normalized,
+    companyID,
+  });
+
+  const validationError = validateNormalizedCreateOrder(normalized);
+  if (validationError) {
+    const error = new Error(validationError);
     error.statusCode = 400;
     throw error;
   }
