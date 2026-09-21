@@ -5,7 +5,6 @@ const Shipping = require("../../models/upload/shipping.model");
 const getCategory = require("../../utils/categoryMapper");
 const getExpectedHours = require("../../utils/tatMapper");
 const {
-  calculateInvoiceValue,
   calculateItemsSubTotal,
   resolveInvoiceFields,
 } = require("../../utils/invoiceCalculations");
@@ -18,6 +17,7 @@ const {
 } = require("../../utils/phone");
 const { applyAdminDeliveryAttempts } = require("../../utils/deliveryAttemptService");
 const { syncReversePickupFromShipping } = require("../../utils/reversePickupSync");
+const { ensureShippingHasShipmentId } = require("../../utils/generateShipmentId");
 
 const SHIPPING_STATUSES = [
   "Pending",
@@ -616,37 +616,25 @@ const updateOrder = async (req, res) => {
       order.invoiceNo = String(invoice_no).trim();
     }
 
-    const invoiceValueProvided =
-      invoice_value !== undefined &&
-      invoice_value !== null &&
-      String(invoice_value).trim() !== "";
-
-    if (invoiceValueProvided) {
-      const providedValue = Number(invoice_value);
-      if (!Number.isFinite(providedValue) || providedValue < 0) {
-        return res.status(400).json({
-          success: false,
-          message: "invoice_value must be a valid non-negative number.",
-        });
-      }
-      order.invoiceValue = Number(providedValue.toFixed(2));
-    } else {
-      const calculatedInvoiceValue = calculateInvoiceValue({
-        orderItems: order.orderItems || [],
-        shippingCharges: order.shippingCharges,
-        giftwrapCharges: order.giftwrapCharges,
-        transactionCharges: order.transactionCharges,
+    if (
+      invoice_value === undefined ||
+      invoice_value === null ||
+      String(invoice_value).trim() === ""
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "invoice_value is required.",
       });
-
-      if (calculatedInvoiceValue < 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Invoice value cannot be negative.",
-        });
-      }
-
-      order.invoiceValue = calculatedInvoiceValue;
     }
+
+    const providedValue = Number(invoice_value);
+    if (!Number.isFinite(providedValue) || providedValue < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "invoice_value must be a valid non-negative number.",
+      });
+    }
+    order.invoiceValue = Number(providedValue.toFixed(2));
 
     // =========================================
     // Shipping & Logistics (admin only)
@@ -741,6 +729,8 @@ const updateOrder = async (req, res) => {
     // Save
     // =========================================
 
+    await ensureShippingHasShipmentId(shipping);
+
     await order.save();
     await shipping.save();
 
@@ -776,9 +766,16 @@ const updateOrder = async (req, res) => {
   } catch (error) {
     console.error("Update Order Error:", error);
 
-    return res.status(500).json({
+    const statusCode =
+      error?.statusCode ||
+      (error?.name === "ValidationError" ? 400 : 500);
+
+    return res.status(statusCode).json({
       success: false,
-      message: "Failed to update order.",
+      message:
+        statusCode === 400
+          ? error.message || "Invalid order update payload."
+          : "Failed to update order.",
       error: error.message,
     });
   }

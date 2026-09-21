@@ -91,11 +91,11 @@ const SideBar = ({ isOpen, setIsOpen }) => {
             { name: "Product Catalog", path: "/catalog/products" },
           ],
         },
-        // {
-        //   name: "Rate Calculator",
-        //   icon: <Calculator size={20} />,
-        //   path: "/rate-calculator",
-        // },
+        {
+          name: "Rate Calculator",
+          icon: <Calculator size={20} />,
+          path: "/rate-calculator",
+        },
       ],
     },
     {
@@ -130,11 +130,16 @@ const SideBar = ({ isOpen, setIsOpen }) => {
           icon: <SlidersHorizontal size={20} />,
           path: "/update/courier-priority",
         },
-        // {
-        //   name: "Rate Management",
-        //   icon: <IndianRupee size={20} />,
-        //   path: "/update/rates",
-        // },
+        {
+          name: "Rate Management",
+          icon: <IndianRupee size={20} />,
+          path: "/update/rates",
+        },
+        {
+          name: "Invoice Generation",
+          icon: <IndianRupee size={20} />,
+          path: "/update/invoice-generation",
+        },
         {
           name: "Order Update Management",
           icon: <RefreshCw size={20} />,

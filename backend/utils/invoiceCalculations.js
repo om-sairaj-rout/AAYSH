@@ -64,24 +64,26 @@ const resolveInvoiceFields = ({
   const resolvedInvoiceNo =
     providedInvoiceNo || (typeof generateInvoiceNo === "function" ? generateInvoiceNo() : "");
 
-  const calculatedInvoiceValue = calculateInvoiceValue({
-    orderItems: normalizedItems,
-    shippingCharges,
-    giftwrapCharges,
-    transactionCharges,
-  });
+  if (providedInvoiceValue === null || !Number.isFinite(providedInvoiceValue)) {
+    const error = new Error("invoice_value is required");
+    error.statusCode = 400;
+    throw error;
+  }
 
-  const resolvedInvoiceValue =
-    providedInvoiceValue !== null && Number.isFinite(providedInvoiceValue)
-      ? Number(providedInvoiceValue.toFixed(2))
-      : calculatedInvoiceValue;
+  if (providedInvoiceValue < 0) {
+    const error = new Error("invoice_value must be a valid non-negative number");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const resolvedInvoiceValue = Number(providedInvoiceValue.toFixed(2));
 
   return {
     orderItems: normalizedItems,
     invoiceNo: resolvedInvoiceNo,
     invoiceValue: resolvedInvoiceValue,
     subTotal: calculateItemsSubTotal(normalizedItems),
-    invoiceValueProvided: providedInvoiceValue !== null,
+    invoiceValueProvided: true,
   };
 };
 

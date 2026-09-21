@@ -60,6 +60,19 @@ const validationError = (message) => {
   return error;
 };
 
+const assertProvidedOrderIdAllowed = async (orderId) => {
+  const trimmed = String(orderId || "").trim();
+  if (!trimmed) {
+    throw validationError("Order ID is required");
+  }
+
+  if (await orderIdExists(trimmed)) {
+    throw validationError("Duplicate Order ID already exists");
+  }
+
+  return trimmed;
+};
+
 const assertManualOrderIdAllowed = async (manualOrderId, companyID) => {
   const trimmed = String(manualOrderId || "").trim();
   if (!trimmed) {
@@ -81,11 +94,7 @@ const assertManualOrderIdAllowed = async (manualOrderId, companyID) => {
     }
   }
 
-  if (await orderIdExists(trimmed)) {
-    throw validationError("Duplicate Order ID already exists");
-  }
-
-  return trimmed;
+  return assertProvidedOrderIdAllowed(trimmed);
 };
 
 const findNextAvailableOrderId = async (sequenceType, startSeq, maxScan = 1000) => {
@@ -254,17 +263,15 @@ const syncOrderIdCounterFromExternalIds = async (externalOrderIds = []) => {
   );
 };
 
-const resolveOrderExternalId = async ({ body = {}, companyID }) => {
-  const mode = String(body.order_id_mode || "").trim().toLowerCase();
-  const manualOrderId = String(body.order_id || "").trim();
+const orderIdMatchesSequence = (sequenceType, orderId) => {
+  const config = getSequenceConfig(sequenceType);
+  return config.parse(String(orderId || "").trim()) > 0;
+};
 
-  if (mode === "manual" || (!mode && manualOrderId)) {
-    return assertManualOrderIdAllowed(manualOrderId, companyID);
-  }
-
+const allocateOrderIdForCompany = async ({ companyID, requestedSequence = "" }) => {
   const resolved = await resolveCompanyOrderIdSequence({
     companyID,
-    requestedSequence: body.order_id_sequence,
+    requestedSequence,
   });
 
   const orderId = await allocateOrderExternalId(
@@ -279,6 +286,46 @@ const resolveOrderExternalId = async ({ body = {}, companyID }) => {
   return orderId;
 };
 
+/**
+ * Resolve the global external order ID for create/upload/API flows.
+ * - auto: always allocate from the company sequence (ignores order_id).
+ * - manual / default with order_id matching company sequence: strict sequence validation.
+ * - default with order_id not matching ORD format (alphanumeric-locked companies):
+ *   accept the client order id as-is (API partners e.g. Fiberise sending "4807").
+ */
+const resolveOrderExternalId = async ({ body = {}, companyID }) => {
+  const mode = String(body.order_id_mode || "").trim().toLowerCase();
+  const manualOrderId = String(body.order_id || "").trim();
+  const requestedSequence = body.order_id_sequence;
+
+  if (mode === "auto" || mode === "sequence") {
+    return allocateOrderIdForCompany({ companyID, requestedSequence });
+  }
+
+  if (!manualOrderId) {
+    return allocateOrderIdForCompany({ companyID, requestedSequence });
+  }
+
+  const resolved = await resolveCompanyOrderIdSequence({
+    companyID,
+    requestedSequence,
+  });
+
+  if (orderIdMatchesSequence(resolved.sequenceType, manualOrderId)) {
+    return assertManualOrderIdAllowed(manualOrderId, companyID);
+  }
+
+  if (resolved.sequenceLocked && resolved.sequenceType === "alphanumeric") {
+    return assertProvidedOrderIdAllowed(manualOrderId);
+  }
+
+  if (mode === "manual") {
+    return assertManualOrderIdAllowed(manualOrderId, companyID);
+  }
+
+  return allocateOrderIdForCompany({ companyID, requestedSequence });
+};
+
 module.exports = {
   resolveCompanyOrderIdSequence,
   lockCompanyOrderIdSequence,
@@ -286,6 +333,8 @@ module.exports = {
   allocateOrderExternalId,
   syncOrderIdCounterFromExternalIds,
   resolveOrderExternalId,
+  allocateOrderIdForCompany,
+  orderIdMatchesSequence,
   assertManualOrderIdAllowed,
   formatOrderId,
   orderIdExists,

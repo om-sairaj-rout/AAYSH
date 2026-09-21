@@ -19,17 +19,7 @@ const {
   validateNormalizedCreateOrder,
 } = require("./normalizeCreateOrderPayload");
 
-const generateId = () =>
-  Math.floor(10000000 + Math.random() * 90000000).toString();
-
-const generateUniqueShipmentId = async () => {
-  let id;
-  while (true) {
-    id = generateId();
-    const exists = await Shipping.exists({ shipmentId: id });
-    if (!exists) return id;
-  }
-};
+const { generateUniqueShipmentId } = require("./generateShipmentId");
 
 const generateInvoiceNo = () =>
   `INV-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;

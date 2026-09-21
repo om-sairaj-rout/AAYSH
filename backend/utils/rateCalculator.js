@@ -25,7 +25,7 @@ const findMatchingSlab = (slabs = [], weight) => {
         : Number(slab.maxWeight);
 
     if (weight < minWeight) return false;
-    if (maxWeight !== null && Number.isFinite(maxWeight) && weight > maxWeight) {
+    if (maxWeight !== null && Number.isFinite(maxWeight) && weight >= maxWeight) {
       return false;
     }
     return true;

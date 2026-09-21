@@ -22,7 +22,6 @@ const {
 } = require("../../utils/dateTime");
 const {
   resolveOrderExternalId,
-  assertManualOrderIdAllowed,
   syncOrderIdCounterFromExternalIds,
 } = require("../../utils/generateOrderId");
 
@@ -161,34 +160,20 @@ const uploadFileController = async (req, res) => {
     for (let index = 0; index < rawData.length; index += 1) {
       const row = rawData[index];
       const providedOrderId = row["Order ID"]?.toString().trim() || "";
-      let externalOrderId = providedOrderId;
+      let externalOrderId;
 
-      if (providedOrderId) {
-        try {
-          externalOrderId = await assertManualOrderIdAllowed(
-            providedOrderId,
-            companyID
-          );
-        } catch (error) {
-          return res.status(400).json({
-            success: false,
-            message: `Row ${index + 2}: ${error.message}`,
-          });
-        }
-      }
-
-      if (!externalOrderId) {
-        try {
-          externalOrderId = await resolveOrderExternalId({
-            body: { order_id_mode: "auto" },
-            companyID,
-          });
-        } catch (error) {
-          return res.status(400).json({
-            success: false,
-            message: `Row ${index + 2}: ${error.message}`,
-          });
-        }
+      try {
+        externalOrderId = await resolveOrderExternalId({
+          body: providedOrderId
+            ? { order_id: providedOrderId }
+            : { order_id_mode: "auto" },
+          companyID,
+        });
+      } catch (error) {
+        return res.status(400).json({
+          success: false,
+          message: `Row ${index + 2}: ${error.message}`,
+        });
       }
 
       if (seenInFile.has(externalOrderId)) {
@@ -249,6 +234,26 @@ const uploadFileController = async (req, res) => {
 
       const shipmentId =
         await generateUniqueShipmentId();
+
+      const rawInvoiceValue = row["Invoice Value"];
+      if (
+        rawInvoiceValue === undefined ||
+        rawInvoiceValue === null ||
+        String(rawInvoiceValue).trim() === ""
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: `Row ${index + 2}: Invoice Value is required`,
+        });
+      }
+
+      const invoiceValueNumber = Number(rawInvoiceValue);
+      if (!Number.isFinite(invoiceValueNumber) || invoiceValueNumber < 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Row ${index + 2}: Invoice Value must be a valid non-negative number`,
+        });
+      }
 
       const providedInvoiceNo =
         String(row["Invoice No"] || row["Invoice Number"] || "").trim();

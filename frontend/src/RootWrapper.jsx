@@ -10,6 +10,7 @@ import Layout from "./components/Layout.jsx";
 import OrderByDateInfo from "./pages/OrderByDate.jsx";
 import RateCalculator from "./pages/RateCalculator.jsx";
 import RateManagementPage from "./pages/RateManagementPage.jsx";
+import InvoiceGenerationPage from "./pages/InvoiceGenerationPage.jsx";
 import UploadPage from "./pages/UploadPage.jsx";
 import ForgotPassword from "./pages/ForgotPassword.jsx";
 import ResetPassword from "./pages/ResetPassword.jsx";
@@ -78,6 +79,7 @@ const router = createBrowserRouter([
       { path: "/update/serviceability", element: guard("/update/serviceability", <ServiceabilityPage />) },
       { path: "/update/courier-priority", element: guard("/update/courier-priority", <CourierPriorityPage />) },
       { path: "/update/rates", element: guard("/update/rates", <RateManagementPage />) },
+      { path: "/update/invoice-generation", element: guard("/update/invoice-generation", <InvoiceGenerationPage />) },
       { path: "/update/order-updates", element: guard("/update/order-updates", <UpdateOrdersPage />) },
       { path: "/awb/:awbNumber", element: guard("/awb", <AwbPage />) },
       { path: "/pickup", element: guard("/pickup", <PickupRoute />) },

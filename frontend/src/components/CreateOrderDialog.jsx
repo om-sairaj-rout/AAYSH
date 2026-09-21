@@ -420,9 +420,7 @@ const buildSubmitPayload = (form, orderDocuments, { isAdmin, isCompletePickup, p
     transaction_charges: Number(form.transaction_charges) || 0,
   };
 
-  if (String(form.invoice_value).trim() !== "") {
-    payload.invoice_value = Number(form.invoice_value);
-  }
+  payload.invoice_value = Number(form.invoice_value);
 
   if (!isAdmin) {
     delete payload.company_id;
@@ -856,6 +854,17 @@ const CreateOrderDialog = forwardRef(({
     const boxes = Number(form.no_of_boxes);
     if (form.no_of_boxes !== "" && form.no_of_boxes !== undefined && (!Number.isFinite(boxes) || boxes <= 0)) {
       toast.validation("No. of Boxes must be a valid positive number");
+      return false;
+    }
+    const invoiceVal = Number(form.invoice_value);
+    if (
+      form.invoice_value === undefined ||
+      form.invoice_value === null ||
+      String(form.invoice_value).trim() === "" ||
+      !Number.isFinite(invoiceVal) ||
+      invoiceVal < 0
+    ) {
+      toast.validation("Invoice value is required");
       return false;
     }
     return true;
@@ -1398,7 +1407,8 @@ const CreateOrderDialog = forwardRef(({
                   type="number"
                   min="0"
                   step="0.01"
-                  placeholder="Invoice Value (optional — auto-calculated from the product price if left blank)"
+                  placeholder="Invoice Value (required)"
+                  required
                   value={form.invoice_value}
                   onChange={(e) => updateField("invoice_value", e.target.value)}
                   className={inputClass}

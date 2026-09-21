@@ -69,6 +69,44 @@ export const lookupPincodeZoneAPI = async (pincode) => {
   return parseResponse(res);
 };
 
+export const getCompanyRateProfileAPI = async (companyID) => {
+  const res = await fetch(`${BASE}/api/rates/company/${companyID}/profile`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+  return parseResponse(res);
+};
+
+export const updateCompanyRateProfileAPI = async (companyID, profile) => {
+  const res = await fetch(`${BASE}/api/rates/company/${companyID}/profile`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(profile),
+  });
+  return parseResponse(res);
+};
+
+export const getCompanyRateStructureAPI = async (companyID, service) => {
+  const res = await fetch(`${BASE}/api/rates/company/${companyID}/${service}`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+  return parseResponse(res);
+};
+
+export const updateCompanyRateStructureAPI = async (companyID, service, slabs) => {
+  const res = await fetch(`${BASE}/api/rates/company/${companyID}/${service}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ slabs }),
+  });
+  return parseResponse(res);
+};
+
 export const buildEmptySlab = (sortOrder = 0) => ({
   name: "",
   minWeight: 0,

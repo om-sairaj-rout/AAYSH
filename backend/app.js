@@ -24,6 +24,7 @@ const reversePickupRouter = require('./routes/reversePickup.routes');
 const pickupScheduleRouter = require('./routes/pickupSchedule.routes');
 const ticketRouter = require('./routes/ticket.routes');
 const rateRouter = require('./routes/rate.routes');
+const billingRouter = require('./routes/billing.routes');
 
 connectToDB();
 
@@ -71,6 +72,7 @@ app.use('/api', assignAwbRouter);
 app.use('/api', generateLabelRouter);
 app.use('/api', contactRouter)
 app.use('/api', rateRouter)
+app.use('/api', billingRouter)
 
 
 app.listen(3000, () => {

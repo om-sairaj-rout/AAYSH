@@ -5,6 +5,7 @@ const {
   normalizeService,
   calculateRate,
 } = require("../../utils/rateCalculator");
+const { calculateFinalOrderRate } = require("../../utils/calculateFinalOrderRate");
 
 const resolveZone = async ({ zone, destinationPincode }) => {
   if (zone && RATE_ZONES.includes(zone)) {
@@ -34,6 +35,9 @@ const calculateRateController = async (req, res) => {
       height = 0,
       zone,
       destinationPincode,
+      companyID,
+      paymentMethod,
+      invoiceValue,
     } = req.body;
 
     const normalizedService = normalizeService(service);
@@ -48,25 +52,47 @@ const calculateRateController = async (req, res) => {
       });
     }
 
-    const rateDoc = await RateStructure.findOne({ service: normalizedService }).lean();
-    const slabs = rateDoc?.slabs || [];
+    const useFinalRate =
+      companyID ||
+      paymentMethod !== undefined ||
+      invoiceValue !== undefined;
 
-    if (!slabs.length) {
-      return res.status(400).json({
-        success: false,
-        message: `No rate slabs configured for ${normalizedService.toUpperCase()} service.`,
-      });
+    if (useFinalRate) {
+      if (
+        invoiceValue === undefined ||
+        invoiceValue === null ||
+        String(invoiceValue).trim() === ""
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "invoice_value is required for full rate calculation.",
+        });
+      }
     }
 
-    const result = calculateRate({
-      service: normalizedService,
-      weight,
-      length,
-      breadth,
-      height,
-      zone: zoneInfo.zone,
-      slabs,
-    });
+    const result = useFinalRate
+      ? await calculateFinalOrderRate({
+          companyID,
+          service: normalizedService,
+          weight,
+          length,
+          breadth,
+          height,
+          zone: zoneInfo.zone,
+          paymentMethod,
+          invoiceValue,
+        })
+      : calculateRate({
+          service: normalizedService,
+          weight,
+          length,
+          breadth,
+          height,
+          zone: zoneInfo.zone,
+          slabs: (
+            await RateStructure.findOne({ service: normalizedService }).lean()
+          )?.slabs || [],
+        });
 
     if (!result.success) {
       return res.status(400).json({

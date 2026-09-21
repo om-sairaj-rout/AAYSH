@@ -149,6 +149,32 @@ const run = async () => {
     throw new Error(`Alphanumeric sequence mismatch: ${alpha1}, ${alpha2}`);
   }
 
+  await Company.findOneAndUpdate(
+    { companyID: TEST_COMPANY_B },
+    { orderIdSequenceLocked: true, defaultOrderIdSequence: "alphanumeric" }
+  );
+
+  const clientOrderId = `API-CLIENT-${Date.now()}`;
+  const apiStyleRef = await resolveOrderExternalId({
+    body: { order_id: clientOrderId },
+    companyID: TEST_COMPANY_B,
+  });
+  if (apiStyleRef !== clientOrderId) {
+    throw new Error(
+      `API client order_id should be stored as provided, got ${apiStyleRef}`
+    );
+  }
+
+  const apiManualRef = await resolveOrderExternalId({
+    body: { order_id: `${clientOrderId}-M`, order_id_mode: "manual" },
+    companyID: TEST_COMPANY_B,
+  });
+  if (apiManualRef !== `${clientOrderId}-M`) {
+    throw new Error(
+      `Manual client order_id should be accepted for alphanumeric-locked company`
+    );
+  }
+
   const allocations = await Promise.all(
     Array.from({ length: 5 }, () =>
       resolveOrderExternalId({

@@ -42,6 +42,7 @@ const PATH_SECTION_MAP = {
   "/update/courier-priority": "update",
   "/update/order-updates": "update",
   "/update/rates": "update",
+  "/update/invoice-generation": "update",
   "/reports/orders": "orders",
   "/reports/all-orders": "orders",
   "/select-courier": "orders",

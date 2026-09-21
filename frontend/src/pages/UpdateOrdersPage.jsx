@@ -193,9 +193,7 @@ const buildUpdatePayload = (formData) => ({
   total_discount: Number(formData.total_discount || 0),
 
   invoice_no: formData.invoice_no || "",
-  ...(String(formData.invoice_value ?? "").trim() !== ""
-    ? { invoice_value: Number(formData.invoice_value) }
-    : {}),
+  invoice_value: Number(formData.invoice_value),
 
   weight: Number(formData.weight || 0),
   length: Number(formData.length || 0),
@@ -527,6 +525,21 @@ const UpdateOrdersPage = () => {
       setMessage({
         type: "error",
         text: "Customer phone number must be exactly 10 digits.",
+      });
+      return;
+    }
+
+    const invoiceVal = Number(formData.invoice_value);
+    if (
+      formData.invoice_value === undefined ||
+      formData.invoice_value === null ||
+      String(formData.invoice_value).trim() === "" ||
+      !Number.isFinite(invoiceVal) ||
+      invoiceVal < 0
+    ) {
+      setMessage({
+        type: "error",
+        text: "Invoice value is required and must be a valid non-negative number.",
       });
       return;
     }
@@ -1440,10 +1453,11 @@ const UpdateOrdersPage = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-600 font-medium mb-1">Invoice Value (₹)</label>
+                    <label className="block text-slate-600 font-medium mb-1">Invoice Value (₹) *</label>
                     <input
                       type="number"
                       step="0.01"
+                      required
                       name="invoice_value"
                       value={formData.invoice_value ?? ""}
                       onChange={handleChange}

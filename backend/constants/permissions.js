@@ -31,6 +31,7 @@ const PERMISSION_SECTIONS = {
       "/update/order-updates",
       "/update/status",
       "/update/rates",
+      "/update/invoice-generation",
     ],
   },
   settings: {

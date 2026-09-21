@@ -201,6 +201,20 @@ const validateNormalizedCreateOrder = (normalized) => {
     return "Missing required field: pickup_location";
   }
 
+  const invoiceValueRaw = normalized.invoice_value;
+  if (
+    invoiceValueRaw === undefined ||
+    invoiceValueRaw === null ||
+    String(invoiceValueRaw).trim() === ""
+  ) {
+    return "invoice_value is required";
+  }
+
+  const invoiceValueNumber = Number(invoiceValueRaw);
+  if (!Number.isFinite(invoiceValueNumber) || invoiceValueNumber < 0) {
+    return "invoice_value must be a valid non-negative number";
+  }
+
   if (!/^\d{6}$/.test(normalized.destinationPincode)) {
     return "Missing or invalid destination pincode (expected 6-digit zip / billing_pincode)";
   }

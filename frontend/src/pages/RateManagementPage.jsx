@@ -13,12 +13,15 @@ import {
 } from "lucide-react";
 import { canAccess } from "../utils/permissions";
 import { toast } from "../utils/toast";
+import { getCompanies } from "../api/companyAPI";
 import {
   RATE_ZONES,
   RATE_SERVICES,
   buildEmptySlab,
-  getRateStructureAPI,
-  updateRateStructureAPI,
+  getCompanyRateProfileAPI,
+  updateCompanyRateProfileAPI,
+  getCompanyRateStructureAPI,
+  updateCompanyRateStructureAPI,
 } from "../api/rateAPI";
 
 const SERVICE_ICONS = {
@@ -36,17 +39,52 @@ const RateManagementPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isModified, setIsModified] = useState(false);
+  const [companies, setCompanies] = useState([]);
+  const [selectedCompanyID, setSelectedCompanyID] = useState("");
+  const [profile, setProfile] = useState({
+    rovIncluded: false,
+    docChargeBelow3kg: 0,
+    docChargeAbove3kg: 0,
+    docChargePrime: 0,
+    fuelSurchargePercent: 0,
+  });
+  const [profileModified, setProfileModified] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const selectedSlab = slabs[selectedIndex] || null;
 
-  const loadRates = async (service) => {
+  useEffect(() => {
+    getCompanies()
+      .then((res) => {
+        const list = res.companies || res.data || [];
+        setCompanies(list);
+        if (!selectedCompanyID && list.length > 0) {
+          setSelectedCompanyID(list[0].companyID);
+        }
+      })
+      .catch(() => setCompanies([]));
+  }, []);
+
+  const loadRates = async (service, companyID) => {
+    if (!companyID) {
+      setSlabs([]);
+      setSelectedIndex(-1);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const res = await getRateStructureAPI(service);
-      const nextSlabs = res.data?.slabs || [];
+      const [rateRes, profileRes] = await Promise.all([
+        getCompanyRateStructureAPI(companyID, service),
+        getCompanyRateProfileAPI(companyID),
+      ]);
+      const nextSlabs = rateRes.data?.slabs || [];
       setSlabs(nextSlabs);
+      setProfile(profileRes.data?.profile || profile);
       setSelectedIndex(nextSlabs.length > 0 ? 0 : -1);
       setIsModified(false);
+      setProfileModified(false);
     } catch (error) {
       toast.error(error.message || "Failed to load rate structure");
       setSlabs([]);
@@ -57,8 +95,8 @@ const RateManagementPage = () => {
   };
 
   useEffect(() => {
-    loadRates(activeService);
-  }, [activeService]);
+    loadRates(activeService, selectedCompanyID);
+  }, [activeService, selectedCompanyID]);
 
   const updateSlabs = (nextSlabs) => {
     setSlabs(nextSlabs);
@@ -112,6 +150,10 @@ const RateManagementPage = () => {
 
   const handleSave = async () => {
     if (!canWrite) return;
+    if (!selectedCompanyID) {
+      toast.validation("Select a company");
+      return;
+    }
 
     for (const [index, slab] of slabs.entries()) {
       if (!String(slab.name || "").trim()) {
@@ -131,7 +173,11 @@ const RateManagementPage = () => {
             ? null
             : Number(slab.maxWeight),
       }));
-      const res = await updateRateStructureAPI(activeService, payload);
+      const res = await updateCompanyRateStructureAPI(
+        selectedCompanyID,
+        activeService,
+        payload
+      );
       setSlabs(res.data?.slabs || payload);
       setIsModified(false);
       toast.success("Rate structure saved successfully");
@@ -140,6 +186,25 @@ const RateManagementPage = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!canWrite || !selectedCompanyID) return;
+    try {
+      setSavingProfile(true);
+      await updateCompanyRateProfileAPI(selectedCompanyID, profile);
+      setProfileModified(false);
+      toast.success("Company charge settings saved");
+    } catch (error) {
+      toast.error(error.message || "Failed to save company profile");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const updateProfileField = (field, value) => {
+    setProfile((prev) => ({ ...prev, [field]: value }));
+    setProfileModified(true);
   };
 
   const serviceLabel = useMemo(
@@ -156,19 +221,134 @@ const RateManagementPage = () => {
         <div>
           <h1 className="text-2xl font-bold text-[#1B2B4B]">Rate Management</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Configure dynamic weight slabs and zone rates for SUR, AIR, and PRIME services.
+            Configure per-company weight slabs, ROV, DOC, and fuel surcharge.
           </p>
         </div>
-        {canWrite && (
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving || !isModified}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold disabled:opacity-50"
+        <div className="flex flex-wrap gap-2">
+          {canWrite && selectedCompanyID && (
+            <button
+              type="button"
+              onClick={handleSaveProfile}
+              disabled={savingProfile || !profileModified}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-sm font-bold disabled:opacity-50"
+            >
+              <Save size={16} />
+              {savingProfile ? "Saving..." : "Save Charges"}
+            </button>
+          )}
+          {canWrite && (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving || !isModified}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold disabled:opacity-50"
+            >
+              <Save size={16} />
+              {saving ? "Saving..." : "Save Slabs"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+            Company
+          </label>
+          <select
+            value={selectedCompanyID}
+            onChange={(e) => setSelectedCompanyID(e.target.value)}
+            className={inputClass}
           >
-            <Save size={16} />
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
+            <option value="">Select company</option>
+            {companies.map((company) => (
+              <option key={company.companyID} value={company.companyID}>
+                {company.companyName} ({company.companyID})
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-slate-500 mt-1">
+            Rates apply only to the selected company. Add slabs here before billing.
+          </p>
+        </div>
+
+        {selectedCompanyID && (
+          <div className="bg-white rounded-2xl border border-slate-100 p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                ROV
+              </label>
+              <select
+                disabled={!canWrite}
+                value={profile.rovIncluded ? "included" : "not_included"}
+                onChange={(e) =>
+                  updateProfileField("rovIncluded", e.target.value === "included")
+                }
+                className={inputClass}
+              >
+                <option value="not_included">Not Included</option>
+                <option value="included">Included (0.3% of invoice value)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                Fuel Surcharge (%)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                disabled={!canWrite}
+                value={profile.fuelSurchargePercent}
+                onChange={(e) =>
+                  updateProfileField("fuelSurchargePercent", e.target.value)
+                }
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                DOC — Below 3 kg (₹)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                disabled={!canWrite}
+                value={profile.docChargeBelow3kg}
+                onChange={(e) => updateProfileField("docChargeBelow3kg", e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                DOC — Above 3 kg (₹)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                disabled={!canWrite}
+                value={profile.docChargeAbove3kg}
+                onChange={(e) => updateProfileField("docChargeAbove3kg", e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                DOC — Prime (₹)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                disabled={!canWrite}
+                value={profile.docChargePrime}
+                onChange={(e) => updateProfileField("docChargePrime", e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
         )}
       </div>
 
