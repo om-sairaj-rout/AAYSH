@@ -251,6 +251,23 @@ const exportSavedBillingInvoicePdf = async (req, res) => {
   }
 };
 
+const deleteSavedBillingInvoice = async (req, res) => {
+  try {
+    const record = await BillingInvoiceRecord.findByIdAndDelete(req.params.id);
+    if (!record) {
+      return res.status(404).json({ success: false, message: "Saved invoice not found." });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Saved invoice deleted.",
+      data: { id: record._id, invoiceNumber: record.invoiceNumber },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 const exportSavedBillingInvoiceExcel = async (req, res) => {
   try {
     const record = await BillingInvoiceRecord.findById(req.params.id).lean();
@@ -281,4 +298,5 @@ module.exports = {
   listBillingInvoiceHistory,
   exportSavedBillingInvoicePdf,
   exportSavedBillingInvoiceExcel,
+  deleteSavedBillingInvoice,
 };

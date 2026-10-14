@@ -137,3 +137,15 @@ export const downloadSavedBillingInvoiceExcelAPI = async (id) =>
     `${BASE}/api/billing/invoice/history/${id}/excel`,
     "tax-invoice.xlsx"
   );
+
+export const deleteSavedBillingInvoiceAPI = async (id) => {
+  const res = await fetch(`${BASE}/api/billing/invoice/history/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to delete saved invoice");
+  }
+  return data;
+};

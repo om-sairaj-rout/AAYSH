@@ -4,7 +4,7 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, ".env") });
 
 const connectToDB = require("./config/db");
 const authRouter = require('./routes/auth.routes');

@@ -1,5 +1,8 @@
 const crypto = require("crypto");
 const path = require("path");
+const dotenv = require("dotenv");
+
+dotenv.config({ path: path.join(__dirname, "..", ".env") });
 const {
   S3Client,
   PutObjectCommand,

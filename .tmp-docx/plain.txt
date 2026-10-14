@@ -1,0 +1,274 @@
+﻿
+LOGISTICS MANAGEMENT PORTAL
+PROJECT PROPOSAL & QUOTATION
+1. Executive Summary
+This document outlines the scope, deliverables, pricing, and payment terms for the development and customization of a Custom Logistics & Shipment Management Web Portal.
+The proposed solution is a web-based business operations portal for managing orders, shipments, AWB assignment, pickup operations, reporting, and customer shipment tracking. The base system is already established, enabling faster delivery and cost-effective implementation compared to building from scratch.
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+2. Project
+Name | Custom Logistics & Shipment Management Portal |
+Type | Web Application (Admin Portal + User Portal + Public Tracking) |
+Responsive web application (desktop & mobile browsers) |
+Objective
+To provide Client with a centralized platform to:
+Manage customer orders and shipments
+Upload and process orders in bulk
+Assign AWB numbers and generate shipping documents
+Manage pickup and reverse pickup operations
+Monitor performance through dashboards and reports
+Allow end customers to track shipments online
+Handle support requests through an integrated ticketing system
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+3. Package Options & Pricing
+PACKAGE A â€” MVP (Minimum Viable Product)
+Ideal for: Businesses that want to start quickly with core operations.
+Included Features
+User registration and login system
+Admin panel (basic)
+Manual order creation
+Bulk order upload via Excel
+Order listing, search, and view
+Basic order status management
+AWB assignment (manual / system-assisted)
+Public shipment tracking page (track by AWB)
+Deployment and setup
+15 days post-launch bug-fix support
+Not Included in MVP
+Advanced dashboard & analytics
+Pickup scheduling module
+Reverse pickup module
+Support ticket system
+Advanced role-based permissions
+Label, Invoice & manifest generation
+Company team management
+Product catalog
+Excel advanced reports
+MVP Pricing
+(INR) | Cost | â‚¹70,000 | Seventy Thousand Only* | |
+MVP Payment Terms
+Due | Amount |
+On project commencement | â‚¹21,000 (30%) |
+Completion
+
+On final delivery & handover
+â‚¹49,000 (70%)
+
+â‚¹70,000 |
+Timeline: 2â€“3 weeks from receipt of advance payment
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+PACKAGE B â€” FULL PORTAL (Recommended)
+*Complete Logistics Operations System*
+Ideal for: Businesses that require a complete end-to-end logistics operations platform.
+Included Features
+Authentication & User Management
+User login and logout
+Forgot password / reset password
+Admin and user roles
+Company-based multi-user access
+Role-based permissions (read/write access control)
+Company team management
+Order Management
+Manual order creation
+Bulk order upload via Excel
+Order listing with search and filters
+Order view, edit, and update
+Order cancellation
+Delivery address updates
+Order document upload (invoice, e-way bill, etc.)
+Product catalog integration
+AWB & Courier Management
+AWB pool management
+AWB assignment to orders
+Courier management
+Serviceability management ( pin code â€“ based )
+Courier priority configuration
+Document Generation
+Shipping label PDF (with barcode)
+Invoice PDF generation
+Manifest PDF generation
+Branded documents with company logo
+Pickup Management
+User pickup requests
+Admin pickup management
+Pickup scheduling
+Pickup reschedule, cancel, and complete workflows
+Reverse Pickup
+Reverse pickup request creation
+Admin approval workflow
+Reverse pickup tracking and document management
+Tracking System
+Internal shipment tracking
+Public customer tracking page
+Tracking status updates
+Dashboard & Reports
+Business analytics dashboard
+Order and shipment statistics
+Revenue and performance insights
+Order reports by date
+Excel export and report downloads
+Bulk status update via Excel
+Support System
+Support ticket system
+Ticket conversation thread
+File attachments on tickets
+Admin ticket management panel
+Public Website
+Professional landing/home page
+Shipment tracking from homepage
+Contact / inquiry section
+Deployment & Support
+Server and application deployment assistance
+Database setup and basic configuration
+30 days post-launch bug-fix warranty
+Full Portal Pricing
+(INR) | Cost | â‚¹1,00,000 | Lakh Only* | |
+Full Portal
+Payment Terms
+Due | Amount |
+On project commencement | â‚¹30,000 (30%) |
+Completion
+
+On final delivery & handover
+â‚¹70,000 (70%)
+
+â‚¹1,00,000 |
+Timeline: 4â€“5 weeks from receipt of advance payment
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+4. Package Comparison
+Feature
+MVP 
+Full Portal
+Login & Admin Panel
+âœ…
+âœ…
+Order Create & Upload
+âœ…
+âœ…
+Order Management
+Basic
+Full
+AWB Assignment
+âœ…
+âœ…
+Shipping Labels
+âœ…
+âœ…
+Public Tracking
+âœ…
+âœ…
+Dashboard & Analytics
+âŒ
+âœ…
+Pickup Management
+âŒ
+âœ…
+Reverse Pickup
+âŒ
+âœ…
+Support Tickets
+âŒ
+âœ…
+Team & Permissions
+âŒ
+âœ…
+Label, Invoice & Manifest
+âŒ
+âœ…
+Excel Reports
+âŒ
+âœ…
+Product Catalog
+âŒ
+âœ…
+Post-Launch Support
+15 days
+30 days
+Total Price
+â‚¹70,000
+â‚¹1,00,000
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+5. Optional
+Add-On Services (INR) |
+maintenance & support (bug fixes, minor updates) | â‚¹6,000 / month |
+courier API integration (per courier) | â‚¹10,000 â€“ â‚¹20,000 |
+custom feature development | â‚¹5,000 â€“ â‚¹15,000 per feature (quoted before work)
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+6. Costs Borne by Client
+The following are not included in the project quotation and shall be paid directly by the client:
+Domain name
+Hosting (frontend & backend server)
+Database hosting
+File storage (e.g. AWS S3)
+Email service
+SSL and other third-party service charges
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+7. Payment Terms
+Work commences only after receipt of advance payment.
+Payment mode: Bank Transfer / UPI
+Completion payment is due upon final delivery, testing, and handover of the agreed scope.
+Advance payment is non-refundable once development work has commenced.
+Development may be paused if completion payment is delayed beyond 7 days of delivery.
+Payment Details
+Account Name: [Your Name / Business Name]
+Bank Name: [Bank Name]
+Account Number: [XXXXXXXXXXXX]
+IFSC Code: [XXXXXXXXX]
+UPI ID: [yourname@upi]
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+8. Client Responsibilities
+The client agrees to provide:
+Company logo, branding assets, and company details
+Timely feedback on progress (within 3â€“5 business days)
+Payment as per agreed schedule
+One designated point of contact for project communication
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+9. Scope Change Policy
+Any feature not listed in the selected package is treated as a change request.
+Change requests will be quoted separately before implementation.
+Timeline may be revised for approved change requests.
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+10. Warranty & Support
+Warranty Period | Coverage | 15 days from go-live | Bug fixes only | 
+30 days from go-live | Bug fixes only |
+Warranty does not cover new feature requests, hosting issues, third-party API failures, or issues after the warranty period. Post-warranty support is available under the optional monthly maintenance plan (â‚¹6,000/month).
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+11. Intellectual Property
+Upon full and final payment, the client receives full rights to use the deployed, customized portal for their business. Source code transfer can be provided upon final payment if mutually agreed.
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+12. Acceptance & Sign-Off
+Selected Package (tick one):
+[ ] Package A
+â€” MVP â€” â‚¹70,000
+[ ] Package B
+â€” Full Portal â€” â‚¹1,00,000 (Recommended)
+Optional
+Add-Ons:
+[ ] Monthly
+Maintenance â€” â‚¹6,000/month
+[ ] Courier API
+Integration â€” â‚¹___________
+[ ] Other:
+_________________________ â€” â‚¹___________
+Total Agreed
+Amount: â‚¹_________________
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Client Name: _________________________________
+Designation: _________________________________
+Company: _________________________________
+Signature: _________________________________
+Date: _________________________________
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Developer Name: Om sairaj rout
+Signature: _________________________________
+Date: _________________________________
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Contact
+Om sairaj rout
+ðŸ“ž +91 9319670744
+ðŸ“§ omsairajraut@gmail.com
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+*This document is confidential and intended solely for the named client.*
+
+DATE : 13-09-2026
+[DD/MM/YYYY]/MM/YYYY]
+

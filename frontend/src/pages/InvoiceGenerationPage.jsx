@@ -7,6 +7,7 @@ import {
   Upload,
   Save,
   History,
+  Trash2,
 } from "lucide-react";
 import { getCompanies } from "../api/companyAPI";
 import {
@@ -17,6 +18,7 @@ import {
   listBillingInvoiceHistoryAPI,
   downloadSavedBillingInvoicePdfAPI,
   downloadSavedBillingInvoiceExcelAPI,
+  deleteSavedBillingInvoiceAPI,
 } from "../api/billingAPI";
 import { toast } from "../utils/toast";
 import { useSelector } from "react-redux";
@@ -230,6 +232,23 @@ const InvoiceGenerationPage = () => {
       await downloadSavedBillingInvoiceExcelAPI(id);
     } catch (error) {
       toast.error(error.message || "Excel download failed");
+    } finally {
+      setHistoryExporting("");
+    }
+  };
+
+  const handleDeleteHistory = async (row) => {
+    const label = row.invoiceNumber || row._id;
+    if (!window.confirm(`Delete saved invoice ${label}? This cannot be undone.`)) {
+      return;
+    }
+    try {
+      setHistoryExporting(`delete-${row._id}`);
+      await deleteSavedBillingInvoiceAPI(row._id);
+      toast.success("Saved invoice deleted");
+      loadHistory(historyMonth);
+    } catch (error) {
+      toast.error(error.message || "Failed to delete saved invoice");
     } finally {
       setHistoryExporting("");
     }
@@ -753,6 +772,18 @@ const InvoiceGenerationPage = () => {
                           <FileSpreadsheet size={12} />
                           {historyExporting === `excel-${row._id}` ? "..." : "Excel"}
                         </button>
+                        {canWrite && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteHistory(row)}
+                            disabled={Boolean(historyExporting)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold disabled:opacity-50"
+                            title="Delete saved invoice"
+                          >
+                            <Trash2 size={12} />
+                            {historyExporting === `delete-${row._id}` ? "..." : "Delete"}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

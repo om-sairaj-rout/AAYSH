@@ -9,6 +9,7 @@ const {
   listBillingInvoiceHistory,
   exportSavedBillingInvoicePdf,
   exportSavedBillingInvoiceExcel,
+  deleteSavedBillingInvoice,
 } = require("../controllers/billingControllers/billingInvoice.controllers");
 
 billingRouter.post(
@@ -58,6 +59,13 @@ billingRouter.get(
   checkAuth,
   checkPermission("update", "read"),
   exportSavedBillingInvoiceExcel
+);
+
+billingRouter.delete(
+  "/billing/invoice/history/:id",
+  checkAuth,
+  checkPermission("update", "write"),
+  deleteSavedBillingInvoice
 );
 
 module.exports = billingRouter;
