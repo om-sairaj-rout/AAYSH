@@ -1,6 +1,13 @@
+const path = require("path");
+const fs = require("fs");
 const Order = require("../../models/upload/order.model");
 const { userOwnsOrder } = require("../../utils/companyScope");
 const { attachDocumentDownloadUrls } = require("../../utils/orderDocuments");
+const {
+  isLocalDocumentKey,
+  resolveLocalDocumentPath,
+  LOCAL_BUCKET,
+} = require("../../utils/s3");
 
 const getOrderDocumentUrl = async (req, res) => {
   try {
@@ -35,6 +42,24 @@ const getOrderDocumentUrl = async (req, res) => {
         success: false,
         message: "Document not found",
       });
+    }
+
+    if (
+      document.s3Bucket === LOCAL_BUCKET ||
+      isLocalDocumentKey(document.s3Key)
+    ) {
+      const filePath = resolveLocalDocumentPath(document.s3Key);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({
+          success: false,
+          message: "Document file not found on server",
+        });
+      }
+
+      return res.download(
+        filePath,
+        document.fileName || path.basename(filePath)
+      );
     }
 
     const [withUrl] = await attachDocumentDownloadUrls([document]);
