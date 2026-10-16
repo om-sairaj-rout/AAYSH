@@ -10,6 +10,7 @@ const {
   resolveBillingMonthFromMeta,
   prepareInvoiceSnapshot,
 } = require("../../utils/billingInvoicePersist");
+const { recalculateInvoiceLinesFromRates } = require("../../utils/billingInvoiceRecalculate");
 
 const applyCompanyStateCode = (invoice) => {
   if (!invoice?.company) return invoice;
@@ -24,7 +25,11 @@ const applyCompanyStateCode = (invoice) => {
 
 const resolveInvoicePayload = async (body) => {
   if (body?.invoice && Array.isArray(body.invoice.lines)) {
-    const invoice = applyCompanyStateCode(recalculateInvoiceTotals(body.invoice));
+    let invoice = body.invoice;
+    if (body.recalculateRates) {
+      invoice = await recalculateInvoiceLinesFromRates(invoice);
+    }
+    invoice = applyCompanyStateCode(recalculateInvoiceTotals(invoice));
     return { success: true, ...invoice };
   }
 
@@ -62,10 +67,10 @@ const exportBillingInvoicePdf = async (req, res) => {
       return res.status(400).json({ success: false, message: invoice.message });
     }
 
-    if (!invoice.lines.length) {
+    if (!invoice.lines?.length) {
       return res.status(400).json({
         success: false,
-        message: "No billable AWBs found for export.",
+        message: "Invoice has no lines to export.",
         errors: invoice.errors,
       });
     }
@@ -92,7 +97,7 @@ const exportBillingInvoiceExcel = async (req, res) => {
     if (!invoice.lines.length) {
       return res.status(400).json({
         success: false,
-        message: "No billable AWBs found for export.",
+        message: "Invoice has no lines to export.",
         errors: invoice.errors,
       });
     }

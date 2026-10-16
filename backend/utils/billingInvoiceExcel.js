@@ -93,7 +93,12 @@ const buildExcelBuffer = (invoice) => {
     return row;
   };
 
-  rows.push(summaryRow("Amount:", formatMoney(totals.freightSubtotal)));
+  rows.push(
+    summaryRow(
+      "Amount:",
+      formatMoney(totals.linesSubtotal ?? totals.subtotalBeforeFuel ?? 0)
+    )
+  );
   rows.push(
     summaryRow(
       `Fuel Surcharge@ ${Number(totals.fuelSurchargePercent || 0)} %`,

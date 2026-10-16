@@ -78,9 +78,22 @@ const calculateFinalOrderRate = async ({
   let slabSource = "provided";
 
   if (!skipSlabResolve && (!resolvedSlabs || !resolvedSlabs.length)) {
-    const resolved = await resolveSlabsForCompany(companyID, normalizedService);
+    const hasCompany = Boolean(
+      String(companyID || "").trim()
+    );
+    const resolved = await resolveSlabsForCompany(companyID, normalizedService, {
+      allowGlobalFallback: !hasCompany,
+    });
     resolvedSlabs = resolved.slabs;
     slabSource = resolved.source;
+    if (!resolvedSlabs?.length) {
+      return {
+        success: false,
+        message:
+          resolved.message ||
+          `No rate slabs configured for ${normalizedService} service.`,
+      };
+    }
   }
 
   if (!resolvedSlabs?.length) {

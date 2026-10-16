@@ -1,4 +1,3 @@
-const RateStructure = require("../../models/rateStructure.model");
 const PincodeServiceability = require("../../models/upload/serviceability.model");
 const { RATE_ZONES } = require("../../constants/rateZones");
 const {
@@ -6,6 +5,8 @@ const {
   calculateRate,
 } = require("../../utils/rateCalculator");
 const { calculateFinalOrderRate } = require("../../utils/calculateFinalOrderRate");
+const { resolveSlabsForCompany } = require("../../utils/resolveCompanyRateSlabs");
+const { resolveRateCompanyID } = require("../../utils/companyScope");
 
 const resolveZone = async ({ zone, destinationPincode }) => {
   if (zone && RATE_ZONES.includes(zone)) {
@@ -41,6 +42,14 @@ const calculateRateController = async (req, res) => {
     } = req.body;
 
     const normalizedService = normalizeService(service);
+    const companyScope = resolveRateCompanyID(req, companyID);
+    if (!companyScope.ok) {
+      return res.status(companyScope.status).json({
+        success: false,
+        message: companyScope.message,
+      });
+    }
+    const normalizedCompanyID = companyScope.companyID;
     const zoneInfo = await resolveZone({ zone, destinationPincode });
 
     if (!zoneInfo.zone) {
@@ -53,7 +62,6 @@ const calculateRateController = async (req, res) => {
     }
 
     const useFinalRate =
-      companyID ||
       paymentMethod !== undefined ||
       invoiceValue !== undefined;
 
@@ -70,9 +78,24 @@ const calculateRateController = async (req, res) => {
       }
     }
 
+    const slabResolve = await resolveSlabsForCompany(
+      normalizedCompanyID,
+      normalizedService,
+      { allowGlobalFallback: !normalizedCompanyID }
+    );
+
+    if (!slabResolve.slabs?.length) {
+      return res.status(400).json({
+        success: false,
+        message:
+          slabResolve.message ||
+          `No rate slabs configured for ${normalizedService} service.`,
+      });
+    }
+
     const result = useFinalRate
       ? await calculateFinalOrderRate({
-          companyID,
+          companyID: normalizedCompanyID,
           service: normalizedService,
           weight,
           length,
@@ -81,6 +104,8 @@ const calculateRateController = async (req, res) => {
           zone: zoneInfo.zone,
           paymentMethod,
           invoiceValue,
+          slabs: slabResolve.slabs,
+          skipSlabResolve: true,
         })
       : calculateRate({
           service: normalizedService,
@@ -89,9 +114,7 @@ const calculateRateController = async (req, res) => {
           breadth,
           height,
           zone: zoneInfo.zone,
-          slabs: (
-            await RateStructure.findOne({ service: normalizedService }).lean()
-          )?.slabs || [],
+          slabs: slabResolve.slabs,
         });
 
     if (!result.success) {
@@ -106,6 +129,8 @@ const calculateRateController = async (req, res) => {
       success: true,
       data: {
         ...result,
+        slabSource: slabResolve.source,
+        companyID: normalizedCompanyID || null,
         zoneSource: zoneInfo.source,
         destinationPincode: zoneInfo.pincode || destinationPincode || null,
       },

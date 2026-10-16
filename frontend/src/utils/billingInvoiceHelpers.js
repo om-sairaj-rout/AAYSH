@@ -58,24 +58,78 @@ export const parseAwbsFromUploadFile = async (file) => {
 
 const round2 = (value) => Number(Number(value || 0).toFixed(2));
 
+/** Empty string while typing clears to null; totals treat null as 0. */
+export const parseOptionalNumber = (raw) => {
+  const trimmed = String(raw ?? "").trim();
+  if (trimmed === "" || trimmed === "-") return null;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? n : null;
+};
+
+export const numericInputValue = (value) =>
+  value === null || value === undefined ? "" : String(value);
+
+const toCalcNumber = (value) => {
+  if (value === null || value === undefined || value === "") return 0;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+};
+
 const lineFreightAmount = (line) =>
-  Number(line.amount ?? line.breakdown?.weightSlabRate ?? 0) || 0;
+  toCalcNumber(line.amount ?? line.breakdown?.weightSlabRate);
 
 const lineRovCharge = (line) =>
-  Number(line.rovChg ?? line.breakdown?.rovCharge ?? 0) || 0;
+  line.rovChg === null
+    ? 0
+    : toCalcNumber(line.rovChg ?? line.breakdown?.rovCharge);
 
-const lineDocCharge = (line) =>
-  Number(
+const lineDocCharge = (line) => {
+  if (line.docChg === null && line.docketChg === null) return 0;
+  return toCalcNumber(
     line.docChg ??
       line.docketChg ??
       (Number(line.breakdown?.docCharge || 0) + Number(line.breakdown?.codCharge || 0))
-  ) || 0;
+  );
+};
 
 const lineOdaCharge = (line) =>
-  Number(line.odaChg ?? line.breakdown?.odaCharge ?? 0) || 0;
+  line.odaChg === null ? 0 : toCalcNumber(line.odaChg ?? line.breakdown?.odaCharge);
+
+const lineEffectiveTotal = (line) =>
+  line.lineTotal === null
+    ? lineSubtotalBeforeFuel(line)
+    : round2(line.lineTotal ?? lineSubtotalBeforeFuel(line));
+
+export const lineSubtotalBeforeFuel = (line) =>
+  round2(
+    lineFreightAmount(line) +
+      lineDocCharge(line) +
+      lineRovCharge(line) +
+      lineOdaCharge(line)
+  );
+
+/** AMT column: empty while cleared; otherwise show stored or computed line total. */
+export const lineAmountInputValue = (line) => {
+  if (line.lineTotal === null) return "";
+  if (line.lineTotal !== undefined && line.lineTotal !== "") {
+    return String(line.lineTotal);
+  }
+  return String(lineSubtotalBeforeFuel(line));
+};
+
+const withLineTotals = (lines) =>
+  lines.map((line) => {
+    if (line.lineTotal === null) {
+      return line;
+    }
+    return {
+      ...line,
+      lineTotal: round2(line.lineTotal ?? lineSubtotalBeforeFuel(line)),
+    };
+  });
 
 export const recalculateInvoiceTotals = (invoice) => {
-  const lines = invoice.lines || [];
+  const lines = withLineTotals(invoice.lines || []);
   const sums = lines.reduce(
     (acc, line) => {
       acc.freightSubtotal += lineFreightAmount(line);
@@ -92,6 +146,9 @@ export const recalculateInvoiceTotals = (invoice) => {
   const rovCharge = round2(sums.rovCharge);
   const odaCharge = round2(sums.odaCharge);
   const subtotalBeforeFuel = round2(freightSubtotal + docketCharge + rovCharge + odaCharge);
+  const linesSubtotal = round2(
+    lines.reduce((sum, line) => sum + lineEffectiveTotal(line), 0)
+  );
 
   const fuelPercent = round2(
     invoice.profile?.fuelSurchargePercent ??
@@ -103,7 +160,7 @@ export const recalculateInvoiceTotals = (invoice) => {
   if (invoice.totals?.fuelSurchargeManual) {
     fuelSurcharge = round2(invoice.totals.fuelSurcharge);
   } else {
-    fuelSurcharge = round2((freightSubtotal * fuelPercent) / 100);
+    fuelSurcharge = round2((subtotalBeforeFuel * fuelPercent) / 100);
   }
   const fuelSurchargeManual = Boolean(invoice.totals?.fuelSurchargeManual);
 
@@ -117,6 +174,7 @@ export const recalculateInvoiceTotals = (invoice) => {
 
   return {
     ...invoice,
+    lines,
     totals: {
       ...(invoice.totals || {}),
       freightSubtotal,
@@ -124,6 +182,8 @@ export const recalculateInvoiceTotals = (invoice) => {
       rovCharge,
       odaCharge,
       subtotalBeforeFuel,
+      linesSubtotal,
+      chargesSubtotal: round2(docketCharge + rovCharge + odaCharge),
       weightSlabRate: freightSubtotal,
       fuelSurchargePercent: fuelPercent,
       fuelSurcharge,
@@ -140,6 +200,21 @@ export const recalculateInvoiceTotals = (invoice) => {
   };
 };
 
+export const clearAutoFuelOverride = (invoice) => ({
+  ...invoice,
+  totals: {
+    ...(invoice.totals || {}),
+    fuelSurchargeManual: false,
+  },
+});
+
+const freightFromLineTotal = (line, lineTotal) => {
+  const doc = lineDocCharge(line);
+  const rov = lineRovCharge(line);
+  const oda = lineOdaCharge(line);
+  return round2(Math.max(0, lineTotal - doc - rov - oda));
+};
+
 export const updateInvoiceLine = (invoice, lineIndex, patch) => {
   const lines = [...(invoice.lines || [])];
   const current = lines[lineIndex] || {};
@@ -150,7 +225,7 @@ export const updateInvoiceLine = (invoice, lineIndex, patch) => {
   }
 
   lines[lineIndex] = nextLine;
-  return recalculateInvoiceTotals({ ...invoice, lines });
+  return recalculateInvoiceTotals(clearAutoFuelOverride({ ...invoice, lines }));
 };
 
 export const updateBreakdownField = (invoice, lineIndex, field, rawValue) => {
@@ -175,24 +250,57 @@ export const updateLineChargeField = (invoice, lineIndex, field, rawValue) => {
   const lines = [...(invoice.lines || [])];
   const current = lines[lineIndex] || {};
 
-  const value = Number(rawValue) || 0;
+  const value = parseOptionalNumber(rawValue);
   const nextLine = { ...current, [field]: value };
 
   if (field === "amount") {
-    nextLine.breakdown = { ...(current.breakdown || {}), weightSlabRate: value };
+    const freight = value === null ? null : value;
+    nextLine.amount = freight;
+    nextLine.breakdown = {
+      ...(current.breakdown || {}),
+      weightSlabRate: freight === null ? 0 : freight,
+    };
+  }
+  if (field === "lineTotal") {
+    if (value === null) {
+      nextLine.lineTotal = null;
+      nextLine.amount = null;
+      nextLine.breakdown = { ...(current.breakdown || {}), weightSlabRate: 0 };
+    } else {
+      const freight = freightFromLineTotal(nextLine, value);
+      nextLine.amount = freight;
+      nextLine.lineTotal = round2(value);
+      nextLine.breakdown = {
+        ...(current.breakdown || {}),
+        weightSlabRate: freight,
+      };
+    }
   }
   if (field === "docketChg" || field === "docChg") {
     nextLine.docketChg = value;
     nextLine.docChg = value;
-    nextLine.breakdown = { ...(current.breakdown || {}), docCharge: value, codCharge: 0 };
+    nextLine.breakdown = {
+      ...(current.breakdown || {}),
+      docCharge: value === null ? 0 : value,
+      codCharge: 0,
+    };
   }
   if (field === "rovChg") {
-    nextLine.breakdown = { ...(current.breakdown || {}), rovCharge: value };
+    nextLine.breakdown = {
+      ...(current.breakdown || {}),
+      rovCharge: value === null ? 0 : value,
+    };
   }
   if (field === "odaChg") {
-    nextLine.breakdown = { ...(current.breakdown || {}), odaCharge: value };
+    nextLine.breakdown = {
+      ...(current.breakdown || {}),
+      odaCharge: value === null ? 0 : value,
+    };
   }
 
+  if (field !== "lineTotal") {
+    nextLine.lineTotal = lineSubtotalBeforeFuel(nextLine);
+  }
   lines[lineIndex] = nextLine;
-  return recalculateInvoiceTotals({ ...invoice, lines });
+  return recalculateInvoiceTotals(clearAutoFuelOverride({ ...invoice, lines }));
 };

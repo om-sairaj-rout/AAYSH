@@ -28,6 +28,10 @@ import {
   updateInvoiceLine,
   updateLineChargeField,
   recalculateInvoiceTotals,
+  clearAutoFuelOverride,
+  numericInputValue,
+  parseOptionalNumber,
+  lineAmountInputValue,
 } from "../utils/billingInvoiceHelpers";
 import { resolveStateCode } from "../utils/indianStateCodes";
 
@@ -62,6 +66,31 @@ const InvoiceGenerationPage = () => {
   const [historyRows, setHistoryRows] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyExporting, setHistoryExporting] = useState("");
+  const rateRecalcTimer = useRef(null);
+
+  const rovEnabledForCompany = Boolean(invoice?.profile?.rovIncluded);
+
+  const applyRateRecalculation = async (draftInvoice) => {
+    if (!companyID || !draftInvoice?.lines?.length) return;
+    try {
+      const res = await previewBillingInvoiceAPI({
+        companyID,
+        invoice: clearAutoFuelOverride(draftInvoice),
+        recalculateRates: true,
+      });
+      setInvoice(res.data);
+    } catch (error) {
+      toast.error(error.message || "Failed to recalculate rates from Rate Management");
+    }
+  };
+
+  const scheduleRateRecalculation = (draftInvoice) => {
+    if (!draftInvoice?.lines?.length) return;
+    clearTimeout(rateRecalcTimer.current);
+    rateRecalcTimer.current = setTimeout(() => {
+      applyRateRecalculation(draftInvoice);
+    }, 450);
+  };
 
   const loadHistory = async (month) => {
     try {
@@ -87,6 +116,10 @@ const InvoiceGenerationPage = () => {
         setCompanies(Array.isArray(list) ? list : []);
       })
       .catch((error) => toast.error(error.message || "Failed to load companies"));
+  }, []);
+
+  useEffect(() => {
+    return () => clearTimeout(rateRecalcTimer.current);
   }, []);
 
   const selectedCompany = useMemo(
@@ -117,9 +150,17 @@ const InvoiceGenerationPage = () => {
       const res = await previewBillingInvoiceAPI({ companyID, awbText });
       setInvoice(res.data);
       if (!res.data?.lines?.length) {
-        toast.warning("No billable AWBs found. Check errors below.");
+        toast.warning("No invoice lines generated. Check warnings below.");
       } else {
-        toast.success(`Calculated ${res.data.lines.length} AWB(s). You can edit fields before download.`);
+        const warnCount = res.data.errors?.length || 0;
+        if (warnCount > 0) {
+          toast.warning(
+            `${warnCount} AWB(s) could not be loaded — blank rows were added for missing AWBs.`
+          );
+        }
+        toast.success(
+          `Calculated ${res.data.lines.length} row(s). Rates use company slabs, zone, and weight from Rate Management.`
+        );
       }
     } catch (error) {
       setInvoice(null);
@@ -175,7 +216,7 @@ const InvoiceGenerationPage = () => {
 
   const handleExportPdf = async () => {
     if (!exportPayload?.invoice?.lines?.length) {
-      toast.validation("Run preview first with at least one valid AWB");
+      toast.validation("Run preview first to generate invoice lines");
       return;
     }
     try {
@@ -191,7 +232,7 @@ const InvoiceGenerationPage = () => {
 
   const handleSaveInvoice = async () => {
     if (!exportPayload?.invoice?.lines?.length) {
-      toast.validation("Run preview first with at least one valid AWB");
+      toast.validation("Run preview first to generate invoice lines");
       return;
     }
     if (!exportPayload.invoice.invoiceMeta?.invoiceNumber?.trim()) {
@@ -256,7 +297,7 @@ const InvoiceGenerationPage = () => {
 
   const handleExportExcel = async () => {
     if (!exportPayload?.invoice?.lines?.length) {
-      toast.validation("Run preview first with at least one valid AWB");
+      toast.validation("Run preview first to generate invoice lines");
       return;
     }
     try {
@@ -271,13 +312,43 @@ const InvoiceGenerationPage = () => {
   };
 
   const setFuelSurcharge = (value) => {
+    const amount = parseOptionalNumber(value);
     setInvoice((prev) =>
       recalculateInvoiceTotals({
         ...prev,
         totals: {
           ...(prev.totals || {}),
-          fuelSurcharge: Number(value) || 0,
+          fuelSurcharge: amount === null ? 0 : amount,
           fuelSurchargeManual: true,
+        },
+      })
+    );
+  };
+
+  const setFuelPercent = (value) => {
+    const pct = parseOptionalNumber(value);
+    const resolved = pct === null ? 0 : pct;
+    setInvoice((prev) =>
+      recalculateInvoiceTotals({
+        ...prev,
+        profile: { ...(prev.profile || {}), fuelSurchargePercent: resolved },
+        totals: {
+          ...(prev.totals || {}),
+          fuelSurchargePercent: resolved,
+          fuelSurchargeManual: false,
+        },
+      })
+    );
+  };
+
+  const updateMetaAndRecalc = (field, value) => {
+    const parsed = parseOptionalNumber(value);
+    setInvoice((prev) =>
+      recalculateInvoiceTotals({
+        ...prev,
+        invoiceMeta: {
+          ...(prev.invoiceMeta || {}),
+          [field]: parsed === null ? 0 : parsed,
         },
       })
     );
@@ -496,38 +567,84 @@ const InvoiceGenerationPage = () => {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
               <div className="rounded-xl bg-slate-50 p-3">
-                <div className="text-xs text-slate-500">Freight (AMOUNT) Total</div>
-                <div className="font-bold">{formatMoney(invoice.totals?.freightSubtotal)}</div>
+                <div className="text-xs text-slate-500">Order lines total</div>
+                <input
+                  type="number"
+                  readOnly
+                  className={`${inputClass} bg-slate-100 cursor-default`}
+                  value={
+                    invoice.totals?.linesSubtotal ?? invoice.totals?.subtotalBeforeFuel ?? ""
+                  }
+                />
               </div>
-              <div className="rounded-xl bg-slate-50 p-3">
-                <div className="text-xs text-slate-500">Fuel Surcharge (invoice)</div>
+              <div className="rounded-xl bg-slate-50 p-3 space-y-2">
+                <div className="text-xs text-slate-500">Fuel surcharge</div>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="number"
+                    className={inputClass}
+                    value={numericInputValue(invoice.totals?.fuelSurchargePercent)}
+                    onChange={(e) => setFuelPercent(e.target.value)}
+                    title="Fuel % on order lines total"
+                  />
+                  <span className="text-xs text-slate-500 shrink-0">%</span>
+                </div>
                 <input
                   type="number"
                   className={inputClass}
-                  value={invoice.totals?.fuelSurcharge ?? ""}
+                  value={numericInputValue(invoice.totals?.fuelSurcharge)}
                   onChange={(e) => setFuelSurcharge(e.target.value)}
+                  title="Override fuel amount (optional)"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Auto: {invoice.totals?.fuelSurchargePercent ?? 0}% on freight
+                <p className="text-[10px] text-slate-400">
+                  Auto: {invoice.totals?.fuelSurchargePercent ?? 0}% on order lines total
                 </p>
               </div>
-              <div className="rounded-xl bg-slate-50 p-3">
-                <div className="text-xs text-slate-500">CGST / SGST</div>
-                <div className="font-bold">
-                  {formatMoney(invoice.totals?.cgstAmount)} /{" "}
-                  {formatMoney(invoice.totals?.sgstAmount)}
+              <div className="rounded-xl bg-slate-50 p-3 space-y-2">
+                <div className="text-xs text-slate-500">CGST / SGST %</div>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    className={inputClass}
+                    value={numericInputValue(
+                      invoice.invoiceMeta?.cgstPercent ?? invoice.totals?.cgstPercent
+                    )}
+                    onChange={(e) => updateMetaAndRecalc("cgstPercent", e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    className={inputClass}
+                    value={numericInputValue(
+                      invoice.invoiceMeta?.sgstPercent ?? invoice.totals?.sgstPercent
+                    )}
+                    onChange={(e) => updateMetaAndRecalc("sgstPercent", e.target.value)}
+                  />
                 </div>
+                <p className="text-[10px] text-slate-500">
+                  Tax: {formatMoney(invoice.totals?.cgstAmount)} /{" "}
+                  {formatMoney(invoice.totals?.sgstAmount)}
+                </p>
               </div>
               <div className="rounded-xl bg-indigo-50 p-3 border border-indigo-100">
                 <div className="text-xs text-indigo-700 flex items-center gap-1">
-                  <IndianRupee size={12} /> Bill Amount
+                  <IndianRupee size={12} /> Bill amount
                 </div>
-                <div className="font-bold text-indigo-900 text-lg">
-                  {formatMoney(invoice.totals?.billAmount)}
-                </div>
+                <input
+                  type="number"
+                  readOnly
+                  className={`${inputClass} bg-indigo-50/80 font-bold text-indigo-900 cursor-default`}
+                  value={invoice.totals?.billAmount ?? ""}
+                />
               </div>
             </div>
           </div>
+
+          {!rovEnabledForCompany && (
+            <p className="text-xs text-slate-500">
+              ROV is disabled for this company in Rate Management — ROV column stays zero unless
+              you enable ROV on the company profile.
+            </p>
+          )}
 
           <div className="bg-white rounded-2xl border border-slate-100 overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -543,17 +660,25 @@ const InvoiceGenerationPage = () => {
                   <th className="px-2 py-2 font-bold">DOC</th>
                   <th className="px-2 py-2 font-bold">ODA</th>
                   <th className="px-2 py-2 font-bold">WEIGHT</th>
-                  <th className="px-2 py-2 font-bold">AMT</th>
+                  <th className="px-2 py-2 font-bold" title="Freight + ROV + DOC + ODA">
+                    AMT
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {(invoice.lines || []).map((line, index) => (
-                  <tr key={`${line.awbNumber}-${index}`} className="border-t border-slate-100 align-top">
+                  <tr
+                    key={`${line.awbNumber}-${index}`}
+                    className={`border-t border-slate-100 align-top ${
+                      line.missingAwb ? "bg-amber-50/80" : ""
+                    }`}
+                  >
                     <td className="px-2 py-2">{index + 1}</td>
                     <td className="px-2 py-2">
                       <input
                         className={cellInput}
                         value={line.awbNumber || ""}
+                        readOnly={line.missingAwb}
                         onChange={(e) =>
                           setInvoice((prev) => updateInvoiceLine(prev, index, { awbNumber: e.target.value }))
                         }
@@ -583,31 +708,44 @@ const InvoiceGenerationPage = () => {
                       <input
                         className={cellInput}
                         value={line.mode || ""}
-                        onChange={(e) =>
-                          setInvoice((prev) => updateInvoiceLine(prev, index, { mode: e.target.value }))
-                        }
+                        onChange={(e) => {
+                          const mode = e.target.value;
+                          setInvoice((prev) => {
+                            const draft = updateInvoiceLine(prev, index, { mode });
+                            if (!draft.lines[index]?.missingAwb) {
+                              scheduleRateRecalculation(draft);
+                            }
+                            return draft;
+                          });
+                        }}
                       />
                     </td>
                     <td className="px-2 py-2">
                       <input
                         type="number"
                         className={cellInput}
-                        value={line.pcs ?? line.noOfBoxes ?? ""}
-                        onChange={(e) =>
+                        value={numericInputValue(line.pcs ?? line.noOfBoxes)}
+                        onChange={(e) => {
+                          const pcs = parseOptionalNumber(e.target.value);
                           setInvoice((prev) =>
                             updateInvoiceLine(prev, index, {
-                              pcs: Number(e.target.value) || 1,
-                              noOfBoxes: Number(e.target.value) || 1,
+                              pcs,
+                              noOfBoxes: pcs,
                             })
-                          )
-                        }
+                          );
+                        }}
                       />
                     </td>
                     <td className="px-2 py-2">
                       <input
                         type="number"
                         className={cellInput}
-                        value={line.rovChg ?? ""}
+                        value={numericInputValue(line.rovChg)}
+                        title={
+                          !rovEnabledForCompany
+                            ? "ROV not enabled for this company in Rate Management"
+                            : undefined
+                        }
                         onChange={(e) =>
                           setInvoice((prev) =>
                             updateLineChargeField(prev, index, "rovChg", e.target.value)
@@ -619,7 +757,7 @@ const InvoiceGenerationPage = () => {
                       <input
                         type="number"
                         className={cellInput}
-                        value={line.docChg ?? line.docketChg ?? ""}
+                        value={numericInputValue(line.docChg ?? line.docketChg)}
                         onChange={(e) =>
                           setInvoice((prev) =>
                             updateLineChargeField(prev, index, "docChg", e.target.value)
@@ -631,7 +769,7 @@ const InvoiceGenerationPage = () => {
                       <input
                         type="number"
                         className={cellInput}
-                        value={line.odaChg ?? 0}
+                        value={numericInputValue(line.odaChg)}
                         onChange={(e) =>
                           setInvoice((prev) =>
                             updateLineChargeField(prev, index, "odaChg", e.target.value)
@@ -643,24 +781,30 @@ const InvoiceGenerationPage = () => {
                       <input
                         type="number"
                         className={cellInput}
-                        value={line.chargeableWeight ?? ""}
-                        onChange={(e) =>
-                          setInvoice((prev) =>
-                            updateInvoiceLine(prev, index, {
-                              chargeableWeight: Number(e.target.value) || 0,
-                            })
-                          )
-                        }
+                        value={numericInputValue(line.chargeableWeight)}
+                        onChange={(e) => {
+                          const weight = parseOptionalNumber(e.target.value);
+                          setInvoice((prev) => {
+                            const draft = updateInvoiceLine(prev, index, {
+                              chargeableWeight: weight,
+                            });
+                            if (weight != null && !draft.lines[index]?.missingAwb) {
+                              scheduleRateRecalculation(draft);
+                            }
+                            return draft;
+                          });
+                        }}
                       />
                     </td>
                     <td className="px-2 py-2">
                       <input
                         type="number"
                         className={cellInput}
-                        value={line.amount ?? ""}
+                        value={lineAmountInputValue(line)}
+                        title="Order line total (freight + ROV + DOC + ODA)"
                         onChange={(e) =>
                           setInvoice((prev) =>
-                            updateLineChargeField(prev, index, "amount", e.target.value)
+                            updateLineChargeField(prev, index, "lineTotal", e.target.value)
                           )
                         }
                       />
@@ -672,9 +816,9 @@ const InvoiceGenerationPage = () => {
           </div>
 
           {invoice.errors?.length > 0 && (
-            <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4">
-              <h3 className="text-sm font-bold text-rose-800 mb-2">Errors</h3>
-              <ul className="text-sm text-rose-700 space-y-1">
+            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
+              <h3 className="text-sm font-bold text-amber-900 mb-2">Warnings</h3>
+              <ul className="text-sm text-amber-800 space-y-1">
                 {invoice.errors.map((err) => (
                   <li key={`${err.awb}-${err.message}`}>
                     <strong>{err.awb}</strong>: {err.message}

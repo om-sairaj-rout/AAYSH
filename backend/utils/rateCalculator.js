@@ -14,18 +14,37 @@ const normalizeZoneRateMap = (zoneRates = {}) => {
   return zoneRates || {};
 };
 
+const normalizeSlabWeight = (value) =>
+  Number(Number(value || 0).toFixed(6));
+
+const describeSlabRanges = (slabs = []) => {
+  const active = (slabs || []).filter((slab) => slab.isActive !== false);
+  if (!active.length) return "none";
+  return active
+    .map((slab) => {
+      const max =
+        slab.maxWeight === null || slab.maxWeight === undefined
+          ? "∞"
+          : slab.maxWeight;
+      return `${slab.name || "slab"} (${slab.minWeight}–${max} kg)`;
+    })
+    .join("; ");
+};
+
 const findMatchingSlab = (slabs = [], weight) => {
+  const chargeable = normalizeSlabWeight(weight);
   const activeSlabs = (slabs || []).filter((slab) => slab.isActive !== false);
 
   const matches = activeSlabs.filter((slab) => {
-    const minWeight = Number(slab.minWeight) || 0;
+    const minWeight = normalizeSlabWeight(slab.minWeight);
     const maxWeight =
       slab.maxWeight === null || slab.maxWeight === undefined
         ? null
-        : Number(slab.maxWeight);
+        : normalizeSlabWeight(slab.maxWeight);
 
-    if (weight < minWeight) return false;
-    if (maxWeight !== null && Number.isFinite(maxWeight) && weight >= maxWeight) {
+    if (chargeable < minWeight) return false;
+    // Inclusive upper bound: weight equal to maxWeight still matches this slab.
+    if (maxWeight !== null && Number.isFinite(maxWeight) && chargeable > maxWeight) {
       return false;
     }
     return true;
@@ -130,7 +149,7 @@ const calculateRate = ({
   if (!slab) {
     return {
       success: false,
-      message: "No matching weight slab found for the given weight.",
+      message: `No matching weight slab found for ${chargeableWeight} kg on ${normalizedService}. Configured slabs: ${describeSlabRanges(slabs)}.`,
       service: normalizedService,
       zone,
       chargeableWeight,
@@ -251,6 +270,8 @@ module.exports = {
   RATE_ZONES,
   normalizeService,
   findMatchingSlab,
+  describeSlabRanges,
+  normalizeSlabWeight,
   calculateSlabRate,
   calculateRate,
   formatSlabForResponse,

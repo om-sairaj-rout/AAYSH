@@ -37,7 +37,8 @@ const getCompanyRateProfile = async (companyID) => {
   };
 };
 
-const resolveSlabsForCompany = async (companyID, service) => {
+const resolveSlabsForCompany = async (companyID, service, options = {}) => {
+  const { allowGlobalFallback = true } = options;
   const normalizedService = normalizeService(service);
   const normalizedCompanyID = normalizeCompanyID(companyID);
 
@@ -54,6 +55,22 @@ const resolveSlabsForCompany = async (companyID, service) => {
         companyID: normalizedCompanyID,
       };
     }
+
+    return {
+      slabs: [],
+      source: "company_missing",
+      companyID: normalizedCompanyID,
+      message: `No weight slabs configured for company ${normalizedCompanyID} (${normalizedService}). Add slabs in Rate Management for this company.`,
+    };
+  }
+
+  if (!allowGlobalFallback) {
+    return {
+      slabs: [],
+      source: "none",
+      companyID: null,
+      message: "Company ID is required to calculate company-specific rates.",
+    };
   }
 
   const globalDoc = await RateStructure.findOne({
@@ -63,7 +80,10 @@ const resolveSlabsForCompany = async (companyID, service) => {
   return {
     slabs: globalDoc?.slabs || [],
     source: "global",
-    companyID: normalizedCompanyID || null,
+    companyID: null,
+    message: globalDoc?.slabs?.length
+      ? null
+      : `No rate slabs configured for ${normalizedService} service.`,
   };
 };
 

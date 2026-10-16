@@ -19,6 +19,24 @@ const lineRovCharge = (line) =>
 const lineOdaCharge = (line) =>
   Number(line.odaChg ?? line.breakdown?.odaCharge ?? 0) || 0;
 
+/** Per-order total before invoice-level fuel (freight + DOC + ROV + ODA). */
+const lineSubtotalBeforeFuel = (line) =>
+  round2(
+    lineFreightAmount(line) +
+      lineDocketCharge(line) +
+      lineRovCharge(line) +
+      lineOdaCharge(line)
+  );
+
+const lineDisplayAmount = (line) =>
+  round2(line.lineTotal ?? lineSubtotalBeforeFuel(line));
+
+const withLineTotals = (lines = []) =>
+  lines.map((line) => ({
+    ...line,
+    lineTotal: lineDisplayAmount(line),
+  }));
+
 const sumInvoiceTotals = (lines = []) =>
   lines.reduce(
     (acc, line) => {
@@ -49,7 +67,7 @@ const sumInvoiceTotals = (lines = []) =>
   );
 
 const recalculateInvoiceTotals = (invoice) => {
-  const lines = invoice.lines || [];
+  const lines = withLineTotals(invoice.lines || []);
   const sums = sumInvoiceTotals(lines);
   const freightSubtotal = round2(sums.freightSubtotal);
   const docketCharge = round2(sums.docketCharge);
@@ -57,6 +75,9 @@ const recalculateInvoiceTotals = (invoice) => {
   const odaCharge = round2(sums.odaCharge);
   const chargesSubtotal = round2(docketCharge + rovCharge + odaCharge);
   const subtotalBeforeFuel = round2(freightSubtotal + chargesSubtotal);
+  const linesSubtotal = round2(
+    lines.reduce((sum, line) => sum + (line.lineTotal ?? lineSubtotalBeforeFuel(line)), 0)
+  );
 
   const fuelPercent = round2(
     invoice.profile?.fuelSurchargePercent ??
@@ -64,11 +85,12 @@ const recalculateInvoiceTotals = (invoice) => {
       0
   );
 
+  const fuelSurchargeManual = Boolean(invoice.totals?.fuelSurchargeManual);
   let fuelSurcharge;
-  if (invoice.totals?.fuelSurchargeManual) {
+  if (fuelSurchargeManual) {
     fuelSurcharge = round2(invoice.totals.fuelSurcharge);
   } else {
-    fuelSurcharge = round2((freightSubtotal * fuelPercent) / 100);
+    fuelSurcharge = round2((subtotalBeforeFuel * fuelPercent) / 100);
   }
 
   const meta = invoice.invoiceMeta || {};
@@ -86,12 +108,14 @@ const recalculateInvoiceTotals = (invoice) => {
     rovCharge,
     odaCharge,
     chargesSubtotal,
+    linesSubtotal,
     subtotalBeforeFuel,
     weightSlabRate: freightSubtotal,
     codCharge: round2(sums.codCharge),
     docCharge: round2(sums.docCharge),
     fuelSurchargePercent: fuelPercent,
     fuelSurcharge,
+    fuelSurchargeManual,
     cgstPercent,
     sgstPercent,
     cgstAmount,
@@ -109,7 +133,7 @@ const recalculateInvoiceTotals = (invoice) => {
     }
   });
 
-  return { ...invoice, totals };
+  return { ...invoice, lines, totals };
 };
 
 module.exports = {
@@ -118,6 +142,9 @@ module.exports = {
   lineDocketCharge,
   lineRovCharge,
   lineOdaCharge,
+  lineSubtotalBeforeFuel,
+  lineDisplayAmount,
+  withLineTotals,
   sumInvoiceTotals,
   recalculateInvoiceTotals,
 };

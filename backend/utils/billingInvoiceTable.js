@@ -1,5 +1,5 @@
 const {
-  lineFreightAmount,
+  lineDisplayAmount,
   lineRovCharge,
   lineOdaCharge,
   round2,
@@ -40,7 +40,7 @@ const lineToTableRow = (line, index) => [
   formatMoney(lineDocCharge(line)),
   formatMoney(lineOdaCharge(line)),
   Number(line.chargeableWeight || 0).toFixed(3),
-  formatMoney(lineFreightAmount(line)),
+  formatMoney(lineDisplayAmount(line)),
 ];
 
 module.exports = {

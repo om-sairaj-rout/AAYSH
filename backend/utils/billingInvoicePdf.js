@@ -330,7 +330,10 @@ const drawSummaryFooter = (doc, invoice, margin, printWidth, startY) => {
   const valueW = 90;
 
   const summaryRows = [
-    ["Amount:", formatMoney(totals.freightSubtotal)],
+    [
+      "Amount:",
+      formatMoney(totals.linesSubtotal ?? totals.subtotalBeforeFuel ?? 0),
+    ],
     [
       `Fuel Surcharge@ ${Number(totals.fuelSurchargePercent || 0)} %`,
       formatMoney(totals.fuelSurcharge),

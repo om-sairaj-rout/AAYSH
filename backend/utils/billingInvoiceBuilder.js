@@ -10,6 +10,7 @@ const {
 const { getCompanyRateProfile } = require("./resolveCompanyRateSlabs");
 const { recalculateInvoiceTotals } = require("./billingInvoiceTotals");
 const { resolveStateCode } = require("./indianStateCodes");
+const { createMissingAwbLine } = require("./billingInvoiceRecalculate");
 
 const buildCompactInvoiceNumber = () => {
   const now = new Date();
@@ -89,7 +90,8 @@ const buildBillingInvoice = async ({ companyID, awbNumbers = [] }) => {
   for (const awb of awbs) {
     const shipping = shippingByAwb.get(awb);
     if (!shipping) {
-      errors.push({ awb, message: "AWB not found" });
+      errors.push({ awb, message: "AWB not found in the system" });
+      lines.push(createMissingAwbLine(awb));
       continue;
     }
 
@@ -167,6 +169,9 @@ const buildBillingInvoice = async ({ companyID, awbNumbers = [] }) => {
       mode: formatServiceCode(rateResult.service),
       zone: rateResult.zone,
       chargeableWeight: rateResult.chargeableWeight,
+      length: Number(order.length || 0),
+      breadth: Number(order.breadth || 0),
+      height: Number(order.height || 0),
       pcs: Number(order.noOfBoxes) > 0 ? Number(order.noOfBoxes) : 1,
       noOfBoxes: Number(order.noOfBoxes) > 0 ? Number(order.noOfBoxes) : 1,
       amount: round2(breakdown.weightSlabRate),

@@ -13,12 +13,19 @@ export const previewBillingInvoiceAPI = async ({
   awbText,
   awbNumbers,
   invoice,
+  recalculateRates = false,
 }) => {
   const res = await fetch(`${BASE}/api/billing/invoice/preview`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ companyID, awbText, awbNumbers, invoice }),
+    body: JSON.stringify({
+      companyID,
+      awbText,
+      awbNumbers,
+      invoice,
+      recalculateRates,
+    }),
   });
   return parseResponse(res);
 };

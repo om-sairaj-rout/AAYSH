@@ -50,6 +50,48 @@ const applyCompanyOrderFilter = (req, filter = {}) => {
   return filter;
 };
 
+const normalizeRateCompanyID = (companyID) =>
+  String(companyID || "").trim().toUpperCase();
+
+/**
+ * Rate APIs: admins may target a requested company; others are locked to their own company.
+ */
+const resolveRateCompanyID = (req, requestedCompanyID) => {
+  const requested = normalizeRateCompanyID(requestedCompanyID);
+  const userCompany = normalizeRateCompanyID(req.user?.companyID);
+  const isAdmin = req.user?.role === "admin";
+
+  if (isAdmin) {
+    const effective = requested || userCompany;
+    if (!effective) {
+      return {
+        ok: false,
+        status: 400,
+        message: "companyID is required.",
+      };
+    }
+    return { ok: true, companyID: effective };
+  }
+
+  if (!userCompany) {
+    return {
+      ok: false,
+      status: 403,
+      message: "Your account is not linked to a company. Cannot calculate rates.",
+    };
+  }
+
+  if (requested && requested !== userCompany) {
+    return {
+      ok: false,
+      status: 403,
+      message: "You cannot access rates for another company.",
+    };
+  }
+
+  return { ok: true, companyID: userCompany };
+};
+
 const userOwnsOrder = (order, req) => {
   if (req.user?.role === "admin") {
     return true;
@@ -67,5 +109,6 @@ module.exports = {
   applyCompanyOrderFilter,
   buildOrderScopeForUser,
   buildOrderScopeForCompany,
+  resolveRateCompanyID,
   userOwnsOrder,
 };
