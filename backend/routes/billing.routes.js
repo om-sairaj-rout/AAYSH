@@ -1,8 +1,10 @@
 const express = require("express");
 const billingRouter = express.Router();
+const upload = require("../middlewares/upload.middleware");
 const { checkAuth, checkPermission } = require("../middlewares/auth.middleware");
 const {
   previewBillingInvoice,
+  previewBillingInvoiceFromExcel,
   exportBillingInvoicePdf,
   exportBillingInvoiceExcel,
   saveBillingInvoice,
@@ -17,6 +19,14 @@ billingRouter.post(
   checkAuth,
   checkPermission("update", "read"),
   previewBillingInvoice
+);
+
+billingRouter.post(
+  "/billing/invoice/preview-excel",
+  checkAuth,
+  checkPermission("update", "read"),
+  upload.single("file"),
+  previewBillingInvoiceFromExcel
 );
 
 billingRouter.post(

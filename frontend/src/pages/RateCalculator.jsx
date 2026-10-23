@@ -20,6 +20,11 @@ import {
   calculateRateAPI,
   lookupPincodeZoneAPI,
 } from "../api/rateAPI";
+import {
+  filterAvailableRateModes,
+  isServiceRateAvailable,
+  NO_SERVICES_MESSAGE,
+} from "../utils/rateCalculatorDisplay";
 
 const SERVICE_ICONS = {
   surface: Truck,
@@ -166,21 +171,30 @@ const RateCalculator = () => {
         })
       );
 
-      const anySuccess = modeResults.some((row) => row.success);
-      if (!anySuccess) {
-        setResult(null);
-        toast.error(modeResults[0]?.message || "Failed to calculate rates for any mode");
+      const availableModes = filterAvailableRateModes(modeResults);
+
+      if (!availableModes.length) {
+        setResult({
+          zone: modeResults.find((row) => row.success)?.data?.zone,
+          zoneSource: modeResults.find((row) => row.success)?.data?.zoneSource,
+          chargeableWeight: modeResults.find((row) => row.success)?.data?.chargeableWeight,
+          weightInfo: modeResults.find((row) => row.success)?.data?.weightInfo,
+          companyID: effectiveCompanyID,
+          modes: [],
+          noServicesAvailable: true,
+        });
         return;
       }
 
-      const firstOk = modeResults.find((row) => row.success)?.data;
+      const firstOk = availableModes[0]?.data;
       setResult({
         zone: firstOk?.zone,
         zoneSource: firstOk?.zoneSource,
         chargeableWeight: firstOk?.chargeableWeight,
         weightInfo: firstOk?.weightInfo,
         companyID: firstOk?.companyID || effectiveCompanyID,
-        modes: modeResults,
+        modes: availableModes,
+        noServicesAvailable: false,
       });
     } catch (error) {
       setResult(null);
@@ -329,6 +343,12 @@ const RateCalculator = () => {
 
       {result && (
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-5">
+          {result.noServicesAvailable ? (
+            <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-6 text-center">
+              <p className="text-sm font-semibold text-amber-900">{NO_SERVICES_MESSAGE}</p>
+            </div>
+          ) : (
+          <>
           <div className="space-y-2">
             <h3 className="text-lg font-bold text-slate-800">
               Applicable rates for {result.zone}
@@ -348,19 +368,8 @@ const RateCalculator = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {result.modes.map((mode) => {
               const Icon = SERVICE_ICONS[mode.service];
-              if (!mode.success) {
-                return (
-                  <div
-                    key={mode.service}
-                    className="rounded-xl border border-rose-100 bg-rose-50/50 p-4"
-                  >
-                    <div className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 mb-2">
-                      {Icon && <Icon size={14} />}
-                      {SERVICE_LABELS[mode.service] || mode.label}
-                    </div>
-                    <p className="text-sm text-rose-700">{mode.message}</p>
-                  </div>
-                );
+              if (!isServiceRateAvailable(mode)) {
+                return null;
               }
 
               const data = mode.data;
@@ -462,9 +471,11 @@ const RateCalculator = () => {
           <p className="text-[11px] text-slate-400 flex items-center gap-1">
             <Info size={12} />
             Order amount matches invoice line totals (freight + COD + document + ROV). Fuel is
-            shown separately when configured. Chargeable weight uses max(actual, volumetric). COD
+            shown separately when configured.             Chargeable weight uses max(actual, volumetric). COD
             assumed; ROV applies only when enabled and invoice value is provided.
           </p>
+          </>
+          )}
         </div>
       )}
     </div>

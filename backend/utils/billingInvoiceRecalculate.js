@@ -10,6 +10,7 @@ const modeToService = (mode, fallback = "surface") => {
   const raw = String(mode || "").trim().toUpperCase();
   if (raw === "AIR") return "air";
   if (raw === "PRIME") return "prime";
+  if (raw === "SUF" || raw === "SUR" || raw === "SURFACE") return "surface";
   if (raw) return normalizeService(raw);
   return normalizeService(fallback);
 };

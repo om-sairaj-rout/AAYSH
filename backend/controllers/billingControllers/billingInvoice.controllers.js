@@ -2,6 +2,7 @@ const {
   buildBillingInvoice,
   parseAwbList,
 } = require("../../utils/billingInvoiceBuilder");
+const { buildBillingInvoiceFromExcel } = require("../../utils/billingInvoiceFromExcel");
 const { buildPdfBuffer, buildExcelBuffer } = require("../../utils/billingInvoiceExport");
 const { recalculateInvoiceTotals } = require("../../utils/billingInvoiceTotals");
 const { resolveStateCode } = require("../../utils/indianStateCodes");
@@ -43,6 +44,34 @@ const resolveInvoicePayload = async (body) => {
     return built;
   }
   return built;
+};
+
+const previewBillingInvoiceFromExcel = async (req, res) => {
+  try {
+    const companyID = req.body?.companyID;
+    const file = req.file;
+    if (!file?.buffer?.length) {
+      return res.status(400).json({ success: false, message: "Excel file is required." });
+    }
+
+    const invoice = await buildBillingInvoiceFromExcel({
+      companyID,
+      fileBuffer: file.buffer,
+    });
+
+    if (!invoice.success) {
+      return res.status(400).json({
+        success: false,
+        message: invoice.message,
+        errors: invoice.errors || [],
+      });
+    }
+
+    const { success: _ok, ...data } = invoice;
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
 };
 
 const previewBillingInvoice = async (req, res) => {
@@ -297,6 +326,7 @@ const exportSavedBillingInvoiceExcel = async (req, res) => {
 
 module.exports = {
   previewBillingInvoice,
+  previewBillingInvoiceFromExcel,
   exportBillingInvoicePdf,
   exportBillingInvoiceExcel,
   saveBillingInvoice,

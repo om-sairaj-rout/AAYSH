@@ -214,6 +214,20 @@ export const getOrdersByCompany = async (companyID) => {
   }
 };
 
+export const updateOrderWalletFields = async (payload) => {
+  const response = await fetch(`${BASE}/api/external/orders/update-wallet-fields`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to update order shipment details");
+  }
+  return data;
+};
+
 export const updateOrder = async (formData) => {
   try {
     const response = await fetch(

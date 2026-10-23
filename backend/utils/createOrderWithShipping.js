@@ -21,6 +21,7 @@ const {
 const { enrichNormalizedOrderFromCatalog } = require("./catalogOrderEnrichment");
 
 const { generateUniqueShipmentId } = require("./generateShipmentId");
+const { assertWalletMinBalance, isWalletEnabledForCompany } = require("./walletService");
 
 const generateInvoiceNo = () =>
   `INV-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -135,6 +136,15 @@ const createOrderWithShipping = async ({
 
   if (!consignorName && company?.companyName) {
     consignorName = String(company.companyName).trim();
+  }
+
+  if (await isWalletEnabledForCompany(companyID)) {
+    const minCheck = await assertWalletMinBalance(companyID);
+    if (!minCheck.ok) {
+      const error = new Error(minCheck.message);
+      error.statusCode = 400;
+      throw error;
+    }
   }
 
   let order = null;

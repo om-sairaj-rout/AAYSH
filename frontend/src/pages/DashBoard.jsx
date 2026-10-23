@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { getDashboardData } from '../api/dashboardAPI';
 import {
@@ -368,6 +369,7 @@ const Dashboard = () => {
     shipmentAnalytics: null,
     riskAnalytics: null,
     totalCost: 0,
+    wallet: null,
   });
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -399,6 +401,7 @@ const Dashboard = () => {
           shipmentAnalytics: data.shipmentAnalytics || null,
           riskAnalytics: data.riskAnalytics || null,
           totalCost: data.totalCost || 0,
+          wallet: data.wallet || null,
         });
         setCurrentPage(1);
         setSalesPage(1);
@@ -1157,6 +1160,45 @@ const Dashboard = () => {
 
           {/* Right column */}
           <div className="xl:col-span-4 space-y-5">
+            {dashboardData.wallet?.walletEnabled && (
+              <div className="bg-white rounded-[22px] shadow-[0_8px_30px_rgba(27,43,75,0.06)] border border-white overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-3 bg-[#E8F6EF]">
+                  <p className="text-sm font-bold text-[#1B2B4B]">Wallet</p>
+                  <Link
+                    to="/wallet"
+                    className="text-xs font-semibold text-[#1B2B4B] hover:underline"
+                  >
+                    Recharge wallet &gt;
+                  </Link>
+                </div>
+                <div className="px-5 py-4">
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                    Available balance
+                  </p>
+                  <p className="text-3xl font-black text-[#1B2B4B] mt-1">
+                    ₹{Number(dashboardData.wallet.balance || 0).toLocaleString('en-IN', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </p>
+                  <Link
+                    to="/wallet"
+                    className="inline-block text-xs font-semibold text-[#1B2B4B] mt-3 hover:underline"
+                  >
+                    History &gt;
+                  </Link>
+                </div>
+                {dashboardData.wallet.lowBalance && (
+                  <div className="px-5 py-3 bg-[#FFF8E6] border-t border-amber-100 flex items-start gap-2 text-xs text-amber-900">
+                    <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Low balance:</strong> recharge to avoid disruption
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Tracking ring */}
             <div className="bg-white rounded-[22px] p-6 shadow-[0_8px_30px_rgba(27,43,75,0.06)] border border-white">
               <DeliveryRing percent={deliveryPercent} />

@@ -311,10 +311,30 @@ const OrderSchema = new mongoose.Schema(
       index: true,
     },
 
-  pickupPincode: {
+    pickupPincode: {
       type: String,
       default: "",
       trim: true,
+    },
+
+    odaCharge: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    walletDeductedAt: {
+      type: Date,
+      default: null,
+    },
+    walletChargeAmount: {
+      type: Number,
+      default: 0,
+    },
+    walletTransactionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "WalletTransaction",
+      default: null,
     },
 
     documents: {

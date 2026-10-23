@@ -3,7 +3,11 @@ const BASE = import.meta.env.VITE_API_URL;
 const parseResponse = async (res) => {
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.message || "Request failed");
+    const err = new Error(data.message || "Request failed");
+    if (Array.isArray(data.errors)) {
+      err.errors = data.errors;
+    }
+    throw err;
   }
   return data;
 };
@@ -26,6 +30,19 @@ export const previewBillingInvoiceAPI = async ({
       invoice,
       recalculateRates,
     }),
+  });
+  return parseResponse(res);
+};
+
+export const previewBillingInvoiceFromExcelAPI = async (companyID, file) => {
+  const formData = new FormData();
+  formData.append("companyID", companyID);
+  formData.append("file", file);
+
+  const res = await fetch(`${BASE}/api/billing/invoice/preview-excel`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
   });
   return parseResponse(res);
 };

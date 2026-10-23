@@ -15,7 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { getCompanies } from "../api/companyAPI";
-import { getOrdersByCompany, updateOrder } from "../api/ordersAPI";
+import { getOrdersByCompany, updateOrder, updateOrderWalletFields } from "../api/ordersAPI";
 import { getProducts } from "../api/productsAPI";
 import { canAccess, hasGlobalDataAccess } from "../utils/permissions";
 import {
@@ -64,7 +64,7 @@ const PICKUP_STATUS_OPTIONS = [
 ];
 
 /** Non-admin users may only update orders while shipping is still Pending. */
-const USER_EDITABLE_SHIPPING_STATUSES = ["Pending"];
+const USER_EDITABLE_SHIPPING_STATUSES = ["Pending", "Booked"];
 
 const isOrderEditableByRole = (order, canEdit, isGlobalAdmin = false) => {
   if (!canEdit) return false;
@@ -404,6 +404,13 @@ const UpdateOrdersPage = () => {
           : "",
 
       weight: order.weight ?? order.actualWeight ?? 0,
+      oda_charge: order.odaCharge ?? 0,
+      service_type:
+        order.shipping?.serviceType === "air"
+          ? "AIR"
+          : order.shipping?.serviceType === "prime"
+            ? "Prime"
+            : "SUR",
       length: order.length ?? 0,
       breadth: order.breadth ?? 0,
       height: order.height ?? 0,
@@ -551,7 +558,33 @@ const UpdateOrdersPage = () => {
 
     try {
       setIsSubmitting(true);
-      const data = await updateOrder(payload);
+      const shippingStatus =
+        editingOrder?.shipping?.shippingStatus || "Pending";
+      const walletOnlyUpdate = shippingStatus === "Booked" && !isGlobalAdmin;
+
+      let data = { success: true };
+      if (!walletOnlyUpdate) {
+        data = await updateOrder(payload);
+      }
+
+      try {
+        await updateOrderWalletFields({
+          order_id: formData.order_id,
+          weight: formData.weight,
+          length: formData.length,
+          breadth: formData.breadth,
+          height: formData.height,
+          oda_charge: formData.oda_charge,
+          service_type: formData.service_type,
+        });
+      } catch (walletError) {
+        setMessage({
+          type: "error",
+          text: walletError.message || "Order saved but wallet charge update failed.",
+        });
+        setIsSubmitting(false);
+        return;
+      }
 
       if (data.success) {
         setMessage({
@@ -1407,6 +1440,31 @@ const UpdateOrdersPage = () => {
                       onChange={handleChange}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:border-indigo-500"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 font-medium mb-1">ODA charge (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      name="oda_charge"
+                      value={formData.oda_charge ?? 0}
+                      onChange={handleChange}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 font-medium mb-1">Courier mode</label>
+                    <select
+                      name="service_type"
+                      value={formData.service_type || "SUR"}
+                      onChange={handleChange}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:border-indigo-500"
+                    >
+                      <option value="SUR">SUR (Surface)</option>
+                      <option value="AIR">AIR</option>
+                      <option value="Prime">Prime</option>
+                    </select>
                   </div>
                 </div>
               </div>

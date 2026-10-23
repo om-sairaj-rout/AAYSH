@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Calculator,
   IndianRupee,
+  Wallet,
 } from "lucide-react";
 import { TICKET_UNREAD_CHANGED_EVENT } from "../utils/ticketHelpers";
 import aayshlogo from "../assets/aaysh_logo.png";
@@ -95,6 +96,11 @@ const SideBar = ({ isOpen, setIsOpen }) => {
           name: "Rate Calculator",
           icon: <Calculator size={20} />,
           path: "/rate-calculator",
+        },
+        {
+          name: "Wallet",
+          icon: <Wallet size={20} />,
+          path: "/wallet",
         },
       ],
     },

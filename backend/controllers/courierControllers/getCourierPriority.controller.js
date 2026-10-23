@@ -1,5 +1,8 @@
 const Courier = require("../../models/awb/courier.model");
 const CourierPriority = require("../../models/upload/courierPriority.model");
+const {
+  mergePriorityWithAllCouriers,
+} = require("../../utils/mergeCourierPriorityList");
 
 const getCourierPriority = async (req, res) => {
   try {
@@ -12,26 +15,30 @@ const getCourierPriority = async (req, res) => {
       });
     }
 
+    const couriers = await Courier.find({}).sort({ name: 1 }).lean();
+
     let priority = await CourierPriority.findOne({
       service,
     }).lean();
 
-    // First time setup
-    if (!priority) {
-      const couriers = await Courier.find({})
-        .sort({ name: 1 })
-        .lean();
+    const mergedList = mergePriorityWithAllCouriers(
+      priority?.priority,
+      couriers
+    );
 
+    // First time setup — persist initial order
+    if (!priority) {
       priority = await CourierPriority.create({
         service,
-        priority: couriers.map((courier, index) => ({
-          courierId: courier._id,
-          courierName: courier.name,
-          order: index + 1,
-        })),
+        priority: mergedList,
       });
 
       priority = priority.toObject();
+    } else {
+      priority = {
+        ...priority,
+        priority: mergedList,
+      };
     }
 
     return res.json({

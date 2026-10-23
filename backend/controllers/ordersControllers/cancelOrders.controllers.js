@@ -4,6 +4,7 @@ const Tracking = require("../../models/upload/tracking.model");
 const { userOwnsOrder } = require("../../utils/companyScope");
 const { applyShipmentCancellation } = require("../../utils/applyShipmentCancellation");
 const { releaseAwbIfReusable } = require("../../utils/awbReuse");
+const { refundOrderCancellation } = require("../../utils/walletService");
 
 const cancelOrder = async (req, res) => {
   try {
@@ -76,6 +77,7 @@ const cancelOrder = async (req, res) => {
       applyShipmentCancellation(shipping);
       await shipping.save();
       await releaseAwbIfReusable(awbNumber, statusBeforeCancel);
+      await refundOrderCancellation({ order, createdBy: req.user?.id });
 
       await Tracking.create({
         shippingId: shipping._id,

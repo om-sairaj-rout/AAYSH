@@ -206,6 +206,7 @@ const buildBillingInvoice = async ({ companyID, awbNumbers = [] }) => {
       billPeriodTo: "",
       billPeriod: "",
       remarks: "",
+      applyTaxInvoice: true,
       cgstPercent: 9,
       sgstPercent: 9,
       preparedBy: "",

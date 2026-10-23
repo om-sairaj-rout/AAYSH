@@ -16,18 +16,22 @@ import {
   ShieldCheck,
   ShieldAlert,
   UserCircle,
-  Scale
+  Scale,
+  IndianRupee,
 } from "lucide-react";
 import {
   getAllUsers,
   updateUserAccount
 } from "../api/authAPI";
 import { toast } from '../utils/toast'; // Imported for toast notifications
-import { canAccess } from "../utils/permissions";
+import { canAccess, isUnrestrictedAdmin } from "../utils/permissions";
+import { getWalletOverviewAPI, updateCompanyWalletSettingAPI } from "../api/walletAPI";
 
 const EditAccount = () => {
   const { user: currentUser } = useSelector((state) => state.auth);
   const canWrite = canAccess(currentUser, "settings", "write");
+  const isAdmin = isUnrestrictedAdmin(currentUser);
+  const [walletEnabled, setWalletEnabled] = useState(false);
   const [usersList, setUsersList] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -88,6 +92,13 @@ const EditAccount = () => {
       showWeight: user.showWeight !== undefined ? user.showWeight : true, 
     });
     setErrors({});
+    if (isAdmin && user.companyID) {
+      getWalletOverviewAPI(user.companyID)
+        .then((res) => setWalletEnabled(Boolean(res.data?.walletEnabled)))
+        .catch(() => setWalletEnabled(false));
+    } else {
+      setWalletEnabled(false);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -146,6 +157,11 @@ const EditAccount = () => {
       }
 
       await updateUserAccount(selectedUser._id, updatedPayload);
+
+      if (isAdmin && selectedUser.companyID) {
+        await updateCompanyWalletSettingAPI(selectedUser.companyID, walletEnabled);
+      }
+
       toast.success("Changes applied successfully!");
       
       // Refresh user list and go back
@@ -492,6 +508,29 @@ const EditAccount = () => {
               />
             </div>
           </div>
+
+          {isAdmin && selectedUser?.companyID && (
+            <div className="col-span-4">
+              <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">
+                Company wallet
+              </label>
+              <div className="relative flex items-center h-11.5 border border-gray-200 rounded-xl bg-gray-100/50 px-3">
+                <IndianRupee className="text-gray-400 w-5 h-5 mr-2 shrink-0" />
+                <span className="text-gray-500 text-sm flex-1 font-medium select-none">
+                  {walletEnabled ? "Wallet enabled for this company" : "Wallet disabled"}
+                </span>
+                <input
+                  type="checkbox"
+                  checked={walletEnabled}
+                  onChange={(e) => setWalletEnabled(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
+                />
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">
+                Saves with account update. Company ID: {selectedUser.companyID}
+              </p>
+            </div>
+          )}
 
           {/* Action Trigger Buttons */}
           <div className="col-span-4 mt-2 flex gap-3">

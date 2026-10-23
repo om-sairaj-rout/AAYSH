@@ -3,6 +3,7 @@ const Order = require("../../models/upload/order.model");
 const { userOwnsOrder } = require("../../utils/companyScope");
 const { applyShipmentCancellation } = require("../../utils/applyShipmentCancellation");
 const { releaseAwbIfReusable } = require("../../utils/awbReuse");
+const { refundOrderCancellation } = require("../../utils/walletService");
 
 const cancelShipments = async (req, res) => {
   try {
@@ -79,6 +80,7 @@ const cancelShipments = async (req, res) => {
         applyShipmentCancellation(shipment);
         await shipment.save();
         await releaseAwbIfReusable(awbNumber, statusBeforeCancel);
+        await refundOrderCancellation({ order, createdBy: req.user?.id });
 
         cancelled.push({
           awb: awbNumber,

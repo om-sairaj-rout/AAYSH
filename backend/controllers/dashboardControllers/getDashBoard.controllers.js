@@ -3,6 +3,11 @@ const Shipping = require("../../models/upload/shipping.model");
 const { toISTDate } = require("../../utils/dateTime");
 const { applyCompanyOrderFilter } = require("../../utils/companyScope");
 const { buildDashboardAnalytics } = require("../../utils/dashboardAnalytics");
+const {
+  getWalletSummary,
+  isWalletEnabledForCompany,
+  WALLET_MIN_BALANCE,
+} = require("../../utils/walletService");
 
 const getISTYear = (date) => {
   const istDate = toISTDate(date);
@@ -278,8 +283,34 @@ const totalCost = yearOrders.reduce(
     const { salesAnalytics, shipmentAnalytics, riskAnalytics } =
       buildDashboardAnalytics(yearOrders);
 
+    let wallet = null;
+    const walletCompanyID = isAdmin
+      ? companyId && companyId !== "ALL"
+        ? companyId
+        : null
+      : String(req.user?.companyID || "").trim();
+
+    if (walletCompanyID) {
+      const enabled = await isWalletEnabledForCompany(walletCompanyID);
+      if (enabled) {
+        const summary = await getWalletSummary(walletCompanyID);
+        wallet = {
+          walletEnabled: true,
+          balance: summary.balance,
+          totalCredit: summary.totalCredit,
+          totalDebit: summary.totalDebit,
+          lowBalance: summary.balance < WALLET_MIN_BALANCE,
+          minBalance: WALLET_MIN_BALANCE,
+        };
+      } else {
+        wallet = { walletEnabled: false };
+      }
+    }
+
     return res.status(200).json({
       success: true,
+
+      wallet,
 
       stats: {
         totalOrders,

@@ -9,6 +9,7 @@ import DashBoard from "./pages/DashBoard.jsx";
 import Layout from "./components/Layout.jsx"; 
 import OrderByDateInfo from "./pages/OrderByDate.jsx";
 import RateCalculator from "./pages/RateCalculator.jsx";
+import WalletPage from "./pages/WalletPage.jsx";
 import RateManagementPage from "./pages/RateManagementPage.jsx";
 import InvoiceGenerationPage from "./pages/InvoiceGenerationPage.jsx";
 import UploadPage from "./pages/UploadPage.jsx";
@@ -60,6 +61,7 @@ const router = createBrowserRouter([
       { path: "/dashboard", element: guard("/dashboard", <DashBoard />) },
       { path: "/reports/orders", element: guard("/reports/orders", <OrderByDateInfo />) },
       { path: "/rate-calculator", element: guard("/rate-calculator", <RateCalculator />) },
+      { path: "/wallet", element: guard("/wallet", <WalletPage />) },
       { path: "/upload/order-reports", element: guard("/upload/order-reports", <UploadPage />) },
       { path: "/upload/template", element: guard("/upload/template", <TemplatePage />) },
       { path: "/update/status", element: guard("/update/status", <ExcelReportsPage />) },

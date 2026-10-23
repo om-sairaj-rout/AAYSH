@@ -12,6 +12,7 @@ import {
 import { getCompanies } from "../api/companyAPI";
 import {
   previewBillingInvoiceAPI,
+  previewBillingInvoiceFromExcelAPI,
   exportBillingInvoicePdfAPI,
   exportBillingInvoiceExcelAPI,
   saveBillingInvoiceAPI,
@@ -53,13 +54,19 @@ const InvoiceGenerationPage = () => {
   const { user } = useSelector((state) => state.auth);
   const canWrite = canAccess(user, "update", "write");
   const fileInputRef = useRef(null);
+  const excelFileInputRef = useRef(null);
 
+  const [method, setMethod] = useState("awb");
   const [companies, setCompanies] = useState([]);
   const [companyID, setCompanyID] = useState("");
   const [awbText, setAwbText] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [awbLoading, setAwbLoading] = useState(false);
+  const [excelLoading, setExcelLoading] = useState(false);
   const [exporting, setExporting] = useState("");
-  const [invoice, setInvoice] = useState(null);
+  const [awbInvoice, setAwbInvoice] = useState(null);
+  const [excelInvoice, setExcelInvoice] = useState(null);
+  const [excelFile, setExcelFile] = useState(null);
+  const [excelUploadErrors, setExcelUploadErrors] = useState([]);
   const [uploadingAwbs, setUploadingAwbs] = useState(false);
   const [saving, setSaving] = useState(false);
   const [historyMonth, setHistoryMonth] = useState(currentBillingMonth);
@@ -67,6 +74,9 @@ const InvoiceGenerationPage = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyExporting, setHistoryExporting] = useState("");
   const rateRecalcTimer = useRef(null);
+
+  const invoice = method === "awb" ? awbInvoice : excelInvoice;
+  const setInvoice = method === "awb" ? setAwbInvoice : setExcelInvoice;
 
   const rovEnabledForCompany = Boolean(invoice?.profile?.rovIncluded);
 
@@ -78,7 +88,11 @@ const InvoiceGenerationPage = () => {
         invoice: clearAutoFuelOverride(draftInvoice),
         recalculateRates: true,
       });
-      setInvoice(res.data);
+      if (draftInvoice.generationMethod === "excel") {
+        setExcelInvoice(res.data);
+      } else {
+        setAwbInvoice(res.data);
+      }
     } catch (error) {
       toast.error(error.message || "Failed to recalculate rates from Rate Management");
     }
@@ -129,11 +143,17 @@ const InvoiceGenerationPage = () => {
 
   const exportPayload = useMemo(() => {
     if (!companyID) return null;
-    if (invoice?.lines?.length) {
-      return { companyID, invoice };
+    if (method === "excel" && excelInvoice?.lines?.length) {
+      return { companyID, invoice: excelInvoice };
     }
-    return { companyID, awbText };
-  }, [companyID, invoice, awbText]);
+    if (method === "awb" && awbInvoice?.lines?.length) {
+      return { companyID, invoice: awbInvoice };
+    }
+    if (method === "awb") {
+      return { companyID, awbText };
+    }
+    return null;
+  }, [companyID, method, awbInvoice, excelInvoice, awbText]);
 
   const handlePreview = async () => {
     if (!companyID) {
@@ -146,9 +166,9 @@ const InvoiceGenerationPage = () => {
     }
 
     try {
-      setLoading(true);
+      setAwbLoading(true);
       const res = await previewBillingInvoiceAPI({ companyID, awbText });
-      setInvoice(res.data);
+      setAwbInvoice(res.data);
       if (!res.data?.lines?.length) {
         toast.warning("No invoice lines generated. Check warnings below.");
       } else {
@@ -163,11 +183,64 @@ const InvoiceGenerationPage = () => {
         );
       }
     } catch (error) {
-      setInvoice(null);
+      setAwbInvoice(null);
       toast.error(error.message || "Failed to calculate invoice");
     } finally {
-      setLoading(false);
+      setAwbLoading(false);
     }
+  };
+
+  const handleExcelPreview = async () => {
+    if (!companyID) {
+      toast.validation("Select a company");
+      return;
+    }
+    if (!excelFile) {
+      toast.validation("Upload an Excel invoice sheet (.xlsx or .xls)");
+      return;
+    }
+
+    try {
+      setExcelLoading(true);
+      setExcelUploadErrors([]);
+      const res = await previewBillingInvoiceFromExcelAPI(companyID, excelFile);
+      setExcelInvoice(res.data);
+      setExcelUploadErrors(res.data?.errors || []);
+      if (!res.data?.lines?.length) {
+        toast.warning("No invoice lines generated. Check warnings below.");
+      } else {
+        const warnCount = res.data.errors?.length || 0;
+        if (warnCount > 0) {
+          toast.warning(`${warnCount} row(s) were skipped due to validation errors.`);
+        }
+        toast.success(
+          `Calculated ${res.data.lines.length} row(s) from Excel using Rate Management (DOC charges from system).`
+        );
+      }
+    } catch (error) {
+      setExcelInvoice(null);
+      setExcelUploadErrors(error.errors || []);
+      toast.error(error.message || "Failed to build invoice from Excel");
+    } finally {
+      setExcelLoading(false);
+    }
+  };
+
+  const handleExcelFile = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const name = file.name.toLowerCase();
+    if (!name.endsWith(".xlsx") && !name.endsWith(".xls")) {
+      toast.validation("Please upload an Excel file (.xlsx or .xls)");
+      return;
+    }
+
+    setExcelFile(file);
+    setExcelInvoice(null);
+    setExcelUploadErrors([]);
+    toast.success(`Selected ${file.name}`);
   };
 
   const handleAwbFile = async (event) => {
@@ -183,7 +256,7 @@ const InvoiceGenerationPage = () => {
         return;
       }
       setAwbText(awbs.join("\n"));
-      setInvoice(null);
+      setAwbInvoice(null);
       toast.success(`Loaded ${awbs.length} AWB(s) from file`);
     } catch (error) {
       toast.error(error.message || "Failed to read AWB file");
@@ -354,20 +427,114 @@ const InvoiceGenerationPage = () => {
     );
   };
 
+  const taxInvoiceEnabled = Boolean(
+    invoice?.invoiceMeta?.applyTaxInvoice ??
+      ((invoice?.invoiceMeta?.cgstPercent ?? 0) > 0 ||
+        (invoice?.invoiceMeta?.sgstPercent ?? 0) > 0)
+  );
+
+  const setTaxInvoiceEnabled = (enabled) => {
+    setInvoice((prev) => {
+      if (!prev) return prev;
+      const prevCgst = prev.invoiceMeta?.cgstPercent ?? 9;
+      const prevSgst = prev.invoiceMeta?.sgstPercent ?? 9;
+      return recalculateInvoiceTotals({
+        ...prev,
+        invoiceMeta: {
+          ...(prev.invoiceMeta || {}),
+          applyTaxInvoice: enabled,
+          cgstPercent: enabled ? (prevCgst > 0 ? prevCgst : 9) : 0,
+          sgstPercent: enabled ? (prevSgst > 0 ? prevSgst : 9) : 0,
+        },
+      });
+    });
+  };
+
   const inputClass =
     "w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500";
+
+  const renderInvoiceActions = ({ onPreview, previewLoading, previewLabel }) => (
+    <div className="flex flex-wrap gap-2">
+      <button
+        type="button"
+        onClick={onPreview}
+        disabled={previewLoading}
+        className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold disabled:opacity-50"
+      >
+        <Search size={16} />
+        {previewLoading ? "Working..." : previewLabel}
+      </button>
+      {canWrite && (
+        <>
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            disabled={exporting}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-sm font-bold disabled:opacity-50"
+          >
+            <FileText size={16} />
+            {exporting === "pdf" ? "Exporting..." : "Download PDF"}
+          </button>
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={exporting}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold disabled:opacity-50"
+          >
+            <FileSpreadsheet size={16} />
+            {exporting === "excel" ? "Exporting..." : "Download Excel"}
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveInvoice}
+            disabled={saving}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-bold disabled:opacity-50"
+          >
+            <Save size={16} />
+            {saving ? "Saving..." : "Save Invoice"}
+          </button>
+        </>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-[#1B2B4B]">Invoice Generation</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Select a company, paste or upload AWB numbers, preview and edit the tax invoice, then download PDF (reference freight-bill layout).
+          Choose how to build the tax invoice: calculate from AWBs and Rate Management, or import
+          line items directly from an Excel sheet.
         </p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100 p-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div>
+      <div className="flex flex-wrap gap-2 p-1 bg-slate-100 rounded-2xl w-fit">
+        <button
+          type="button"
+          onClick={() => setMethod("awb")}
+          className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+            method === "awb"
+              ? "bg-white text-indigo-700 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          Generate Invoice by AWB
+        </button>
+        <button
+          type="button"
+          onClick={() => setMethod("excel")}
+          className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+            method === "excel"
+              ? "bg-white text-indigo-700 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          Generate Invoice by Excel Upload
+        </button>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-100 p-5 space-y-4">
+        <div className="max-w-xl">
           <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
             Company
           </label>
@@ -375,7 +542,8 @@ const InvoiceGenerationPage = () => {
             value={companyID}
             onChange={(e) => {
               setCompanyID(e.target.value);
-              setInvoice(null);
+              setAwbInvoice(null);
+              setExcelInvoice(null);
             }}
             className={inputClass}
           >
@@ -387,80 +555,115 @@ const InvoiceGenerationPage = () => {
             ))}
           </select>
         </div>
-        <div>
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <label className="block text-xs font-bold text-slate-500 uppercase">
-              AWB Numbers
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".txt,.csv,.xlsx,.xls"
-                className="hidden"
-                onChange={handleAwbFile}
+
+        {method === "awb" && (
+          <div className="grid grid-cols-1 gap-4 border-t border-slate-100 pt-4">
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <label className="block text-xs font-bold text-slate-500 uppercase">
+                  AWB Numbers
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".txt,.csv,.xlsx,.xls"
+                    className="hidden"
+                    onChange={handleAwbFile}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingAwbs}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800"
+                  >
+                    <Upload size={14} />
+                    {uploadingAwbs ? "Reading..." : "Upload AWB list"}
+                  </button>
+                </div>
+              </div>
+              <textarea
+                rows={5}
+                value={awbText}
+                onChange={(e) => setAwbText(e.target.value)}
+                placeholder="Paste AWBs separated by comma, space, or new line — or upload .txt / .csv / .xlsx"
+                className={inputClass}
               />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingAwbs}
-                className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800"
-              >
-                <Upload size={14} />
-                {uploadingAwbs ? "Reading..." : "Upload file"}
-              </button>
+              <p className="text-xs text-slate-500 mt-2">
+                Rates are calculated from Rate Management using each AWB&apos;s order data.
+              </p>
             </div>
+            {renderInvoiceActions({
+              onPreview: handlePreview,
+              previewLoading: awbLoading,
+              previewLabel: "Preview Invoice",
+            })}
           </div>
-          <textarea
-            rows={5}
-            value={awbText}
-            onChange={(e) => setAwbText(e.target.value)}
-            placeholder="Paste AWBs separated by comma, space, or new line — or upload .txt / .csv / .xlsx"
-            className={inputClass}
-          />
-        </div>
-        <div className="lg:col-span-2 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={handlePreview}
-            disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold disabled:opacity-50"
-          >
-            <Search size={16} />
-            {loading ? "Calculating..." : "Preview Invoice"}
-          </button>
-          {canWrite && (
-            <>
-              <button
-                type="button"
-                onClick={handleExportPdf}
-                disabled={exporting}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-sm font-bold disabled:opacity-50"
-              >
-                <FileText size={16} />
-                {exporting === "pdf" ? "Exporting..." : "Download PDF"}
-              </button>
-              <button
-                type="button"
-                onClick={handleExportExcel}
-                disabled={exporting}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold disabled:opacity-50"
-              >
-                <FileSpreadsheet size={16} />
-                {exporting === "excel" ? "Exporting..." : "Download Excel"}
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveInvoice}
-                disabled={saving}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-bold disabled:opacity-50"
-              >
-                <Save size={16} />
-                {saving ? "Saving..." : "Save Invoice"}
-              </button>
-            </>
-          )}
-        </div>
+        )}
+
+        {method === "excel" && (
+          <div className="space-y-4 border-t border-slate-100 pt-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                Invoice Excel sheet
+              </label>
+              <div className="flex flex-wrap items-center gap-3">
+                <input
+                  ref={excelFileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  className="hidden"
+                  onChange={handleExcelFile}
+                />
+                <button
+                  type="button"
+                  onClick={() => excelFileInputRef.current?.click()}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  <Upload size={16} />
+                  Choose Excel file
+                </button>
+                {excelFile && (
+                  <span className="text-sm text-slate-600 truncate max-w-md">
+                    {excelFile.name}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-2">
+                Use the standard header row: Sr. No., Date, Company Name, Courier Partner,{" "}
+                <strong>AWB No.</strong>, <strong>Destination</strong>, No of Pieces,{" "}
+                <strong>MOD</strong> (SUF/AIR/PRIME — defaults to surface if blank),{" "}
+                <strong>Actual Weight</strong>, VOLUME (optional kg; text like DONE is ignored), Invoice
+                Value,{" "}
+                PREPAID/COD, ODA Amount, Remarks. ROV and DOC are calculated from Rate Management
+                (ROV column in the sheet is ignored).
+              </p>
+            </div>
+            {renderInvoiceActions({
+              onPreview: handleExcelPreview,
+              previewLoading: excelLoading,
+              previewLabel: "Build invoice from Excel",
+            })}
+            {excelUploadErrors.length > 0 && (
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+                <h3 className="text-sm font-bold text-amber-900 mb-2">Upload errors</h3>
+                <ul className="text-sm text-amber-800 space-y-1 max-h-48 overflow-y-auto">
+                  {excelUploadErrors.map((err, idx) => (
+                    <li key={`${err.awb || "row"}-${idx}`}>
+                      {err.awb ? (
+                        <>
+                          <strong>{err.awb}</strong>: {err.message}
+                        </>
+                      ) : (
+                        err.message
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {invoice && (
@@ -471,6 +674,12 @@ const InvoiceGenerationPage = () => {
                 <h2 className="text-lg font-bold text-[#1B2B4B]">TAX INVOICE</h2>
                 <p className="text-xs text-slate-500">
                   Air Express Courier header/footer are fixed on PDF. Edit Bill To and line items below.
+                  {invoice.generationMethod === "excel" && (
+                    <span className="block mt-1 text-indigo-600 font-medium">
+                      Excel upload — freight, ROV, and DOC are calculated from Rate Management using
+                      sheet weight, mode, and location.
+                    </span>
+                  )}
                 </p>
               </div>
               <div className="text-right text-sm text-slate-500">
@@ -601,6 +810,15 @@ const InvoiceGenerationPage = () => {
                 </p>
               </div>
               <div className="rounded-xl bg-slate-50 p-3 space-y-2">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    checked={taxInvoiceEnabled}
+                    onChange={(e) => setTaxInvoiceEnabled(e.target.checked)}
+                  />
+                  Tax Invoice (apply CGST / SGST)
+                </label>
                 <div className="text-xs text-slate-500">CGST / SGST %</div>
                 <div className="flex gap-2">
                   <input
@@ -609,6 +827,7 @@ const InvoiceGenerationPage = () => {
                     value={numericInputValue(
                       invoice.invoiceMeta?.cgstPercent ?? invoice.totals?.cgstPercent
                     )}
+                    disabled={!taxInvoiceEnabled}
                     onChange={(e) => updateMetaAndRecalc("cgstPercent", e.target.value)}
                   />
                   <input
@@ -617,6 +836,7 @@ const InvoiceGenerationPage = () => {
                     value={numericInputValue(
                       invoice.invoiceMeta?.sgstPercent ?? invoice.totals?.sgstPercent
                     )}
+                    disabled={!taxInvoiceEnabled}
                     onChange={(e) => updateMetaAndRecalc("sgstPercent", e.target.value)}
                   />
                 </div>
@@ -712,7 +932,8 @@ const InvoiceGenerationPage = () => {
                           const mode = e.target.value;
                           setInvoice((prev) => {
                             const draft = updateInvoiceLine(prev, index, { mode });
-                            if (!draft.lines[index]?.missingAwb) {
+                            const line = draft.lines[index];
+                            if (!line?.missingAwb && line?.zone) {
                               scheduleRateRecalculation(draft);
                             }
                             return draft;
@@ -756,8 +977,16 @@ const InvoiceGenerationPage = () => {
                     <td className="px-2 py-2">
                       <input
                         type="number"
-                        className={cellInput}
                         value={numericInputValue(line.docChg ?? line.docketChg)}
+                        readOnly={invoice.generationMethod === "excel"}
+                        title={
+                          invoice.generationMethod === "excel"
+                            ? "DOC is calculated from Rate Management for Excel uploads"
+                            : undefined
+                        }
+                        className={`${cellInput}${
+                          invoice.generationMethod === "excel" ? " bg-slate-50 cursor-default" : ""
+                        }`}
                         onChange={(e) =>
                           setInvoice((prev) =>
                             updateLineChargeField(prev, index, "docChg", e.target.value)
@@ -788,7 +1017,8 @@ const InvoiceGenerationPage = () => {
                             const draft = updateInvoiceLine(prev, index, {
                               chargeableWeight: weight,
                             });
-                            if (weight != null && !draft.lines[index]?.missingAwb) {
+                            const line = draft.lines[index];
+                            if (weight != null && !line?.missingAwb && line?.zone) {
                               scheduleRateRecalculation(draft);
                             }
                             return draft;

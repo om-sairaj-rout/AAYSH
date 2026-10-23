@@ -13,8 +13,9 @@ const loadEnv = () => {
 
   for (const [key, value] of Object.entries(parsed)) {
     const current = process.env[key];
+    const trimmed = String(value ?? "").trim();
     if (current === undefined || String(current).trim() === "") {
-      process.env[key] = value;
+      process.env[key] = trimmed;
     }
   }
 };

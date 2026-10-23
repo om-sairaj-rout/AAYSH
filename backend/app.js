@@ -3,6 +3,11 @@ const { loadEnv } = require("./config/loadEnv");
 
 loadEnv();
 
+const { isRazorpayConfigured, razorpayConfigHint } = require("./utils/razorpayClient");
+if (!isRazorpayConfigured()) {
+  console.warn(`[razorpay] Wallet recharge unavailable. ${razorpayConfigHint()}`);
+}
+
 const express = require('express');
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -26,6 +31,8 @@ const pickupScheduleRouter = require('./routes/pickupSchedule.routes');
 const ticketRouter = require('./routes/ticket.routes');
 const rateRouter = require('./routes/rate.routes');
 const billingRouter = require('./routes/billing.routes');
+const walletRouter = require('./routes/wallet.routes');
+const razorpayRouter = require('./routes/razorpay.routes');
 
 connectToDB();
 
@@ -45,6 +52,14 @@ app.use(cors({
   ],
   credentials: true
 }));
+
+const razorpayWalletWebhook = require("./controllers/walletControllers/razorpayWebhook.controllers");
+app.post(
+  "/api/wallet/razorpay/webhook",
+  express.raw({ type: "application/json" }),
+  razorpayWalletWebhook
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -74,6 +89,8 @@ app.use('/api', generateLabelRouter);
 app.use('/api', contactRouter)
 app.use('/api', rateRouter)
 app.use('/api', billingRouter)
+app.use('/api', walletRouter)
+app.use('/api', razorpayRouter)
 
 
 app.listen(3000, () => {

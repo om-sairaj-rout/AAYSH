@@ -48,6 +48,7 @@ const PATH_SECTION_MAP = {
   "/select-courier": "orders",
   "/catalog/products": "orders",
   "/rate-calculator": "orders",
+  "/wallet": "orders",
   "/awb": "orders",
   "/reports/shipments": "shipments",
   "/pickup": "pickup",

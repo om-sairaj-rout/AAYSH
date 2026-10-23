@@ -40,6 +40,10 @@ const companySchema = new mongoose.Schema(
       index: true,
     },
     isActive: { type: Boolean, default: true },
+    walletEnabled: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

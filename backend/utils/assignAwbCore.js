@@ -1,10 +1,17 @@
 const Awb = require("../models/awb/awb.model");
 const Order = require("../models/upload/order.model");
 const Shipping = require("../models/upload/shipping.model");
+const Company = require("../models/company.model");
 const PincodeServiceability = require("../models/upload/serviceability.model");
 const CourierPriority = require("../models/upload/courierPriority.model");
 const { parseISODateOnly, now } = require("./dateTime");
 const { getAwbCategory } = require("./codToPay");
+const { calculateOrderWalletCharge } = require("./orderWalletCharge");
+const {
+  debitForOrder,
+  ensureWalletReadyForShipment,
+} = require("./walletService");
+const { buildCourierAssignmentOrder } = require("./buildCourierAssignmentOrder");
 
 const getServiceabilityPincode = (order) => {
   if (order.isReversePickup && order.pickupPincode) {
@@ -74,6 +81,14 @@ const assignAwbCore = async ({
 
   const orderDocs = await Order.find({ _id: { $in: orderIds } }).lean();
   const orderMap = new Map(orderDocs.map((o) => [o._id.toString(), o]));
+
+  const companyIds = [
+    ...new Set(orderDocs.map((o) => String(o.companyID || "").trim().toUpperCase()).filter(Boolean)),
+  ];
+  const companyDocs = await Company.find({ companyID: { $in: companyIds } })
+    .select("companyID walletEnabled")
+    .lean();
+  const companyMap = new Map(companyDocs.map((c) => [c.companyID, c]));
 
   const pincodes = [
     ...new Set(orderDocs.map((o) => getServiceabilityPincode(o)).filter(Boolean)),
@@ -152,10 +167,39 @@ const assignAwbCore = async ({
       continue;
     }
 
-    const courierMap = new Map();
-    availableCouriers.forEach((c) => {
-      courierMap.set(c.courierId.toString(), c);
-    });
+    const company = companyMap.get(String(order.companyID || "").trim().toUpperCase());
+    let walletChargeForOrder = null;
+
+    if (company?.walletEnabled && !order.walletDeductedAt) {
+      const chargeResult = await calculateOrderWalletCharge(order, service);
+      if (!chargeResult.success) {
+        updatedOrders.push({
+          orderId: order._id,
+          orderNumber: order.externalOrderId,
+          consigneeName: order.consigneeName,
+          destinationPincode: serviceabilityPincode,
+          error: chargeResult.message || "Unable to calculate wallet charge",
+        });
+        continue;
+      }
+
+      walletChargeForOrder = chargeResult;
+
+      const walletReady = await ensureWalletReadyForShipment(
+        order.companyID,
+        chargeResult.amount
+      );
+      if (!walletReady.ok) {
+        updatedOrders.push({
+          orderId: order._id,
+          orderNumber: order.externalOrderId,
+          consigneeName: order.consigneeName,
+          destinationPincode: serviceabilityPincode,
+          error: walletReady.message,
+        });
+        continue;
+      }
+    }
 
     const category = getAwbCategory(
       order.chargeableWeight || order.weight,
@@ -165,11 +209,12 @@ const assignAwbCore = async ({
     let awb = null;
     let selectedCourier = null;
 
-    for (const priorityCourier of priority.priority) {
-      if (!courierMap.has(priorityCourier.courierId.toString())) {
-        continue;
-      }
+    const couriersToTry = buildCourierAssignmentOrder(
+      priority.priority,
+      availableCouriers
+    );
 
+    for (const priorityCourier of couriersToTry) {
       awb = await Awb.findOneAndUpdate(
         {
           courierId: priorityCourier.courierId,
@@ -203,6 +248,46 @@ const assignAwbCore = async ({
         error: "No AWB available for any courier",
       });
       continue;
+    }
+
+    if (walletChargeForOrder) {
+      const debitResult = await debitForOrder({
+        companyID: order.companyID,
+        orderId: order._id,
+        amount: walletChargeForOrder.amount,
+        description: `Shipment charge for order ${order.externalOrderId} (${service})`,
+        meta: {
+          service,
+          zone: walletChargeForOrder.zone,
+          externalOrderId: order.externalOrderId,
+          awbNumber: awb.awbNumber,
+          chargeableWeight: walletChargeForOrder.chargeableWeight,
+          displayDescription: "Shipment Manifested",
+        },
+      });
+
+      if (!debitResult.success) {
+        updatedOrders.push({
+          orderId: order._id,
+          orderNumber: order.externalOrderId,
+          consigneeName: order.consigneeName,
+          destinationPincode: serviceabilityPincode,
+          error: debitResult.message || "Insufficient wallet balance",
+        });
+        continue;
+      }
+
+      if (!debitResult.duplicate) {
+        await Order.updateOne(
+          { _id: order._id },
+          {
+            walletDeductedAt: new Date(),
+            walletChargeAmount: walletChargeForOrder.amount,
+            walletTransactionId: debitResult.transaction._id,
+          }
+        );
+        order.walletDeductedAt = new Date();
+      }
     }
 
     shippingUpdates.push({

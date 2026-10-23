@@ -1,12 +1,29 @@
+const jwt = require("jsonwebtoken");
 const User = require("../../models/user.model");
 const Company = require("../../models/company.model");
 const bcrypt = require("bcrypt");
 const { generateCompanyId } = require("../../utils/generateCompanyId");
 const { resolvePermissions } = require("../../utils/permissions");
 const { respondWithError } = require("../../utils/mongoErrors");
+const { getOrCreateWallet } = require("../../utils/walletService");
 
 const escapeRegex = (value) =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const resolveOptionalAdmin = async (req) => {
+  try {
+    let token = req.cookies?.token;
+    if (!token && req.headers.authorization) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+    if (!token) return null;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select("role").lean();
+    return user?.role === "admin" ? user : null;
+  } catch {
+    return null;
+  }
+};
 
 const RegisterController = async (req, res) => {
   try {
@@ -24,10 +41,13 @@ const RegisterController = async (req, res) => {
       state,
       country,
       showWeight,
+      walletEnabled,
       companyID: joinCompanyID,
       companyRole,
       isOwner,
     } = req.body;
+
+    const optionalAdmin = await resolveOptionalAdmin(req);
 
     const trimmedFullName = String(fullName || "").trim();
 
@@ -148,6 +168,7 @@ const RegisterController = async (req, res) => {
       });
 
       if (!isJoiningCompany) {
+        const enableWallet = Boolean(optionalAdmin && walletEnabled);
         companyRecord = await Company.create({
           companyID: resolvedCompanyID,
           companyName: String(companyName).trim(),
@@ -159,7 +180,11 @@ const RegisterController = async (req, res) => {
           website: website || "",
           gstin: gstin || "",
           ownerId: newUser._id,
+          walletEnabled: enableWallet,
         });
+        if (enableWallet) {
+          await getOrCreateWallet(resolvedCompanyID);
+        }
       } else if (resolvedCompanyRole === "owner") {
         companyRecord.ownerId = newUser._id;
         await companyRecord.save();

@@ -5,6 +5,9 @@ const PincodeServiceability = require("../../models/upload/serviceability.model"
 const CourierPriority = require("../../models/upload/courierPriority.model");
 const { parseISODateOnly, now } = require("../../utils/dateTime");
 const { getAwbCategory } = require("../../utils/codToPay");
+const {
+  buildCourierAssignmentOrder,
+} = require("../../utils/buildCourierAssignmentOrder");
 
 const generateAwbExternal = async (req, res) => {
   try {
@@ -213,15 +216,6 @@ const generateAwbExternal = async (req, res) => {
         continue;
       }
 
-      const courierMap = new Map();
-
-      availableCouriers.forEach((c) => {
-        courierMap.set(
-          c.courierId.toString(),
-          c
-        );
-      });
-
       const category =
         getAwbCategory(
           order.chargeableWeight || order.weight,
@@ -232,17 +226,12 @@ const generateAwbExternal = async (req, res) => {
       let awb = null;
       let selectedCourier = null;
 
-      // Priority-based AWB allocation
+      const couriersToTry = buildCourierAssignmentOrder(
+        priority.priority,
+        availableCouriers
+      );
 
-      for (const priorityCourier of priority.priority) {
-        if (
-          !courierMap.has(
-            priorityCourier.courierId.toString()
-          )
-        ) {
-          continue;
-        }
-
+      for (const priorityCourier of couriersToTry) {
         awb =
           await Awb.findOneAndUpdate(
             {

@@ -17,8 +17,10 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { registerUser } from "../api/authAPI";
 import { toast } from '../utils/toast';
+import { hasGlobalDataAccess } from "../utils/permissions";
 
 const inputClass =
   "w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50/80 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition";
@@ -61,6 +63,8 @@ const Field = ({ label, required, error, className = "", children }) => (
 
 const Register = () => {
   const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
+  const isAdmin = hasGlobalDataAccess(user);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -80,6 +84,7 @@ const Register = () => {
 
   const [errors, setErrors] = useState({});
   const [showWeight, setShowWeight] = useState(true);
+  const [walletEnabled, setWalletEnabled] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
@@ -150,6 +155,7 @@ const Register = () => {
         website: formData.website.trim(),
         gstin: formData.gstin.trim(),
         showWeight,
+        walletEnabled: isAdmin ? walletEnabled : false,
       });
       toast.success(
         response.companyID
@@ -431,6 +437,25 @@ const Register = () => {
                 />
               </div>
             </Field>
+
+            {isAdmin && (
+              <Field label="Enable Wallet (admin)" className="md:col-span-2">
+                <div className="relative flex items-center h-12 border border-slate-200 rounded-xl bg-slate-50/80 px-3">
+                  <ShieldAlert className="text-slate-400 w-5 h-5 mr-2 shrink-0" />
+                  <span className="text-slate-500 text-sm flex-1 font-medium select-none">
+                    {walletEnabled
+                      ? "Wallet enabled — shipment charges deduct from balance"
+                      : "Wallet disabled — standard billing flow"}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={walletEnabled}
+                    onChange={(e) => setWalletEnabled(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
+                  />
+                </div>
+              </Field>
+            )}
           </FormSection>
 
           {errors.api && (

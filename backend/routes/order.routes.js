@@ -25,6 +25,7 @@ const updatePickupLocation = require("../controllers/ordersControllers/updatePic
 const updateDeliveryLocation = require("../controllers/ordersControllers/updateDeliveryAddress.controllers");
 const updateOrder = require("../controllers/ordersControllers/updateOrder.controllers");
 const cancelOrder = require("../controllers/ordersControllers/cancelOrders.controllers");
+const updateOrderWalletFields = require("../controllers/ordersControllers/updateOrderWalletFields.controllers");
 const getOrdersByUserController = require("../controllers/orderUpdatesControllers/getOrdersByUser.controllers");
 const getOrdersByCompanyController = require("../controllers/orderUpdatesControllers/getOrdersByCompany.controllers");
 
@@ -133,6 +134,13 @@ orderRouter.post(
   checkAuth,
   checkPermission("orders", "write"),
   cancelOrder
+);
+
+orderRouter.post(
+  "/external/orders/update-wallet-fields",
+  checkAuth,
+  checkPermission("orders", "write"),
+  updateOrderWalletFields
 );
 
 orderRouter.get(
