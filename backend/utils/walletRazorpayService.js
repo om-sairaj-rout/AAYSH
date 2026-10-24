@@ -15,6 +15,7 @@ const {
   applyWalletMutation,
 } = require("./walletService");
 const { buildMrcCode } = require("./walletTransactionCodes");
+const { validateRechargeAmount } = require("./walletRechargeValidation");
 
 const RECHARGE_CURRENCY = "INR";
 
@@ -46,18 +47,13 @@ const createPendingRazorpayRecharge = async ({
   }
 
   const normalized = normalizeCompanyID(companyID);
-  const value = round2(amount);
-  if (value <= 0) {
-    return { success: false, message: "Recharge amount must be greater than zero." };
+  const rechargeValidation = validateRechargeAmount(amount);
+  if (!rechargeValidation.ok) {
+    return { success: false, message: rechargeValidation.message };
   }
+  const value = rechargeValidation.amount;
 
   const paise = amountToPaise(value);
-  if (paise < 100) {
-    return {
-      success: false,
-      message: "Minimum recharge amount is ₹1.",
-    };
-  }
 
   const rechargeId = new mongoose.Types.ObjectId();
   const transactionCode = buildMrcCode(rechargeId);
@@ -165,6 +161,11 @@ const validatePaymentAgainstRecharge = (payment, recharge) => {
 };
 
 const creditWalletForRecharge = async (recharge, payment, createdBy = null) => {
+  const rechargeAmountCheck = validateRechargeAmount(recharge.amount);
+  if (!rechargeAmountCheck.ok) {
+    return { success: false, message: rechargeAmountCheck.message };
+  }
+
   const existingTx = await WalletTransaction.findOne({
     rechargeId: recharge._id,
   }).lean();

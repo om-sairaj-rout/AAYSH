@@ -1,7 +1,7 @@
-const BASE = import.meta.env.VITE_API_URL;
+import { apiUrl, getApiBase } from "./apiBase.js";
 
 export const getCompanies = async () => {
-  const res = await fetch(`${BASE}/api/companies`, {
+  const res = await fetch(apiUrl(`/api/companies`), {
     method: "GET",
     credentials: "include",
     cache: "no-store",
@@ -15,7 +15,7 @@ export const getCompanies = async () => {
 };
 
 export const getCompanyDetail = async (companyID) => {
-  const res = await fetch(`${BASE}/api/companies/${companyID}`, {
+  const res = await fetch(apiUrl(`/api/companies/${companyID}`), {
     method: "GET",
     credentials: "include",
     cache: "no-store",
@@ -29,7 +29,7 @@ export const getCompanyDetail = async (companyID) => {
 };
 
 export const registerCompanyUser = async (companyID, payload) => {
-  const res = await fetch(`${BASE}/api/companies/${companyID}/users`, {
+  const res = await fetch(apiUrl(`/api/companies/${companyID}/users`), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -44,7 +44,7 @@ export const registerCompanyUser = async (companyID, payload) => {
 };
 
 export const updateCompanyUser = async (companyID, userId, payload) => {
-  const res = await fetch(`${BASE}/api/companies/${companyID}/users/${userId}`, {
+  const res = await fetch(apiUrl(`/api/companies/${companyID}/users/${userId}`), {
     method: "PUT",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -59,7 +59,7 @@ export const updateCompanyUser = async (companyID, userId, payload) => {
 };
 
 export const deleteCompanyUser = async (companyID, userId) => {
-  const res = await fetch(`${BASE}/api/companies/${companyID}/users/${userId}`, {
+  const res = await fetch(apiUrl(`/api/companies/${companyID}/users/${userId}`), {
     method: "DELETE",
     credentials: "include",
   });
@@ -72,7 +72,7 @@ export const deleteCompanyUser = async (companyID, userId) => {
 };
 
 export const deleteCompany = async (companyID) => {
-  const res = await fetch(`${BASE}/api/companies/${companyID}`, {
+  const res = await fetch(apiUrl(`/api/companies/${companyID}`), {
     method: "DELETE",
     credentials: "include",
   });

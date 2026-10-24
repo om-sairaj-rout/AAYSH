@@ -8,6 +8,8 @@ const Order = require("../models/upload/order.model");
 const Shipping = require("../models/upload/shipping.model");
 
 const WALLET_MIN_BALANCE = 100;
+/** Wallet balance may not go below this (wallet-enabled charge adjustments). */
+const WALLET_NEGATIVE_FLOOR = -500;
 
 const ADMIN_ADJUSTMENT_REASONS = {
   manual_credit: "Manual wallet credit",
@@ -96,6 +98,29 @@ const assertWalletCanAfford = async (companyID, amount) => {
   return { ok: true, balance, required: value };
 };
 
+const assertDebitWithinNegativeFloor = async (companyID, debitAmount) => {
+  const normalized = normalizeCompanyID(companyID);
+  const value = round2(debitAmount);
+  if (value <= 0) {
+    return { ok: true, balance: round2((await getOrCreateWallet(normalized)).balance) };
+  }
+  const wallet = await getOrCreateWallet(normalized);
+  const balance = round2(wallet.balance);
+  const projected = round2(balance - value);
+  if (projected < WALLET_NEGATIVE_FLOOR) {
+    return {
+      ok: false,
+      message: `This change would exceed the maximum negative wallet limit of ₹${Math.abs(
+        WALLET_NEGATIVE_FLOOR
+      )}. Projected balance: ₹${projected.toFixed(2)}.`,
+      balance,
+      projected,
+      required: value,
+    };
+  }
+  return { ok: true, balance, projected, required: value };
+};
+
 const ensureWalletReadyForShipment = async (companyID, chargeAmount) => {
   const minCheck = await assertWalletMinBalance(companyID);
   if (!minCheck.ok) return minCheck;
@@ -115,6 +140,8 @@ const applyWalletMutation = async ({
   rechargeId = null,
   createdBy = null,
   meta = {},
+  /** When set (e.g. WALLET_NEGATIVE_FLOOR), debits may reduce balance down to this floor. */
+  negativeBalanceFloor = null,
 }) => {
   const normalized = normalizeCompanyID(companyID);
   const value = round2(amount);
@@ -123,17 +150,28 @@ const applyWalletMutation = async ({
   }
 
   if (type === "debit") {
+    const balanceFilter =
+      negativeBalanceFloor != null
+        ? { $gte: round2(value + negativeBalanceFloor) }
+        : { $gte: value };
+
     const wallet = await Wallet.findOneAndUpdate(
-      { companyID: normalized, balance: { $gte: value } },
+      { companyID: normalized, balance: balanceFilter },
       {
         $inc: { balance: -value, totalDebit: value },
       },
       { new: true }
     );
     if (!wallet) {
+      const floorMsg =
+        negativeBalanceFloor != null
+          ? `This debit would exceed the maximum negative wallet limit of ₹${Math.abs(
+              negativeBalanceFloor
+            )}.`
+          : "Insufficient wallet balance for this operation.";
       return {
         success: false,
-        message: "Insufficient wallet balance for this operation.",
+        message: floorMsg,
       };
     }
 
@@ -222,29 +260,86 @@ const debitForOrder = async ({
   });
 };
 
-const debitOrderChargeAdjustment = async ({
+const buildOrderChargeIdempotencyKey = (orderId, previousCharge, newCharge) =>
+  `order_charge:${String(orderId)}:${round2(previousCharge)}:${round2(newCharge)}`;
+
+const applyOrderChargeDelta = async ({
   companyID,
   orderId,
-  amount,
+  previousCharge,
+  newCharge,
   description,
   createdBy,
   meta = {},
-}) =>
-  applyWalletMutation({
+}) => {
+  const prev = round2(previousCharge);
+  const next = round2(newCharge);
+  const diff = round2(next - prev);
+
+  if (diff === 0) {
+    return { success: true, skipped: true, delta: 0 };
+  }
+
+  const idempotencyKey = buildOrderChargeIdempotencyKey(orderId, prev, next);
+  const existing = await WalletTransaction.findOne({
+    "meta.idempotencyKey": idempotencyKey,
+  }).lean();
+  if (existing) {
+    return {
+      success: true,
+      duplicate: true,
+      delta: diff,
+      transaction: existing,
+      message: "Charge adjustment already applied.",
+    };
+  }
+
+  const sharedMeta = {
+    ...meta,
+    orderId: String(orderId),
+    idempotencyKey,
+    previousCharge: prev,
+    newCharge: next,
+    delta: diff,
+    displayDescription:
+      meta.displayDescription ||
+      (diff > 0 ? "Shipment charge adjustment (debit)" : "Shipment charge adjustment (credit)"),
+  };
+
+  if (diff > 0) {
+    const floorCheck = await assertDebitWithinNegativeFloor(companyID, diff);
+    if (!floorCheck.ok) {
+      return { success: false, message: floorCheck.message };
+    }
+
+    return applyWalletMutation({
+      companyID,
+      type: "debit",
+      amount: diff,
+      category: "order_charge",
+      description,
+      referenceType: "order_charge_delta",
+      referenceId: new mongoose.Types.ObjectId(),
+      createdBy,
+      negativeBalanceFloor: WALLET_NEGATIVE_FLOOR,
+      meta: sharedMeta,
+    });
+  }
+
+  return applyWalletMutation({
     companyID,
-    type: "debit",
-    amount,
-    category: "order_charge",
+    type: "credit",
+    amount: Math.abs(diff),
+    category: "adjustment",
     description,
-    referenceType: "order_adjustment",
+    referenceType: "order_charge_delta",
     referenceId: new mongoose.Types.ObjectId(),
     createdBy,
-    meta: {
-      ...meta,
-      orderId: String(orderId),
-      displayDescription: meta.displayDescription || "Shipment charge adjustment",
-    },
+    meta: sharedMeta,
   });
+};
+
+const debitOrderChargeAdjustment = async (params) => applyOrderChargeDelta(params);
 
 const refundOrderCancellation = async ({ order, createdBy = null }) => {
   if (!order?.walletDeductedAt) {
@@ -646,6 +741,7 @@ const listRecharges = async ({
 
 module.exports = {
   WALLET_MIN_BALANCE,
+  WALLET_NEGATIVE_FLOOR,
   round2,
   normalizeCompanyID,
   getOrCreateWallet,
@@ -653,8 +749,10 @@ module.exports = {
   isWalletEnabledForCompany,
   assertWalletMinBalance,
   assertWalletCanAfford,
+  assertDebitWithinNegativeFloor,
   ensureWalletReadyForShipment,
   applyWalletMutation,
+  applyOrderChargeDelta,
   debitForOrder,
   debitOrderChargeAdjustment,
   logOrderWalletFieldChange,

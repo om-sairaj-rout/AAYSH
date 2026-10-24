@@ -15,6 +15,7 @@ import {
 } from "../api/walletAPI";
 import { loadRazorpayCheckout } from "../utils/razorpayCheckout";
 import RechargeWalletModal from "../components/RechargeWalletModal";
+import { validateRechargeAmount } from "../utils/walletRechargeValidation";
 
 const formatMoney = (value) =>
   `₹${Number(value || 0).toLocaleString("en-IN", {
@@ -205,11 +206,12 @@ const WalletPage = () => {
   }, [rchPage, effectiveCompanyID, rchLimit, rchDateRange, rchSearch]);
 
   const handleRecharge = async (amountInput) => {
-    const amount = Number(amountInput);
-    if (!amount || amount < 500) {
-      toast.validation("Minimum recharge amount is ₹500");
+    const check = validateRechargeAmount(amountInput);
+    if (!check.ok) {
+      toast.validation(check.message);
       return;
     }
+    const amount = check.amount;
     try {
       setRechargeSubmitting(true);
       const initRes = await initiateWalletRechargeAPI({

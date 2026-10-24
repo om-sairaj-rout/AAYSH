@@ -1,4 +1,13 @@
-const COD_TO_PAY_CATEGORY = "codToPay";
+const {
+  AWB_CATEGORY_ABOVE1KG,
+  AWB_CATEGORY_COD,
+  AWB_CATEGORY_PRIME,
+  AWB_CATEGORY_UNDER1KG_NORTH_NCR,
+  AWB_CATEGORY_UNDER1KG_OTHER,
+  isNorthOrNcrZone,
+} = require("../constants/awbCategories");
+
+const COD_TO_PAY_CATEGORY = AWB_CATEGORY_COD;
 
 const normalizePaymentMethod = (value) => {
   const raw = String(value || "")
@@ -19,19 +28,25 @@ const isCodPayment = (paymentMethod) => {
 
 const isCodToPayPayment = isCodPayment;
 
-const getAwbCategory = (weight, service, paymentMethod) => {
+const getAwbCategory = (weight, service, paymentMethod, destinationZone = "") => {
   if (isCodPayment(paymentMethod)) {
     return COD_TO_PAY_CATEGORY;
   }
   const normalizedService = String(service || "").toLowerCase();
   if (normalizedService === "prime") {
-    return "prime";
+    return AWB_CATEGORY_PRIME;
   }
   const w = Number(weight);
-  if (w < 1 && normalizedService === "surface") {
-    return "under1kg";
+  if (!Number.isFinite(w)) {
+    return AWB_CATEGORY_ABOVE1KG;
   }
-  return w > 3 ? "over3kg" : "under3kg";
+  if (w >= 1) {
+    return AWB_CATEGORY_ABOVE1KG;
+  }
+  if (isNorthOrNcrZone(destinationZone)) {
+    return AWB_CATEGORY_UNDER1KG_NORTH_NCR;
+  }
+  return AWB_CATEGORY_UNDER1KG_OTHER;
 };
 
 module.exports = {

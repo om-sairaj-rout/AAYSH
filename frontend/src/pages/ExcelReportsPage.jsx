@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Building2, Download, Upload, Search, ShieldAlert, Loader2 } from 'lucide-react';
+import { Building2, Download, Upload, Search, ShieldAlert, Loader2, FileText } from 'lucide-react';
 import { canAccess } from '../utils/permissions';
+import { uploadShipmentPodAdmin } from '../api/trackingAPI';
 import {
   getStatusUpdateCompanies,
   downloadCompanyOrdersExcel,
@@ -12,7 +13,10 @@ import { toast } from '../utils/toast';
 const ExcelReportsPage = () => {
   const { user } = useSelector((state) => state.auth);
   const canWrite = canAccess(user, "upload", "write");
+  const canUploadPod = canAccess(user, "update", "write");
   const [companies, setCompanies] = useState([]);
+  const [podAwb, setPodAwb] = useState("");
+  const [podUploading, setPodUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,6 +64,39 @@ const ExcelReportsPage = () => {
     } catch (err) {
       console.error("Download error:", err);
       toast.error("Failed to download order sheet");
+    }
+  };
+
+  const handlePodUpload = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    const awb = podAwb.trim();
+    if (!awb) {
+      toast.validation("Enter the AWB number for this delivered shipment");
+      return;
+    }
+
+    const allowed = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
+    if (!allowed.includes(file.type)) {
+      toast.validation("POD must be PDF, JPG, or PNG");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.validation("POD file must be 10 MB or smaller");
+      return;
+    }
+
+    try {
+      setPodUploading(true);
+      await uploadShipmentPodAdmin(awb, file);
+      toast.success("POD uploaded successfully");
+      setPodAwb("");
+    } catch (err) {
+      toast.error(err.message || "POD upload failed");
+    } finally {
+      setPodUploading(false);
     }
   };
 
@@ -136,6 +173,54 @@ const ExcelReportsPage = () => {
             />
           </div>
         </div>
+
+        {canUploadPod && (
+          <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm space-y-3">
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-[#1B2B4B]" />
+              <h2 className="text-sm font-bold text-slate-900">Upload Proof of Delivery (POD)</h2>
+            </div>
+            <p className="text-xs text-slate-500">
+              For shipments marked <strong>Delivered</strong> only. Accepts PDF, JPG, or PNG (max 10 MB).
+              Re-uploading replaces the previous POD for that AWB.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={podAwb}
+                onChange={(e) => setPodAwb(e.target.value)}
+                placeholder="AWB number"
+                className="flex-1 bg-slate-50 border border-gray-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
+              />
+              <label
+                className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold border ${
+                  podUploading
+                    ? "bg-slate-50 text-slate-400 cursor-wait"
+                    : "bg-[#1B2B4B] text-white hover:bg-[#152238] cursor-pointer"
+                }`}
+              >
+                {podUploading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Uploading…
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-3.5 h-3.5" />
+                    Upload POD
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                  className="hidden"
+                  disabled={podUploading}
+                  onChange={handlePodUpload}
+                />
+              </label>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-3">
           {filteredCompanies.map((company) => {

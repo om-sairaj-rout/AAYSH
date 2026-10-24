@@ -13,7 +13,7 @@ const walletSchema = new mongoose.Schema(
     balance: {
       type: Number,
       default: 0,
-      min: 0,
+      min: -500,
     },
     totalCredit: {
       type: Number,

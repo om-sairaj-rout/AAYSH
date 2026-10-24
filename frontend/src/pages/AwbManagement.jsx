@@ -34,7 +34,7 @@ const AwbManagement = () => {
   const [newCourierName, setNewCourierName] = useState('');
   
   const [selectedCourierId, setSelectedCourierId] = useState('');
-  const [weightCategory, setWeightCategory] = useState('under3kg'); 
+  const [weightCategory, setWeightCategory] = useState('under1kgNorthNcr'); 
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [awbDrawer, setAwbDrawer] = useState(null);
@@ -361,36 +361,36 @@ const AwbManagement = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setWeightCategory('under1kg')}
+                    onClick={() => setWeightCategory('under1kgNorthNcr')}
                     className={`py-2.5 rounded-xl border font-bold text-xs transition-all ${
-                      weightCategory === 'under1kg'
+                      weightCategory === 'under1kgNorthNcr'
                         ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    &lt;1 kg
+                    Under 1kg — North/NCR
                   </button>
                   <button
                     type="button"
-                    onClick={() => setWeightCategory('under3kg')}
+                    onClick={() => setWeightCategory('under1kgOtherZones')}
                     className={`py-2.5 rounded-xl border font-bold text-xs transition-all ${
-                      weightCategory === 'under3kg'
+                      weightCategory === 'under1kgOtherZones'
                         ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    Under 3 kg
+                    Under 1kg — Other Zones
                   </button>
                   <button
                     type="button"
-                    onClick={() => setWeightCategory('over3kg')}
+                    onClick={() => setWeightCategory('above1kg')}
                     className={`py-2.5 rounded-xl border font-bold text-xs transition-all ${
-                      weightCategory === 'over3kg'
+                      weightCategory === 'above1kg'
                         ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    Over 3 kg
+                    Above 1kg
                   </button>
                   <button
                     type="button"
@@ -459,9 +459,9 @@ const AwbManagement = () => {
                 <thead>
                   <tr className="bg-[#FAFAFA] border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                     <th className="p-4">Courier Network Provider</th>
-                    <th className="p-4 text-center">Remaining (&lt;1 kg)</th>
-                    <th className="p-4 text-center">Remaining (&lt; 3 kg)</th>
-                    <th className="p-4 text-center">Remaining (&gt; 3 kg)</th>
+                    <th className="p-4 text-center">Under 1kg — North/NCR</th>
+                    <th className="p-4 text-center">Under 1kg — Other Zones</th>
+                    <th className="p-4 text-center">Above 1kg</th>
                     <th className="p-4 text-center">Remaining (Prime)</th>
                     <th className="p-4 text-center">COD</th>
                     <th className="p-4 text-right">Actions</th>
@@ -479,18 +479,18 @@ const AwbManagement = () => {
                           </div>
                         </td>
                         <td className="p-4 text-center">
-                          <button type="button" onClick={() => openCategoryAwbs(courier, "under1kg", "Remaining (<1 kg)")} className="bg-teal-50 text-teal-700 border border-teal-100 px-2.5 py-1 rounded-full font-mono font-bold">
-                            {(courier.unbookedUnder1kg || 0).toLocaleString()} available
+                          <button type="button" onClick={() => openCategoryAwbs(courier, "under1kgNorthNcr", "Under 1kg — North/NCR")} className="bg-teal-50 text-teal-700 border border-teal-100 px-2.5 py-1 rounded-full font-mono font-bold">
+                            {(courier.unbookedUnder1kgNorthNcr || 0).toLocaleString()} available
                           </button>
                         </td>
                         <td className="p-4 text-center">
-                          <button type="button" onClick={() => openCategoryAwbs(courier, "under3kg", "Remaining (<3 kg)")} className="bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-1 rounded-full font-mono font-bold">
-                            {(courier.unbookedUnder3kg || 0).toLocaleString()} available
+                          <button type="button" onClick={() => openCategoryAwbs(courier, "under1kgOtherZones", "Under 1kg — Other Zones")} className="bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-1 rounded-full font-mono font-bold">
+                            {(courier.unbookedUnder1kgOtherZones || 0).toLocaleString()} available
                           </button>
                         </td>
                         <td className="p-4 text-center">
-                          <button type="button" onClick={() => openCategoryAwbs(courier, "over3kg", "Remaining (>3 kg)")} className="bg-orange-50 text-orange-700 border border-orange-100 px-2.5 py-1 rounded-full font-mono font-bold">
-                            {(courier.unbookedOver3kg || 0).toLocaleString()} available
+                          <button type="button" onClick={() => openCategoryAwbs(courier, "above1kg", "Above 1kg")} className="bg-orange-50 text-orange-700 border border-orange-100 px-2.5 py-1 rounded-full font-mono font-bold">
+                            {(courier.unbookedAbove1kg || 0).toLocaleString()} available
                           </button>
                         </td>
                         <td className="p-4 text-center">

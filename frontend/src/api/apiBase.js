@@ -4,11 +4,25 @@
  */
 export const getApiBase = () => {
   const fromEnv = import.meta.env.VITE_API_URL;
-  if (fromEnv && String(fromEnv).trim()) {
-    return String(fromEnv).replace(/\/$/, "");
+  let base = fromEnv && String(fromEnv).trim() ? String(fromEnv).trim() : "";
+
+  if (!base && import.meta.env.DEV) {
+    base = "http://localhost:3000";
   }
-  if (import.meta.env.DEV) {
-    return "http://localhost:3000";
+
+  if (!base) {
+    return "";
   }
-  return "";
+
+  base = base.replace(/\/$/, "");
+  if (base.endsWith("/api")) {
+    base = base.slice(0, -4);
+  }
+  return base;
+};
+
+export const apiUrl = (path) => {
+  const base = getApiBase();
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${normalizedPath}`;
 };

@@ -27,6 +27,7 @@ import HomePage from "./pages/HomePage.jsx";
 import ExcelReportsPage from "./pages/ExcelReportsPage.jsx";
 import ProtectedRoute from "./ProtectedRoute.jsx";
 import CustomerTracking from "./pages/CustomerTracking.jsx";
+import PortalAwbTrackingPage from "./pages/PortalAwbTrackingPage.jsx";
 import ServiceabilityPage from "./pages/ServiceabilityPage.jsx";
 import CourierPriorityPage from "./pages/CourierPriorityPage.jsx";
 import UpdateOrdersPage from "./pages/UpdateOrdersPage.jsx";
@@ -66,6 +67,7 @@ const router = createBrowserRouter([
       { path: "/upload/template", element: guard("/upload/template", <TemplatePage />) },
       { path: "/update/status", element: guard("/update/status", <ExcelReportsPage />) },
       { path: "/reports/all-orders", element: guard("/reports/all-orders", <OrdersPage />) },
+      { path: "/orders/awb-tracking", element: guard("/orders/awb-tracking", <PortalAwbTrackingPage />) },
       {
         path: "/select-courier",
         element: guard("/select-courier", <SelectCourier />, "write"),

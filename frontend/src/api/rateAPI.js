@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL;
+import { apiUrl, getApiBase } from "./apiBase.js";
 
 const parseResponse = async (res) => {
   const data = await res.json();
@@ -23,7 +23,7 @@ export const RATE_SERVICES = [
 ];
 
 export const getAllRateStructuresAPI = async () => {
-  const res = await fetch(`${BASE}/api/rates`, {
+  const res = await fetch(apiUrl(`/api/rates`), {
     method: "GET",
     credentials: "include",
     cache: "no-store",
@@ -32,7 +32,7 @@ export const getAllRateStructuresAPI = async () => {
 };
 
 export const getRateStructureAPI = async (service) => {
-  const res = await fetch(`${BASE}/api/rates/${service}`, {
+  const res = await fetch(apiUrl(`/api/rates/${service}`), {
     method: "GET",
     credentials: "include",
     cache: "no-store",
@@ -41,7 +41,7 @@ export const getRateStructureAPI = async (service) => {
 };
 
 export const updateRateStructureAPI = async (service, slabs) => {
-  const res = await fetch(`${BASE}/api/rates/${service}`, {
+  const res = await fetch(apiUrl(`/api/rates/${service}`), {
     method: "PUT",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -51,7 +51,7 @@ export const updateRateStructureAPI = async (service, slabs) => {
 };
 
 export const calculateRateAPI = async (payload) => {
-  const res = await fetch(`${BASE}/api/rates/calculate`, {
+  const res = await fetch(apiUrl(`/api/rates/calculate`), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -61,7 +61,7 @@ export const calculateRateAPI = async (payload) => {
 };
 
 export const lookupPincodeZoneAPI = async (pincode) => {
-  const res = await fetch(`${BASE}/api/rates/pincode/${pincode}`, {
+  const res = await fetch(apiUrl(`/api/rates/pincode/${pincode}`), {
     method: "GET",
     credentials: "include",
     cache: "no-store",
@@ -70,7 +70,7 @@ export const lookupPincodeZoneAPI = async (pincode) => {
 };
 
 export const getCompanyRateProfileAPI = async (companyID) => {
-  const res = await fetch(`${BASE}/api/rates/company/${companyID}/profile`, {
+  const res = await fetch(apiUrl(`/api/rates/company/${companyID}/profile`), {
     method: "GET",
     credentials: "include",
     cache: "no-store",
@@ -79,7 +79,7 @@ export const getCompanyRateProfileAPI = async (companyID) => {
 };
 
 export const updateCompanyRateProfileAPI = async (companyID, profile) => {
-  const res = await fetch(`${BASE}/api/rates/company/${companyID}/profile`, {
+  const res = await fetch(apiUrl(`/api/rates/company/${companyID}/profile`), {
     method: "PUT",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -89,7 +89,7 @@ export const updateCompanyRateProfileAPI = async (companyID, profile) => {
 };
 
 export const getCompanyRateStructureAPI = async (companyID, service) => {
-  const res = await fetch(`${BASE}/api/rates/company/${companyID}/${service}`, {
+  const res = await fetch(apiUrl(`/api/rates/company/${companyID}/${service}`), {
     method: "GET",
     credentials: "include",
     cache: "no-store",
@@ -98,7 +98,7 @@ export const getCompanyRateStructureAPI = async (companyID, service) => {
 };
 
 export const updateCompanyRateStructureAPI = async (companyID, service, slabs) => {
-  const res = await fetch(`${BASE}/api/rates/company/${companyID}/${service}`, {
+  const res = await fetch(apiUrl(`/api/rates/company/${companyID}/${service}`), {
     method: "PUT",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

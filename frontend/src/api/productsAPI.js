@@ -1,11 +1,11 @@
-const BASE = import.meta.env.VITE_API_URL;
+import { apiUrl, getApiBase } from "./apiBase.js";
 
 export const getProducts = async ({ search, companyId } = {}) => {
   const params = new URLSearchParams();
   if (search) params.set("search", search);
   if (companyId && companyId !== "ALL") params.set("companyId", companyId);
 
-  const res = await fetch(`${BASE}/api/products?${params.toString()}`, {
+  const res = await fetch(apiUrl(`/api/products?${params.toString()}`), {
     method: "GET",
     credentials: "include",
     cache: "no-store",
@@ -19,7 +19,7 @@ export const getProducts = async ({ search, companyId } = {}) => {
 };
 
 export const createProduct = async (payload) => {
-  const res = await fetch(`${BASE}/api/products`, {
+  const res = await fetch(apiUrl(`/api/products`), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -34,7 +34,7 @@ export const createProduct = async (payload) => {
 };
 
 export const updateProduct = async (id, payload) => {
-  const res = await fetch(`${BASE}/api/products/${id}`, {
+  const res = await fetch(apiUrl(`/api/products/${id}`), {
     method: "PUT",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -49,7 +49,7 @@ export const updateProduct = async (id, payload) => {
 };
 
 export const deleteProduct = async (id) => {
-  const res = await fetch(`${BASE}/api/products/${id}`, {
+  const res = await fetch(apiUrl(`/api/products/${id}`), {
     method: "DELETE",
     credentials: "include",
   });

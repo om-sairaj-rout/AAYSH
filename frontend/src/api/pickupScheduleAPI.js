@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL;
+import { apiUrl, getApiBase } from "./apiBase.js";
 
 const jsonRequest = async (url, options = {}) => {
   const res = await fetch(url, {
@@ -15,7 +15,7 @@ const jsonRequest = async (url, options = {}) => {
 };
 
 export const createPickupScheduleAPI = (payload) =>
-  jsonRequest(`${BASE}/api/pickup-schedules`, {
+  jsonRequest(apiUrl(`/api/pickup-schedules`), {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -34,16 +34,16 @@ export const getPickupSchedulesAPI = ({
   });
   if (search) params.append("search", search);
   if (companyId) params.append("company_id", companyId);
-  return jsonRequest(`${BASE}/api/pickup-schedules?${params.toString()}`);
+  return jsonRequest(apiUrl(`/api/pickup-schedules?${params.toString()}`));
 };
 
 export const cancelPickupScheduleAPI = (id) =>
-  jsonRequest(`${BASE}/api/pickup-schedules/${id}/cancel`, {
+  jsonRequest(apiUrl(`/api/pickup-schedules/${id}/cancel`), {
     method: "PUT",
   });
 
 export const reschedulePickupScheduleAPI = (id, payload) =>
-  jsonRequest(`${BASE}/api/pickup-schedules/${id}/reschedule`, {
+  jsonRequest(apiUrl(`/api/pickup-schedules/${id}/reschedule`), {
     method: "PUT",
     body: JSON.stringify(payload),
   });
@@ -68,7 +68,7 @@ export const completePickupScheduleAPI = (id, payload, documents = []) => {
       if (file) formData.append("documents", file);
     });
   }
-  return fetch(`${BASE}/api/pickup-schedules/${id}/complete`, {
+  return fetch(apiUrl(`/api/pickup-schedules/${id}/complete`), {
     method: "POST",
     credentials: "include",
     body: formData,

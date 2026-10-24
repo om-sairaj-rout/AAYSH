@@ -1,10 +1,10 @@
-const BASE = import.meta.env.VITE_API_URL;
+import { apiUrl, getApiBase } from "./apiBase.js";
 
 export const submitContactForm =
   async (data) => {
 
     const res = await fetch(
-      `${BASE}/api/contact`,
+      apiUrl(`/api/contact`),
       {
         method: "POST",
         headers: {

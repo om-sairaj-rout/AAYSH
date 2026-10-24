@@ -223,6 +223,19 @@ delayedAt: {
   default: null,
 },
 
+    podDocument: {
+      fileName: { type: String, default: "" },
+      s3Key: { type: String, default: "" },
+      s3Bucket: { type: String, default: "" },
+      contentType: { type: String, default: "" },
+      uploadedAt: { type: Date, default: null },
+      uploadedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
+    },
+
   },
   {
     timestamps: true,

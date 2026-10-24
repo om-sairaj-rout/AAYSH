@@ -1,7 +1,7 @@
-const BASE = import.meta.env.VITE_API_URL;
+import { apiUrl, getApiBase } from "./apiBase.js";
 
 export const fetchCourierPartnersAPI = async () => {
-  const res = await fetch(`${BASE}/api/courier/all`,{
+  const res = await fetch(apiUrl(`/api/courier/all`),{
     method: "GET",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -10,7 +10,7 @@ export const fetchCourierPartnersAPI = async () => {
 };
 
 export const getCourierPriorityAPI = async (service) => {
-  const res = await fetch(`${BASE}/api/priority/${service}`, {
+  const res = await fetch(apiUrl(`/api/priority/${service}`), {
     method: "GET",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -19,7 +19,7 @@ export const getCourierPriorityAPI = async (service) => {
 };
 
 export const updateCourierPriorityAPI = async (service, priority) => {
-  const res = await fetch(`${BASE}/api/priority/${service}`, {
+  const res = await fetch(apiUrl(`/api/priority/${service}`), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -29,7 +29,7 @@ export const updateCourierPriorityAPI = async (service, priority) => {
 };
 
 export const addCourierPartnerAPI = async (name) => {
-  const res = await fetch(`${BASE}/api/courier/add`, {
+  const res = await fetch(apiUrl(`/api/courier/add`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -39,7 +39,7 @@ export const addCourierPartnerAPI = async (name) => {
 };
 
 export const uploadAwbSheetAPI = async (formData) => {
-  const res = await fetch(`${BASE}/api/awb/upload`, {
+  const res = await fetch(apiUrl(`/api/awb/upload`), {
     method: "POST",
     credentials: "include",
     body: formData
@@ -48,7 +48,7 @@ export const uploadAwbSheetAPI = async (formData) => {
 };
 
 export const uploadServiceabilitySheetAPI = async (formData) => {
-  const res = await fetch(`${BASE}/api/serviceability/upload`, {
+  const res = await fetch(apiUrl(`/api/serviceability/upload`), {
     method: "POST",
     credentials: "include",
     body: formData
@@ -70,34 +70,34 @@ const jsonRequest = async (url, options = {}) => {
 };
 
 export const updateCourierPartnerAPI = async (courierId, payload) =>
-  jsonRequest(`${BASE}/api/courier/${courierId}`, {
+  jsonRequest(apiUrl(`/api/courier/${courierId}`), {
     method: "PUT",
     body: JSON.stringify(payload),
   });
 
 export const deleteCourierPartnerAPI = async (courierId) =>
-  jsonRequest(`${BASE}/api/courier/${courierId}`, {
+  jsonRequest(apiUrl(`/api/courier/${courierId}`), {
     method: "DELETE",
   });
 
 export const fetchCourierAwbsAPI = async (courierId, category) => {
   const params = category ? `?category=${encodeURIComponent(category)}` : "";
-  return jsonRequest(`${BASE}/api/courier/${courierId}/awbs${params}`);
+  return jsonRequest(apiUrl(`/api/courier/${courierId}/awbs${params}`));
 };
 
 export const updateAwbAPI = async (awbId, payload) =>
-  jsonRequest(`${BASE}/api/awb/${awbId}`, {
+  jsonRequest(apiUrl(`/api/awb/${awbId}`), {
     method: "PUT",
     body: JSON.stringify(payload),
   });
 
 export const deleteAwbAPI = async (awbId) =>
-  jsonRequest(`${BASE}/api/awb/${awbId}`, {
+  jsonRequest(apiUrl(`/api/awb/${awbId}`), {
     method: "DELETE",
   });
 
 export const bulkDeleteAwbsAPI = async (awbIds) =>
-  jsonRequest(`${BASE}/api/awb/bulk-delete`, {
+  jsonRequest(apiUrl(`/api/awb/bulk-delete`), {
     method: "POST",
     body: JSON.stringify({ awbIds }),
   });

@@ -45,6 +45,7 @@ const PATH_SECTION_MAP = {
   "/update/invoice-generation": "update",
   "/reports/orders": "orders",
   "/reports/all-orders": "orders",
+  "/orders/awb-tracking": "orders",
   "/select-courier": "orders",
   "/catalog/products": "orders",
   "/rate-calculator": "orders",

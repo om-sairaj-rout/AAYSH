@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL;
+import { apiUrl, getApiBase } from "./apiBase.js";
 
 export const uploadFile = async (file) => {
 
@@ -6,7 +6,7 @@ export const uploadFile = async (file) => {
 
     formData.append('file', file);
 
-    const res = await fetch(`${BASE}/api/external/upload`, {
+    const res = await fetch(apiUrl(`/api/external/upload`), {
 
         method: "POST",
 
@@ -27,7 +27,7 @@ export const uploadFile = async (file) => {
 
 export const getUploadHistory = async () => {
 
-    const res = await fetch(`${BASE}/api/upload/history`, {
+    const res = await fetch(apiUrl(`/api/upload/history`), {
 
         method: "GET",
 
@@ -46,7 +46,7 @@ export const getUploadHistory = async () => {
 
 export const deleteUploadRecord = async (id) => {
 
-    const res = await fetch(`${BASE}/api/upload/history/${id}`, {
+    const res = await fetch(apiUrl(`/api/upload/history/${id}`), {
 
         method: "DELETE",
 
@@ -64,7 +64,7 @@ export const deleteUploadRecord = async (id) => {
 };
 
 export const getStatusUpdateCompanies = async () => {
-  const res = await fetch(`${BASE}/api/status-update/companies`, {
+  const res = await fetch(apiUrl(`/api/status-update/companies`), {
     method: "GET",
     credentials: "include",
     cache: "no-store",
@@ -79,7 +79,7 @@ export const getStatusUpdateCompanies = async () => {
 
 export const downloadCompanyOrdersExcel = async (companyID) => {
   const res = await fetch(
-    `${BASE}/api/download-company-orders/${encodeURIComponent(companyID)}`,
+    apiUrl(`/api/download-company-orders/${encodeURIComponent(companyID)}`),
     {
       method: "GET",
       credentials: "include",
@@ -97,7 +97,7 @@ export const downloadUserOrdersExcel =
   async (userId) => {
 
   const res = await fetch(
-    `${BASE}/api/download-user-orders/${userId}`,
+    apiUrl(`/api/download-user-orders/${userId}`),
     {
       method: "GET",
       credentials: "include",
@@ -115,7 +115,7 @@ export const downloadUserOrdersExcel =
 
 export const uploadAndUpdateStatusExcel = async (companyID, formData) => {
   const res = await fetch(
-    `${BASE}/api/upload-status-excel/${encodeURIComponent(companyID)}`,
+    apiUrl(`/api/upload-status-excel/${encodeURIComponent(companyID)}`),
     {
       method: "POST",
       credentials: "include",

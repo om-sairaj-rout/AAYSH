@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL;
+import { apiUrl } from "./apiBase.js";
 
 const defaultFetchOptions = {
   credentials: "include",
@@ -28,7 +28,7 @@ export const createTicket = async (payload) => {
     formData.append(key, String(value));
   });
 
-  const res = await fetch(`${BASE}/api/tickets`, {
+  const res = await fetch(`apiUrl("/api/tickets")`, {
     method: "POST",
     ...defaultFetchOptions,
     body: formData,
@@ -50,7 +50,7 @@ export const getTickets = async ({ status, page = 1, perPage = 20 } = {}) => {
     params.append("status", status);
   }
 
-  const res = await fetch(`${BASE}/api/tickets?${params.toString()}`, {
+  const res = await fetch(`apiUrl("/api/tickets?")${params.toString()}`, {
     method: "GET",
     ...defaultFetchOptions,
   });
@@ -77,7 +77,7 @@ export const getAdminTickets = async ({
   if (companyId && companyId !== "ALL") params.append("company_id", companyId);
   if (priority && priority !== "ALL") params.append("priority", priority);
 
-  const res = await fetch(`${BASE}/api/admin/tickets?${params.toString()}`, {
+  const res = await fetch(`apiUrl("/api/admin/tickets?")${params.toString()}`, {
     method: "GET",
     ...defaultFetchOptions,
   });
@@ -90,7 +90,7 @@ export const getAdminTickets = async ({
 };
 
 export const updateTicket = async (id, payload) => {
-  const res = await fetch(`${BASE}/api/admin/tickets/${id}`, {
+  const res = await fetch(`apiUrl("/api/admin/tickets/")${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     ...defaultFetchOptions,
@@ -105,7 +105,7 @@ export const updateTicket = async (id, payload) => {
 };
 
 export const addTicketMessage = async (id, message) => {
-  const res = await fetch(`${BASE}/api/tickets/${id}/messages`, {
+  const res = await fetch(`apiUrl("/api/tickets/")${id}/messages`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     ...defaultFetchOptions,
@@ -120,7 +120,7 @@ export const addTicketMessage = async (id, message) => {
 };
 
 export const addAdminTicketMessage = async (id, message) => {
-  const res = await fetch(`${BASE}/api/admin/tickets/${id}/messages`, {
+  const res = await fetch(`apiUrl("/api/admin/tickets/")${id}/messages`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     ...defaultFetchOptions,
@@ -135,7 +135,7 @@ export const addAdminTicketMessage = async (id, message) => {
 };
 
 export const markTicketRead = async (id) => {
-  const res = await fetch(`${BASE}/api/tickets/${id}/read`, {
+  const res = await fetch(`apiUrl("/api/tickets/")${id}/read`, {
     method: "POST",
     ...defaultFetchOptions,
   });
@@ -148,7 +148,7 @@ export const markTicketRead = async (id) => {
 };
 
 export const markAdminTicketRead = async (id) => {
-  const res = await fetch(`${BASE}/api/admin/tickets/${id}/read`, {
+  const res = await fetch(`apiUrl("/api/admin/tickets/")${id}/read`, {
     method: "POST",
     ...defaultFetchOptions,
   });
@@ -161,7 +161,7 @@ export const markAdminTicketRead = async (id) => {
 };
 
 export const getTicketUnreadCount = async () => {
-  const res = await fetch(`${BASE}/api/tickets/unread-count`, {
+  const res = await fetch(`apiUrl("/api/tickets/unread-count")`, {
     method: "GET",
     ...defaultFetchOptions,
   });
@@ -174,7 +174,7 @@ export const getTicketUnreadCount = async () => {
 };
 
 export const getAdminTicketUnreadCount = async () => {
-  const res = await fetch(`${BASE}/api/admin/tickets/unread-count`, {
+  const res = await fetch(`apiUrl("/api/admin/tickets/unread-count")`, {
     method: "GET",
     ...defaultFetchOptions,
   });
@@ -187,7 +187,7 @@ export const getAdminTicketUnreadCount = async () => {
 };
 
 export const getTicketAttachmentUrl = async (ticketId) => {
-  const res = await fetch(`${BASE}/api/tickets/${ticketId}/attachment-url`, {
+  const res = await fetch(`apiUrl("/api/tickets/")${ticketId}/attachment-url`, {
     method: "GET",
     ...defaultFetchOptions,
   });

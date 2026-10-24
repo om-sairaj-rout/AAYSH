@@ -1,9 +1,9 @@
-const BASE = import.meta.env.VITE_API_URL;
+import { apiUrl, getApiBase } from "./apiBase.js";
 
 export const generateLabelAPI = async (payload) => {
 
   const res = await fetch(
-    `${BASE}/api/pdf/labels`,
+    apiUrl(`/api/pdf/labels`),
     {
       method: "POST",
       headers: {
@@ -26,7 +26,7 @@ export const generateLabelAPI = async (payload) => {
 export const generateInvoiceAPI = async (payload) => {
 
   const res = await fetch(
-    `${BASE}/api/pdf/invoices`,
+    apiUrl(`/api/pdf/invoices`),
     {
       method: "POST",
       headers: {
@@ -49,7 +49,7 @@ export const generateInvoiceAPI = async (payload) => {
 export const generateManifestAPI = async (payload) => {
 
   const res = await fetch(
-    `${BASE}/api/pdf/manifests`,
+    apiUrl(`/api/pdf/manifests`),
     {
       method: "POST",
       headers: {

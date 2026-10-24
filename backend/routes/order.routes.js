@@ -13,6 +13,7 @@ const getOrdersController = require("../controllers/ordersControllers/getOrders.
 const getAllOrdersController = require("../controllers/ordersControllers/getAllOrders.controllers");
 const getSpecificOrderController = require("../controllers/ordersControllers/getSpecificOrder.controllers");
 const getOrderByAwbController = require("../controllers/ordersControllers/getOrdersByAwb.controllers");
+const getSecureOrderByAwbController = require("../controllers/ordersControllers/getSecureOrderByAwb.controllers");
 const createOrderController = require("../controllers/ordersControllers/createOrders.controllers");
 const getOrderDocumentUrlController = require("../controllers/ordersControllers/getOrderDocumentUrl.controllers");
 const uploadOrderDocumentsController = require("../controllers/ordersControllers/uploadOrderDocuments.controllers");
@@ -89,7 +90,14 @@ orderRouter.get(
   getSpecificOrderController
 );
 
-// Public — anyone with an AWB can track (homepage, /track/:awb, customer portal)
+orderRouter.get(
+  "/orders/awb/:awbNumber/secure",
+  checkAuth,
+  checkPermission("orders", "read"),
+  getSecureOrderByAwbController
+);
+
+// Public — anyone with an AWB can track (homepage, /track/:awb); no POD or private fields
 orderRouter.get(
   "/orders/awb/:awbNumber",
   getOrderByAwbController

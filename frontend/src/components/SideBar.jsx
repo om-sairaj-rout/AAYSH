@@ -89,6 +89,7 @@ const SideBar = ({ isOpen, setIsOpen }) => {
           subItems: [
             { name: "All Orders", path: "/reports/all-orders" },
             { name: "Order Report", path: "/reports/orders" },
+            { name: "AWB Tracking", path: "/orders/awb-tracking" },
             { name: "Product Catalog", path: "/catalog/products" },
           ],
         },

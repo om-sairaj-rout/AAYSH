@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL;
+import { apiUrl, getApiBase } from "./apiBase.js";
 
 const defaultFetchOptions = {
   credentials: "include",
@@ -26,7 +26,7 @@ export const getOrdersByDate = async (
   }
 
   const res = await fetch(
-    `${BASE}/api/orders/filter?${params.toString()}`,
+    apiUrl(`/api/orders/filter?${params.toString()}`),
     {
       method: "GET",
       ...defaultFetchOptions,
@@ -114,7 +114,7 @@ export const getOrders = async ({
   }
 
   const res = await fetch(
-    `${BASE}/api/orders?${params.toString()}`,
+    apiUrl(`/api/orders?${params.toString()}`),
     {
       method: "GET",
       ...defaultFetchOptions,
@@ -135,7 +135,7 @@ export const getOrders = async ({
 export const getOrderByAwb = async (awbNumber) => {
   const encoded = encodeURIComponent(String(awbNumber).trim());
   const res = await fetch(
-    `${BASE}/api/orders/awb/${encoded}`,
+    apiUrl(`/api/orders/awb/${encoded}`),
     {
       method: "GET",
       credentials: "include",
@@ -155,7 +155,7 @@ export const getOrderByAwb = async (awbNumber) => {
 export const getPublicOrderByAwb = async (awbNumber) => {
   const encoded = encodeURIComponent(String(awbNumber).trim());
   const res = await fetch(
-    `${BASE}/api/public/orders/awb/${encoded}`,
+    apiUrl(`/api/public/orders/awb/${encoded}`),
     { cache: "no-store" }
   );
 
@@ -171,7 +171,7 @@ export const getPublicOrderByAwb = async (awbNumber) => {
 export const getOrdersByUser = async (userId) => {
   try {
     const response = await fetch(
-      `${BASE}/api/users/${userId}/orders`,
+      apiUrl(`/api/users/${userId}/orders`),
       {
         method: "GET",
         credentials: "include",
@@ -194,7 +194,7 @@ export const getOrdersByUser = async (userId) => {
 export const getOrdersByCompany = async (companyID) => {
   try {
     const response = await fetch(
-      `${BASE}/api/companies/${encodeURIComponent(companyID)}/orders`,
+      apiUrl(`/api/companies/${encodeURIComponent(companyID)}/orders`),
       {
         method: "GET",
         credentials: "include",
@@ -215,7 +215,7 @@ export const getOrdersByCompany = async (companyID) => {
 };
 
 export const updateOrderWalletFields = async (payload) => {
-  const response = await fetch(`${BASE}/api/external/orders/update-wallet-fields`, {
+  const response = await fetch(apiUrl(`/api/external/orders/update-wallet-fields`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -231,7 +231,7 @@ export const updateOrderWalletFields = async (payload) => {
 export const updateOrder = async (formData) => {
   try {
     const response = await fetch(
-      `${BASE}/api/external/orders/update-order`,
+      apiUrl(`/api/external/orders/update-order`),
       {
         method: "POST",
         headers: {
@@ -278,7 +278,7 @@ export const createOrder = async (payload, { documents = [] } = {}) => {
     body = JSON.stringify(payload);
   }
 
-  const res = await fetch(`${BASE}/api/external/orders/create-order`, {
+  const res = await fetch(apiUrl(`/api/external/orders/create-order`), {
     method: "POST",
     credentials: "include",
     headers,
@@ -296,7 +296,7 @@ export const createOrder = async (payload, { documents = [] } = {}) => {
 
 export const getOrderDocumentUrl = async (orderId, documentIndex) => {
   const res = await fetch(
-    `${BASE}/api/external/orders/${orderId}/documents/${documentIndex}/url`,
+    apiUrl(`/api/external/orders/${orderId}/documents/${documentIndex}/url`),
     {
       method: "GET",
       credentials: "include",
@@ -319,7 +319,7 @@ export const uploadOrderDocuments = async (orderId, file, documentType) => {
   formData.append("documents", file);
   formData.append("document_types", JSON.stringify([documentType]));
 
-  const res = await fetch(`${BASE}/api/external/orders/${orderId}/documents`, {
+  const res = await fetch(apiUrl(`/api/external/orders/${orderId}/documents`), {
     method: "POST",
     credentials: "include",
     body: formData,
@@ -333,7 +333,7 @@ export const uploadOrderDocuments = async (orderId, file, documentType) => {
 };
 
 export const getOrderIdSequences = async () => {
-  const res = await fetch(`${BASE}/api/external/orders/order-id-sequences`, {
+  const res = await fetch(apiUrl(`/api/external/orders/order-id-sequences`), {
     method: "GET",
     credentials: "include",
     cache: "no-store",
@@ -353,7 +353,7 @@ export const getNextOrderId = async ({ sequence = "alphanumeric", companyId } = 
   }
 
   const res = await fetch(
-    `${BASE}/api/external/orders/next-order-id?${params.toString()}`,
+    apiUrl(`/api/external/orders/next-order-id?${params.toString()}`),
     {
       method: "GET",
       credentials: "include",
@@ -370,7 +370,7 @@ export const getNextOrderId = async ({ sequence = "alphanumeric", companyId } = 
 
 export const cancelOrder = async (orderIds) => {
   const ids = Array.isArray(orderIds) ? orderIds : [orderIds];
-  const res = await fetch(`${BASE}/api/external/orders/cancel-order`, {
+  const res = await fetch(apiUrl(`/api/external/orders/cancel-order`), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -386,7 +386,7 @@ export const cancelOrder = async (orderIds) => {
 
 export const cancelShipments = async (awbs) => {
   const list = Array.isArray(awbs) ? awbs : [awbs];
-  const res = await fetch(`${BASE}/api/external/shipments/cancel`, {
+  const res = await fetch(apiUrl(`/api/external/shipments/cancel`), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL;
+import { apiUrl, getApiBase } from "./apiBase.js";
 
 const defaultFetchOptions = {
   credentials: "include",
@@ -6,7 +6,7 @@ const defaultFetchOptions = {
 };
 
 export const shipOrdersAPI  = async (payload) => {
-  const res = await fetch(`${BASE}/api/shipping/assign-awb`, {
+  const res = await fetch(apiUrl(`/api/shipping/assign-awb`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -55,7 +55,7 @@ const buildPickupParams = ({
 export const pickupOrdersAPI = async (options = {}) => {
   const params = buildPickupParams(options);
 
-  const res = await fetch(`${BASE}/api/user/pickups?${params.toString()}`, {
+  const res = await fetch(apiUrl(`/api/user/pickups?${params.toString()}`), {
     method: "GET",
     headers: { "Content-Type": "application/json" },
     ...defaultFetchOptions,
@@ -71,7 +71,7 @@ export const pickupOrdersAPI = async (options = {}) => {
 };
 
 export const reschedulePickupAPI = async (payload) => {
-  const res = await fetch(`${BASE}/api/user/pickups/reschedule`, {
+  const res = await fetch(apiUrl(`/api/user/pickups/reschedule`), {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -90,7 +90,7 @@ export const reschedulePickupAPI = async (payload) => {
 };
 
 export const cancelPickupAPI = async (pickupId) => {
-  const res = await fetch(`${BASE}/api/user/pickups/cancel`, {
+  const res = await fetch(apiUrl(`/api/user/pickups/cancel`), {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -111,7 +111,7 @@ export const cancelPickupAPI = async (pickupId) => {
 export const getAdminPickupsAPI = async (options = {}) => {
   const params = buildPickupParams(options);
 
-  const res = await fetch(`${BASE}/api/admin/pickups?${params.toString()}`, {
+  const res = await fetch(apiUrl(`/api/admin/pickups?${params.toString()}`), {
     method: "GET",
     headers: { "Content-Type": "application/json" },
     ...defaultFetchOptions,
@@ -125,7 +125,7 @@ export const getAdminPickupsAPI = async (options = {}) => {
 };
 
 export const completePickupAPI = async (pickupId) => {
-  const res = await fetch(`${BASE}/api/admin/pickups/complete`, {
+  const res = await fetch(apiUrl(`/api/admin/pickups/complete`), {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -142,7 +142,7 @@ export const completePickupAPI = async (pickupId) => {
 };
 
 export const failPickupAPI = async (pickupId, failureReason) => {
-  const res = await fetch(`${BASE}/api/admin/pickups/fail`, {
+  const res = await fetch(apiUrl(`/api/admin/pickups/fail`), {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",

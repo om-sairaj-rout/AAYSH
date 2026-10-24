@@ -5,6 +5,7 @@ const PincodeServiceability = require("../../models/upload/serviceability.model"
 const CourierPriority = require("../../models/upload/courierPriority.model");
 const { parseISODateOnly, now } = require("../../utils/dateTime");
 const { getAwbCategory } = require("../../utils/codToPay");
+const { resolveDestinationZoneForAwb } = require("../../constants/awbCategories");
 const {
   buildCourierAssignmentOrder,
 } = require("../../utils/buildCourierAssignmentOrder");
@@ -216,12 +217,16 @@ const generateAwbExternal = async (req, res) => {
         continue;
       }
 
-      const category =
-        getAwbCategory(
-          order.chargeableWeight || order.weight,
-          service,
-          order.paymentMethod
-        );
+      const destinationZone = resolveDestinationZoneForAwb(
+        order,
+        serviceability
+      );
+      const category = getAwbCategory(
+        order.chargeableWeight || order.weight,
+        service,
+        order.paymentMethod,
+        destinationZone
+      );
 
       let awb = null;
       let selectedCourier = null;

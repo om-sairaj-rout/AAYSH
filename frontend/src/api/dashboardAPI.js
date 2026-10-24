@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL;
+import { apiUrl, getApiBase } from "./apiBase.js";
 
 export const getDashboardData = async ({
   year,
@@ -23,7 +23,7 @@ export const getDashboardData = async ({
   if (from) params.set("from", from);
   if (to) params.set("to", to);
 
-  const res = await fetch(`${BASE}/api/dashboard?${params.toString()}`, {
+  const res = await fetch(apiUrl(`/api/dashboard?${params.toString()}`), {
     method: "GET",
     credentials: "include",
   });

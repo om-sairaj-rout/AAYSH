@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL;
+import { apiUrl, getApiBase } from "./apiBase.js";
 
 const parseResponse = async (res) => {
   const data = await res.json();
@@ -19,7 +19,7 @@ export const previewBillingInvoiceAPI = async ({
   invoice,
   recalculateRates = false,
 }) => {
-  const res = await fetch(`${BASE}/api/billing/invoice/preview`, {
+  const res = await fetch(apiUrl(`/api/billing/invoice/preview`), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -39,7 +39,7 @@ export const previewBillingInvoiceFromExcelAPI = async (companyID, file) => {
   formData.append("companyID", companyID);
   formData.append("file", file);
 
-  const res = await fetch(`${BASE}/api/billing/invoice/preview-excel`, {
+  const res = await fetch(apiUrl(`/api/billing/invoice/preview-excel`), {
     method: "POST",
     credentials: "include",
     body: formData,
@@ -82,20 +82,20 @@ const downloadBlob = async (url, payload, filenameFallback) => {
 
 export const exportBillingInvoicePdfAPI = async (payload) =>
   downloadBlob(
-    `${BASE}/api/billing/invoice/export/pdf`,
+    apiUrl(`/api/billing/invoice/export/pdf`),
     payload,
     "tax-invoice.pdf"
   );
 
 export const exportBillingInvoiceExcelAPI = async (payload) =>
   downloadBlob(
-    `${BASE}/api/billing/invoice/export/excel`,
+    apiUrl(`/api/billing/invoice/export/excel`),
     payload,
     "tax-invoice.xlsx"
   );
 
 export const saveBillingInvoiceAPI = async (payload) => {
-  const res = await fetch(`${BASE}/api/billing/invoice/save`, {
+  const res = await fetch(apiUrl(`/api/billing/invoice/save`), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -110,7 +110,7 @@ export const saveBillingInvoiceAPI = async (payload) => {
 
 export const listBillingInvoiceHistoryAPI = async (month) => {
   const res = await fetch(
-    `${BASE}/api/billing/invoice/history?month=${encodeURIComponent(month)}`,
+    apiUrl(`/api/billing/invoice/history?month=${encodeURIComponent(month)}`),
     {
       method: "GET",
       credentials: "include",
@@ -152,18 +152,18 @@ const downloadHistoryBlob = async (url, filenameFallback) => {
 
 export const downloadSavedBillingInvoicePdfAPI = async (id) =>
   downloadHistoryBlob(
-    `${BASE}/api/billing/invoice/history/${id}/pdf`,
+    apiUrl(`/api/billing/invoice/history/${id}/pdf`),
     "tax-invoice.pdf"
   );
 
 export const downloadSavedBillingInvoiceExcelAPI = async (id) =>
   downloadHistoryBlob(
-    `${BASE}/api/billing/invoice/history/${id}/excel`,
+    apiUrl(`/api/billing/invoice/history/${id}/excel`),
     "tax-invoice.xlsx"
   );
 
 export const deleteSavedBillingInvoiceAPI = async (id) => {
-  const res = await fetch(`${BASE}/api/billing/invoice/history/${id}`, {
+  const res = await fetch(apiUrl(`/api/billing/invoice/history/${id}`), {
     method: "DELETE",
     credentials: "include",
   });

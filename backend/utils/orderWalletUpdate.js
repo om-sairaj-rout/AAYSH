@@ -6,8 +6,7 @@ const { calculateOrderWalletCharge } = require("./orderWalletCharge");
 const { resolveZoneForOrder } = require("./calculateFinalOrderRate");
 const {
   round2,
-  assertWalletCanAfford,
-  debitOrderChargeAdjustment,
+  applyOrderChargeDelta,
   logOrderWalletFieldChange,
 } = require("./walletService");
 const { resolveOrderWeights } = require("./weightCalculations");
@@ -120,6 +119,7 @@ const applyOrderWalletFieldUpdate = async ({
     after: afterSnapshot,
     fieldChanges,
     additionalDebit: diff > 0 && order.walletDeductedAt ? diff : 0,
+    additionalCredit: diff < 0 && order.walletDeductedAt ? Math.abs(diff) : 0,
   });
 
   const changeMeta = {
@@ -138,23 +138,19 @@ const applyOrderWalletFieldUpdate = async ({
     displayDescription: description,
   };
 
-  if (order.walletDeductedAt && diff > 0) {
-    const afford = await assertWalletCanAfford(order.companyID, diff);
-    if (!afford.ok) {
-      return { success: false, message: afford.message };
-    }
-
-    const debitResult = await debitOrderChargeAdjustment({
+  if (order.walletDeductedAt && diff !== 0) {
+    const deltaResult = await applyOrderChargeDelta({
       companyID: order.companyID,
       orderId: order._id,
-      amount: diff,
+      previousCharge,
+      newCharge,
       description,
       createdBy,
       meta: changeMeta,
     });
 
-    if (!debitResult.success) {
-      return debitResult;
+    if (!deltaResult.success) {
+      return deltaResult;
     }
   } else if (fieldChanges.length > 0) {
     await logOrderWalletFieldChange({
@@ -186,6 +182,7 @@ const applyOrderWalletFieldUpdate = async ({
     newCharge,
     previousCharge,
     additionalDebit: diff > 0 && order.walletDeductedAt ? diff : 0,
+    additionalCredit: diff < 0 && order.walletDeductedAt ? Math.abs(diff) : 0,
     service: normalizedService,
     zone: afterZone,
     chargeableWeight: chargeResult.chargeableWeight,

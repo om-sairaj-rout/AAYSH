@@ -6,6 +6,7 @@ const PincodeServiceability = require("../models/upload/serviceability.model");
 const CourierPriority = require("../models/upload/courierPriority.model");
 const { parseISODateOnly, now } = require("./dateTime");
 const { getAwbCategory } = require("./codToPay");
+const { resolveDestinationZoneForAwb } = require("../constants/awbCategories");
 const { calculateOrderWalletCharge } = require("./orderWalletCharge");
 const {
   debitForOrder,
@@ -201,10 +202,12 @@ const assignAwbCore = async ({
       }
     }
 
+    const destinationZone = resolveDestinationZoneForAwb(order, serviceability);
     const category = getAwbCategory(
       order.chargeableWeight || order.weight,
       service,
-      order.paymentMethod
+      order.paymentMethod,
+      destinationZone
     );
     let awb = null;
     let selectedCourier = null;

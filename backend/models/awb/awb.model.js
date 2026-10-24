@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { AWB_CATEGORY_ENUM } = require("../../constants/awbCategories");
 
 const awbSchema =
   new mongoose.Schema(
@@ -18,13 +19,7 @@ const awbSchema =
 
       category: {
         type: String,
-        enum: [
-          "under1kg",
-          "under3kg",
-          "over3kg",
-          "prime",
-          "codToPay",
-        ],
+        enum: AWB_CATEGORY_ENUM,
         required: true,
       },
 

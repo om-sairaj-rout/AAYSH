@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X, Zap } from "lucide-react";
+import {
+  validateRechargeAmount,
+  WALLET_RECHARGE_MIN_INR,
+  WALLET_RECHARGE_STEP_INR,
+} from "../utils/walletRechargeValidation";
 
 const QUICK_AMOUNTS = [500, 1000, 1500, 2500, 5000];
-const MIN_RECHARGE_AMOUNT = 500;
 const MIN_SHIP_BALANCE = 100;
 
 const RechargeWalletModal = ({
@@ -12,23 +16,29 @@ const RechargeWalletModal = ({
   disabled,
   loading,
 }) => {
-  const [amount, setAmount] = useState(String(MIN_RECHARGE_AMOUNT));
+  const [amount, setAmount] = useState(String(WALLET_RECHARGE_MIN_INR));
+  const [validationError, setValidationError] = useState("");
 
   useEffect(() => {
     if (open) {
-      setAmount(String(MIN_RECHARGE_AMOUNT));
+      setAmount(String(WALLET_RECHARGE_MIN_INR));
+      setValidationError("");
     }
   }, [open]);
 
   if (!open) return null;
 
-  const numericAmount = Number(amount);
-  const canProceed =
-    !disabled && !loading && Number.isFinite(numericAmount) && numericAmount >= MIN_RECHARGE_AMOUNT;
+  const validation = useMemo(() => validateRechargeAmount(amount), [amount]);
+  const canProceed = !disabled && !loading && validation.ok;
 
   const handleProceed = () => {
-    if (!canProceed) return;
-    onProceed(numericAmount);
+    const check = validateRechargeAmount(amount);
+    if (!check.ok) {
+      setValidationError(check.message);
+      return;
+    }
+    setValidationError("");
+    onProceed(check.amount);
   };
 
   return (
@@ -84,16 +94,30 @@ const RechargeWalletModal = ({
               </span>
               <input
                 type="number"
-                min={MIN_RECHARGE_AMOUNT}
-                step="1"
+                min={WALLET_RECHARGE_MIN_INR}
+                step={WALLET_RECHARGE_STEP_INR}
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => {
+                  setAmount(e.target.value);
+                  setValidationError("");
+                }}
                 className="w-full pl-10 pr-4 py-3.5 rounded-xl border border-slate-200 text-lg font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1B2B4B]/20 focus:border-[#1B2B4B]"
               />
             </div>
             <p className="text-xs text-slate-400 mt-2">
-              Note: Minimum recharge value ₹{MIN_RECHARGE_AMOUNT.toLocaleString("en-IN")}
+              Minimum ₹{WALLET_RECHARGE_MIN_INR.toLocaleString("en-IN")}; amounts must be
+              multiples of ₹{WALLET_RECHARGE_STEP_INR.toLocaleString("en-IN")}.
             </p>
+            {validationError && (
+              <p className="text-xs text-rose-600 font-medium mt-2" role="alert">
+                {validationError}
+              </p>
+            )}
+            {!validationError && amount && !validation.ok && validation.message && (
+              <p className="text-xs text-amber-700 font-medium mt-2" role="status">
+                {validation.message}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-2">

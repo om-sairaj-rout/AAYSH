@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL;
+import { apiUrl, getApiBase } from "./apiBase.js";
 
 const parseResponse = async (res) => {
   const data = await res.json();
@@ -10,7 +10,7 @@ const parseResponse = async (res) => {
 
 /** Amount in paise (minimum 100). */
 export const createRazorpayOrderAPI = async ({ amount, currency = "INR", receipt, notes }) => {
-  const res = await fetch(`${BASE}/api/create-order`, {
+  const res = await fetch(apiUrl(`/api/create-order`), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -24,7 +24,7 @@ export const verifyRazorpayPaymentAPI = async ({
   razorpay_payment_id,
   razorpay_signature,
 }) => {
-  const res = await fetch(`${BASE}/api/verify-payment`, {
+  const res = await fetch(apiUrl(`/api/verify-payment`), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
