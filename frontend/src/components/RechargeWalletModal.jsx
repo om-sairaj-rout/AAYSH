@@ -26,10 +26,10 @@ const RechargeWalletModal = ({
     }
   }, [open]);
 
-  if (!open) return null;
-
   const validation = useMemo(() => validateRechargeAmount(amount), [amount]);
   const canProceed = !disabled && !loading && validation.ok;
+
+  if (!open) return null;
 
   const handleProceed = () => {
     const check = validateRechargeAmount(amount);
