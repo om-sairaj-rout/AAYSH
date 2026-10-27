@@ -273,6 +273,11 @@ console.log(typeof row["Tracking Date & Time"]);
 
       await shipping.save();
 
+      const {
+        syncReversePickupFromShippingDocument,
+      } = require("../../utils/reversePickupStatusSync");
+      await syncReversePickupFromShippingDocument(shipping, eventTime);
+
       notifyShippingStatusWhatsApp({
         shipping,
         previousStatus,

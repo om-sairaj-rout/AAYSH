@@ -104,13 +104,13 @@ const getRiskLevel = (delayRatio) => {
   return "Critical";
 };
 
-const getOrderRiskFlags = (order) => {
+const getOrderRiskFlags = (order, options = {}) => {
   const status = getShippingStatus(order);
   const explicitDelay =
     status === "Delayed" || status === "Undelivered";
 
   let slaBreach = false;
-  if (!explicitDelay) {
+  if (!explicitDelay && !options.lightweight) {
     const calc = orderCalculations(order, order.shipping || {});
     slaBreach = calc.slaStatus === "Breach";
   }
@@ -153,7 +153,7 @@ const finalizeRiskRow = (row, overallDelayRatio) => {
   };
 };
 
-const buildRiskAnalytics = (yearOrders) => {
+const buildRiskAnalytics = (yearOrders, options = {}) => {
   const zoneRiskMap = {};
   const stateRiskMap = {};
   const summary = createRiskBucket();
@@ -161,7 +161,7 @@ const buildRiskAnalytics = (yearOrders) => {
   yearOrders.forEach((order) => {
     const zone = getOrderZone(order);
     const stateKey = normalizeLabel(order.destinationState, "Unknown");
-    const flags = getOrderRiskFlags(order);
+    const flags = getOrderRiskFlags(order, options);
 
     summary.total += 1;
     if (flags.delivered) summary.delivered += 1;
@@ -224,7 +224,7 @@ const buildRiskAnalytics = (yearOrders) => {
   };
 };
 
-const buildDashboardAnalytics = (yearOrders) => {
+const buildDashboardAnalytics = (yearOrders, options = {}) => {
   const totalOrders = yearOrders.length;
   const totalRevenue = yearOrders.reduce(
     (sum, order) => sum + Number(order.invoiceValue || 0),
@@ -296,7 +296,7 @@ const buildDashboardAnalytics = (yearOrders) => {
     (a, b) => b.total - a.total
   );
 
-  const riskAnalytics = buildRiskAnalytics(yearOrders);
+  const riskAnalytics = buildRiskAnalytics(yearOrders, options);
 
   return {
     salesAnalytics: {

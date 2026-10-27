@@ -111,13 +111,17 @@ const Header = ({ setIsSidebarOpen }) => {
   };
 
   const handleSearch = async () => {
-    if (!search.trim()) return;
+    const awb = search.trim();
+    if (!awb) return;
 
     try {
-      const res = await getOrderByAwb(search.trim());
+      const res = await getOrderByAwb(awb);
 
       if (res?.success && res?.order) {
-        navigate(`/awb/${search.trim()}`);
+        navigate(
+          `/orders/awb-tracking?awb=${encodeURIComponent(awb)}`,
+          { state: { fromHeader: true } }
+        );
         setSearch("");
       } else {
         toast.error("No such AWB number found");
@@ -172,8 +176,7 @@ const Header = ({ setIsSidebarOpen }) => {
             </p>
           </div>
         )}
-        {/* Responsive Search Bar container */}
-        {/* <div className="relative w-full max-w-[160px] sm:max-w-[240px] md:max-w-xs">
+        <div className="relative w-full max-w-[140px] xs:max-w-[180px] sm:max-w-[220px] md:max-w-xs">
           <input
             type="text"
             value={search}
@@ -183,7 +186,8 @@ const Header = ({ setIsSidebarOpen }) => {
                 handleSearch();
               }
             }}
-            placeholder="Search AWB..."
+            placeholder="Track AWB..."
+            aria-label="Track AWB number"
             className="pl-9 pr-3 py-2 bg-gray-100 border-transparent focus:bg-white focus:border-blue-500 border rounded-lg w-full text-xs md:text-sm outline-none transition-all"
           />
           <Search
@@ -191,7 +195,7 @@ const Header = ({ setIsSidebarOpen }) => {
             size={16}
             onClick={handleSearch}
           />
-        </div> */}
+        </div>
 
         {/* Action Icons Panel */}
         <div className="flex items-center gap-1 md:gap-2 border-l pl-2 md:pl-4 border-gray-200 relative">

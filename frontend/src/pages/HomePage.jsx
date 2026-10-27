@@ -109,6 +109,10 @@ const HomePage = () => {
         contactCard: "bg-white border-slate-200 shadow-lg",
       };
 
+  const scrollToTrackingResults = () => {
+    document.getElementById("tracking-results")?.scrollIntoView({ behavior: "smooth" });
+  };
+
   const handleTrack = async (e) => {
     e.preventDefault();
     if (!awbNumber.trim()) return;
@@ -117,6 +121,7 @@ const HomePage = () => {
       setLoadingTrack(true);
       setTrackError(null);
       setShowTrackingResult(true);
+      scrollToTrackingResults();
 
       const res = await getPublicOrderByAwb(awbNumber.trim());
 
@@ -213,13 +218,55 @@ const HomePage = () => {
 
       {/* Nav */}
       <nav className={`sticky top-0 z-50 border-b transition-colors duration-500 ${t.nav}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between py-4">
-          <div className="flex items-center gap-3">
-            <img src={aayshlogo2} alt="Aaysh Express" className="h-10 w-auto object-contain" />
-            <span className={`text-lg font-bold tracking-tight hidden sm:block ${t.h1}`}>
-              AAYSH<span className="text-cyan-500">EXPRESS</span>
-            </span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center justify-between gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-3 min-w-0">
+              <img src={aayshlogo2} alt="Aaysh Express" className="h-10 w-auto object-contain" />
+              <span className={`text-lg font-bold tracking-tight hidden sm:block ${t.h1}`}>
+                AAYSH<span className="text-cyan-500">EXPRESS</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2 sm:hidden">
+              <button
+                type="button"
+                onClick={toggle}
+                aria-label="Toggle theme"
+                className={`p-2.5 rounded-xl transition-all ${t.btnSecondary}`}
+              >
+                {isDark ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/login")}
+                className={`inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold ${t.btnPrimary}`}
+              >
+                Login
+              </button>
+            </div>
           </div>
+
+          <form
+            onSubmit={handleTrack}
+            className={`flex-1 w-full sm:max-w-md flex gap-2 p-1.5 rounded-xl border ${t.card}`}
+          >
+            <div className="relative flex-1 min-w-0">
+              <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${t.trackMuted}`} />
+              <input
+                type="text"
+                placeholder="Track AWB..."
+                value={awbNumber}
+                onChange={(e) => setAwbNumber(e.target.value)}
+                className={`w-full text-sm pl-9 pr-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-cyan-500/30 ${t.input}`}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loadingTrack}
+              className={`shrink-0 px-4 py-2.5 rounded-lg text-xs font-bold ${t.btnPrimary}`}
+            >
+              {loadingTrack ? "…" : "Track"}
+            </button>
+          </form>
 
           <div className="hidden md:flex items-center gap-8 text-sm font-medium">
             <a href="#features" className={`transition-colors ${t.navLink}`}>Features</a>
@@ -227,7 +274,7 @@ const HomePage = () => {
             <a href="#contact" className={`transition-colors ${t.navLink}`}>Support</a>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2">
             <button
               type="button"
               onClick={toggle}
@@ -275,28 +322,9 @@ const HomePage = () => {
                 pickup scheduling, and live tracking in one premium workspace.
               </p>
 
-              <div id="tracking" className={`p-2 rounded-2xl border max-w-lg mx-auto lg:mx-0 ${t.card}`}>
-                <form onSubmit={handleTrack} className="flex flex-col sm:flex-row gap-2">
-                  <div className="relative flex-1">
-                    <Search className={`w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 ${t.trackMuted}`} />
-                    <input
-                      type="text"
-                      placeholder="Enter AWB number to track..."
-                      value={awbNumber}
-                      onChange={(e) => setAwbNumber(e.target.value)}
-                      required
-                      className={`w-full text-sm pl-11 pr-4 py-3.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all ${t.input}`}
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className={`shrink-0 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold transition-all ${t.btnPrimary}`}
-                  >
-                    <Truck size={16} />
-                    Track
-                  </button>
-                </form>
-              </div>
+              <p className={`text-sm max-w-lg mx-auto lg:mx-0 ${t.sub}`}>
+                Enter your AWB in the header search bar to view live tracking below.
+              </p>
 
               <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
                 <button
@@ -366,7 +394,10 @@ const HomePage = () => {
 
       {/* Tracking results */}
       {showTrackingResult && (
-        <section className={`py-12 border-y transition-colors ${t.trackSection}`}>
+        <section
+          id="tracking-results"
+          className={`py-12 border-y transition-colors ${t.trackSection}`}
+        >
           <div className="max-w-4xl mx-auto px-4 sm:px-6 relative">
             <button
               type="button"

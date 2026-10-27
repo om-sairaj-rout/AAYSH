@@ -23,8 +23,7 @@ const AwbPage = () => {
       try {
         setLoading(true);
         const res = await getOrderByAwb(awbNumber);
-        console.log("Fetched order details:", res);
-        
+
         if (res?.success && res.order) {
   setOrder({
     ...res.order,

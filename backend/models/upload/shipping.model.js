@@ -242,4 +242,7 @@ delayedAt: {
   }
 );
 
+ShippingSchema.index({ pickupDate: 1, pickupStatus: 1 });
+ShippingSchema.index({ pickupStatus: 1, shippingStatus: 1 });
+
 module.exports = mongoose.model("Shipping", ShippingSchema);

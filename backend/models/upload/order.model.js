@@ -362,5 +362,7 @@ const OrderSchema = new mongoose.Schema(
 
 OrderSchema.index({ externalOrderId: 1 }, { unique: true });
 OrderSchema.index({ companyID: 1 });
+OrderSchema.index({ companyID: 1, createdAt: -1 });
+OrderSchema.index({ companyID: 1, orderDate: -1 });
 
 module.exports = mongoose.model("Order", OrderSchema);

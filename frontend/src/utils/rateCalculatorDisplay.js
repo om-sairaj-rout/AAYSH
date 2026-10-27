@@ -5,8 +5,13 @@ export const isServiceRateAvailable = (mode) => {
   const data = mode.data;
   const breakdown = data.breakdown || {};
   const slabRate = Number(
-    breakdown.weightSlabRate ?? data.rate?.total ?? breakdown.finalRate ?? 0
+    breakdown.weightSlabRate ?? data.rate?.total ?? 0
   );
+  const finalRate = Number(breakdown.finalRate ?? 0);
+
+  if (breakdown.finalRate != null && Number.isFinite(finalRate)) {
+    return finalRate > 0;
+  }
 
   return Number.isFinite(slabRate) && slabRate > 0;
 };

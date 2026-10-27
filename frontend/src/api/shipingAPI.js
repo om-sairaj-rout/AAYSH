@@ -29,6 +29,9 @@ const buildPickupParams = ({
   search,
   userId,
   companyId,
+  countsOnly,
+  includeCounts,
+  includeCompanies,
 } = {}) => {
   const params = new URLSearchParams({
     page: String(page),
@@ -47,6 +50,16 @@ const buildPickupParams = ({
     params.append("company_id", companyId);
   } else if (userId && userId !== "ALL") {
     params.append("user_id", userId);
+  }
+
+  if (countsOnly) {
+    params.append("counts_only", "1");
+  }
+  if (includeCounts) {
+    params.append("include_counts", "1");
+  }
+  if (includeCompanies) {
+    params.append("include_companies", "1");
   }
 
   return params;

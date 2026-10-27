@@ -1,13 +1,17 @@
-const Order = require("../../models/upload/order.model");
-const Shipping = require("../../models/upload/shipping.model");
 const { toISTDate } = require("../../utils/dateTime");
 const { applyCompanyOrderFilter } = require("../../utils/companyScope");
 const { buildDashboardAnalytics } = require("../../utils/dashboardAnalytics");
+const {
+  fetchDashboardYearOrders,
+  buildStatsFromOrders,
+} = require("../../utils/dashboardStatsAggregate");
+const { getCached, setCached, stableKey } = require("../../utils/dashboardCache");
 const {
   getWalletSummary,
   isWalletEnabledForCompany,
   WALLET_MIN_BALANCE,
 } = require("../../utils/walletService");
+const { perfLog } = require("../../utils/performanceLog");
 
 const getISTYear = (date) => {
   const istDate = toISTDate(date);
@@ -127,7 +131,14 @@ const buildWeeklyChartData = (yearOrders, year, monthIndex, weekNumber) => {
   return chartData;
 };
 
+const logTiming = (label, startMs) => {
+  const elapsed = Date.now() - startMs;
+  perfLog(`[dashboard] ${label}: ${elapsed}ms`);
+  return elapsed;
+};
+
 const getDashboardController = async (req, res) => {
+  const requestStarted = Date.now();
   try {
 
     const isAdmin = req.user.role === "admin";
@@ -145,6 +156,8 @@ const getDashboardController = async (req, res) => {
     const companyId = String(req.query.companyId || req.query.company_id || "").trim();
     const fromDate = req.query.from || null;
     const toDate = req.query.to || null;
+    const analyticsOnly =
+      req.query.analytics_only === "1" || req.query.analytics_only === "true";
 
     let filter = {};
 
@@ -156,134 +169,113 @@ const getDashboardController = async (req, res) => {
       filter = applyCompanyOrderFilter(req, filter);
     }
 
-    let orders = await Order.find(filter).lean();
-
-const orderIds = orders.map(order => order._id);
-
-const shippingList = await Shipping.find({
-  orderId: { $in: orderIds }
-}).lean();
-
-const shippingMap = {};
-
-shippingList.forEach(shipping => {
-  shippingMap[shipping.orderId.toString()] = shipping;
-});
-
-orders = orders.map(order => ({
-  ...order,
-  shipping: shippingMap[order._id.toString()] || {
-    shippingStatus: "Pending"
-  }
-}));
-
-const allOrders = orders;
-
-// =========================
-// YEAR FILTER
-// Used only for annual analytics
-// =========================
-let yearOrders = allOrders;
-
-if (selectedYear) {
-  yearOrders = allOrders.filter((order) => {
-    const date = order.orderDate || order.createdAt;
-
-    if (!date) return false;
-
-    return getISTYear(date) === selectedYear;
-  });
-}
-
-yearOrders = filterOrdersByDateRange(yearOrders, fromDate, toDate);
-
-// =========================
-// STATS & TOP CITIES
-// Based on selected fiscal year (falls back to all orders)
-// =========================
-
-const totalOrders = yearOrders.length;
-
-const pendingOrders = yearOrders.filter(
-  o => !o.shipping || o.shipping.shippingStatus === "Pending"
-).length;
-
-const bookedOrders = yearOrders.filter(
-  o => o.shipping?.shippingStatus === "Booked"
-).length;
-
-const shippedOrders = yearOrders.filter(
-  o => o.shipping?.shippingStatus === "Shipped"
-).length;
-
-const inTransitOrders = yearOrders.filter(
-  o =>
-    o.shipping?.shippingStatus === "In Transit" ||
-    o.shipping?.shippingStatus === "Out For Delivery"
-).length;
-
-const deliveredOrders = yearOrders.filter(
-  o => o.shipping?.shippingStatus === "Delivered"
-).length;
-
-const delayedOrders = yearOrders.filter(
-  o => o.shipping?.shippingStatus === "Delayed"
-).length;
-
-const cancelledOrders = yearOrders.filter(
-  o => o.shipping?.shippingStatus === "Cancelled"
-).length;
-
-const rtoOrders = yearOrders.filter(
-  o => o.shipping?.shippingStatus === "RTO"
-).length;
-
-// Cost is based on selected year
-const totalCost = yearOrders.reduce(
-  (sum, order) =>
-    sum + Number(order.invoiceValue || 0),
-  0
-);
-
-    // =========================
-    // CHART DATA
-    // =========================
-
-    const chartData =
-      chartView === "week"
-        ? buildWeeklyChartData(
-            yearOrders,
-            selectedYear || new Date().getFullYear(),
-            selectedMonth - 1,
-            selectedWeek
-          )
-        : buildMonthlyChartData(yearOrders);
-
-    const cityMap = {};
-
-    yearOrders.forEach((order) => {
-      const city = order.destinationCity || "Unknown";
-
-      if (!cityMap[city]) {
-        cityMap[city] = {
-          city,
-          orders: 0,
-          cost: 0,
-        };
-      }
-
-      cityMap[city].orders += 1;
-      cityMap[city].cost += Number(order.invoiceValue || 0);
+    const cacheKey = stableKey({
+      filter,
+      selectedYear,
+      fromDate,
+      toDate,
+      chartView,
+      selectedMonth,
+      selectedWeek,
+      companyId,
+      analyticsOnly,
+      role: req.user.role,
+      companyID: req.user.companyID,
     });
 
-    const topCities = Object.values(cityMap)
-      .sort((a, b) => b.orders - a.orders)
-      .slice(0, 20);
+    const bodyCacheKey = `${cacheKey}::body`;
+    let cachedBody = getCached(bodyCacheKey);
 
-    const { salesAnalytics, shipmentAnalytics, riskAnalytics } =
-      buildDashboardAnalytics(yearOrders);
+    if (!cachedBody) {
+      const fetchStarted = Date.now();
+      const yearOrders = await fetchDashboardYearOrders(
+        filter,
+        selectedYear,
+        fromDate,
+        toDate
+      );
+      logTiming(`fetch year orders (${yearOrders.length} rows)`, fetchStarted);
+
+      const { stats, totalCost } = buildStatsFromOrders(yearOrders);
+
+      const analyticsStarted = Date.now();
+      const { salesAnalytics, shipmentAnalytics, riskAnalytics } =
+        buildDashboardAnalytics(yearOrders, { lightweight: true });
+      logTiming("build analytics", analyticsStarted);
+
+      if (analyticsOnly) {
+        cachedBody = {
+          stats,
+          salesAnalytics,
+          shipmentAnalytics,
+          riskAnalytics,
+          totalCost,
+        };
+      } else {
+        const chartData =
+          chartView === "week"
+            ? buildWeeklyChartData(
+                yearOrders,
+                selectedYear || new Date().getFullYear(),
+                selectedMonth - 1,
+                selectedWeek
+              )
+            : buildMonthlyChartData(yearOrders);
+
+        const cityMap = {};
+
+        yearOrders.forEach((order) => {
+          const city = order.destinationCity || "Unknown";
+
+          if (!cityMap[city]) {
+            cityMap[city] = {
+              city,
+              orders: 0,
+              cost: 0,
+            };
+          }
+
+          cityMap[city].orders += 1;
+          cityMap[city].cost += Number(order.invoiceValue || 0);
+        });
+
+        const topCities = Object.values(cityMap)
+          .sort((a, b) => b.orders - a.orders)
+          .slice(0, 20);
+
+        cachedBody = {
+          stats,
+          chartData,
+          chartView,
+          chartMeta:
+            chartView === "week"
+              ? {
+                  month: selectedMonth,
+                  week: selectedWeek,
+                  monthName: MONTHS[selectedMonth - 1],
+                }
+              : null,
+          topCities,
+          salesAnalytics,
+          shipmentAnalytics,
+          riskAnalytics,
+          totalCost,
+        };
+      }
+      setCached(bodyCacheKey, cachedBody);
+    } else {
+      logTiming("dashboard body cache hit", Date.now());
+    }
 
     let wallet = null;
+    if (analyticsOnly) {
+      logTiming("total request (analytics_only)", requestStarted);
+      return res.status(200).json({
+        success: true,
+        ...cachedBody,
+      });
+    }
+
     const walletCompanyID = isAdmin
       ? companyId && companyId !== "ALL"
         ? companyId
@@ -307,46 +299,19 @@ const totalCost = yearOrders.reduce(
       }
     }
 
+    logTiming("total request", requestStarted);
+
     return res.status(200).json({
       success: true,
 
       wallet,
 
-      stats: {
-        totalOrders,
-        pendingOrders,
-        bookedOrders,
-        shippedOrders,
-        inTransitOrders,
-        deliveredOrders,
-        delayedOrders,
-        cancelledOrders,
-        rtoOrders,
-      },
-
-      chartData,
-      chartView,
-      chartMeta:
-        chartView === "week"
-          ? {
-              month: selectedMonth,
-              week: selectedWeek,
-              monthName: MONTHS[selectedMonth - 1],
-            }
-          : null,
-
-      topCities,
-
-      salesAnalytics,
-      shipmentAnalytics,
-      riskAnalytics,
-
-      totalCost,
+      ...cachedBody,
     });
 
   } catch (error) {
 
-    console.log(error);
+    console.error(error);
 
     return res.status(500).json({
       success: false,

@@ -9,6 +9,10 @@ const rejectReversePickup = require("../controllers/reversePickupControllers/rej
 const getReversePickupDocumentUrl = require("../controllers/reversePickupControllers/getReversePickupDocumentUrl.controllers");
 const getReversePickupDocumentByOrder = require("../controllers/reversePickupControllers/getReversePickupDocumentByOrder.controllers");
 const searchReversePickupCustomers = require("../controllers/reversePickupControllers/searchReversePickupCustomers.controllers");
+const {
+  markReversePickupFailed,
+  FAILURE_REASONS,
+} = require("../controllers/reversePickupControllers/markReversePickupFailed.controllers");
 
 reversePickupRouter.post(
   "/reverse-pickups",
@@ -52,6 +56,20 @@ reversePickupRouter.put(
   checkAuth,
   checkPermission("reversePickup", "write"),
   rejectReversePickup
+);
+
+reversePickupRouter.get(
+  "/admin/reverse-pickups/failure-reasons",
+  checkAuth,
+  checkPermission("reversePickup", "read"),
+  (req, res) => res.json({ success: true, reasons: FAILURE_REASONS })
+);
+
+reversePickupRouter.put(
+  "/admin/reverse-pickups/:id/mark-failed",
+  checkAuth,
+  checkPermission("reversePickup", "write"),
+  markReversePickupFailed
 );
 
 module.exports = reversePickupRouter;

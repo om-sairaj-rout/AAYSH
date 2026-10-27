@@ -33,8 +33,7 @@ const rateRouter = require('./routes/rate.routes');
 const billingRouter = require('./routes/billing.routes');
 const walletRouter = require('./routes/wallet.routes');
 const razorpayRouter = require('./routes/razorpay.routes');
-
-connectToDB();
+const pincodeZoneRouter = require('./routes/pincodeZone.routes');
 
 const app = express();
 
@@ -91,8 +90,16 @@ app.use('/api', rateRouter)
 app.use('/api', billingRouter)
 app.use('/api', walletRouter)
 app.use('/api', razorpayRouter)
+app.use('/api', pincodeZoneRouter)
 
 
-app.listen(3000, () => {
-    console.log('Server is running on port 3000');
-})
+connectToDB()
+  .then(() => {
+    app.listen(3000, () => {
+      console.log("Server is running on port 3000");
+    });
+  })
+  .catch((err) => {
+    console.error("DB connection error:", err.message);
+    process.exit(1);
+  });

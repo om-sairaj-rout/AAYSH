@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Search, Package } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Package, Search } from "lucide-react";
 import { toast } from "../utils/toast";
 import AwbTrackingDetails from "../components/AwbTrackingDetails";
 import {
@@ -8,28 +9,25 @@ import {
 } from "../api/trackingAPI";
 
 const PortalAwbTrackingPage = () => {
-  const [awbInput, setAwbInput] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [podLoading, setPodLoading] = useState(false);
   const [order, setOrder] = useState(null);
   const [pod, setPod] = useState(null);
   const [searchedAwb, setSearchedAwb] = useState("");
 
-  const handleSearch = async (e) => {
-    e?.preventDefault();
-    const awb = awbInput.trim();
-    if (!awb) {
-      toast.validation("Enter an AWB number to track");
-      return;
-    }
+  const loadAwb = async (awb) => {
+    const trimmed = String(awb || "").trim();
+    if (!trimmed) return;
 
     try {
       setLoading(true);
       setOrder(null);
       setPod(null);
-      const res = await getSecureOrderByAwb(awb);
+      const res = await getSecureOrderByAwb(trimmed);
       if (res?.success && res.order) {
-        setSearchedAwb(awb);
+        setSearchedAwb(trimmed);
+        setSearchParams({ awb: trimmed }, { replace: true });
         setOrder({
           ...res.order,
           expectedDeliveryDate: res.expectedDeliveryDate,
@@ -48,6 +46,13 @@ const PortalAwbTrackingPage = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const awb = searchParams.get("awb");
+    if (awb && awb !== searchedAwb) {
+      loadAwb(awb);
+    }
+  }, [searchParams]);
 
   const handleDownloadPod = async () => {
     if (!searchedAwb) return;
@@ -73,35 +78,26 @@ const PortalAwbTrackingPage = () => {
           <Package size={24} />
           AWB Tracking
         </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Track shipments linked to your account. You can only view AWBs you are authorized to access.
+        <p className="text-sm text-slate-500 mt-1 flex items-start gap-2">
+          <Search className="w-4 h-4 mt-0.5 shrink-0" />
+          Use the <strong className="font-semibold text-slate-700">Track AWB</strong> search in the
+          top header to open shipment details here. You only see AWBs your account can access.
         </p>
       </div>
 
-      <form
-        onSubmit={handleSearch}
-        className="bg-white rounded-[22px] border border-white shadow-sm p-5 md:p-6 flex flex-col sm:flex-row gap-3"
-      >
-        <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <input
-            type="text"
-            value={awbInput}
-            onChange={(e) => setAwbInput(e.target.value)}
-            placeholder="Enter AWB number"
-            className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B2B4B]/20"
-          />
+      {loading && (
+        <div className="bg-white rounded-[22px] border border-slate-100 p-8 text-center text-sm text-slate-500">
+          Loading tracking…
         </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-6 py-3 rounded-xl bg-[#1B2B4B] hover:bg-[#152238] text-white text-sm font-bold disabled:opacity-60"
-        >
-          {loading ? "Searching…" : "Track"}
-        </button>
-      </form>
+      )}
 
-      {order && (
+      {!loading && !order && (
+        <div className="bg-white rounded-[22px] border border-dashed border-slate-200 p-10 text-center text-sm text-slate-500">
+          Enter an AWB in the header search bar to view tracking and POD (when available).
+        </div>
+      )}
+
+      {order && !loading && (
         <AwbTrackingDetails
           embedded
           order={order}

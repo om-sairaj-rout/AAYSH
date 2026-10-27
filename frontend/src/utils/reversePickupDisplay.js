@@ -2,6 +2,10 @@ const REQUEST_STATUS_STYLES = {
   pending: "bg-amber-50 text-amber-700 border-amber-200",
   approved: "bg-blue-50 text-blue-700 border-blue-200",
   awb_assigned: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  pickup_scheduled: "bg-blue-50 text-blue-700 border-blue-200",
+  picked_up: "bg-sky-50 text-sky-700 border-sky-200",
+  in_transit: "bg-violet-50 text-violet-700 border-violet-200",
+  delivered: "bg-emerald-50 text-emerald-700 border-emerald-200",
   rejected: "bg-rose-50 text-rose-700 border-rose-200",
   failed: "bg-rose-50 text-rose-700 border-rose-200",
 };
@@ -50,8 +54,18 @@ export const getReversePickupStatusDisplay = (item) => {
 
   if (requestStatus === "failed") {
     return {
-      label: "Failed",
+      label: item?.failureReason
+        ? `Failed — ${item.failureReason}`
+        : "Failed",
       styleKey: "failed",
+      kind: "request",
+    };
+  }
+
+  if (requestStatus === "delivered") {
+    return {
+      label: "Delivered",
+      styleKey: "delivered",
       kind: "request",
     };
   }

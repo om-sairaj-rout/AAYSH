@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   FileChartColumn,
   MapPinCheck,
+  MapPin,
   SlidersHorizontal,
   ChevronDown,
   X,
@@ -131,6 +132,11 @@ const SideBar = ({ isOpen, setIsOpen }) => {
           name: "Serviceability Management",
           icon: <MapPinCheck size={20} />,
           path: "/update/serviceability",
+        },
+        {
+          name: "Pincode Zone Management",
+          icon: <MapPin size={20} />,
+          path: "/update/pincode-zones",
         },
         {
           name: "Courier Priority Management",

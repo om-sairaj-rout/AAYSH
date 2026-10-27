@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node utils/walletRules.test.js && node utils/shipmentPod.test.js && node utils/trackingAccess.test.js && node utils/awbCategory.test.js",
+    "test": "node utils/walletRules.test.js && node utils/shipmentPod.test.js && node utils/trackingAccess.test.js && node utils/awbCategory.test.js && node utils/parsePincodeExcel.test.js && node utils/resolvePincodeRateZone.test.js && node utils/reversePickupStatusSync.test.js",
     "start": "node app.js",
     "dev": "nodemon app.js"
   },

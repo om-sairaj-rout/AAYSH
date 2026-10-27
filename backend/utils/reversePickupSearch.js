@@ -1,38 +1,19 @@
 const escapeRegex = (value) =>
   String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const REQUEST_STATUSES = ["pending", "approved", "rejected", "awb_assigned", "failed"];
+const REQUEST_STATUSES = [
+  "pending",
+  "approved",
+  "rejected",
+  "awb_assigned",
+  "pickup_scheduled",
+  "picked_up",
+  "in_transit",
+  "delivered",
+  "failed",
+];
 
-const parsePickupLocation = (location) => {
-  const parts = String(location || "")
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (parts.length >= 4) {
-    const pincode = parts[parts.length - 1];
-    const state = parts[parts.length - 2];
-    const city = parts[parts.length - 3];
-    const address = parts.slice(0, -3).join(", ");
-    return { address, city, state, pincode };
-  }
-
-  if (parts.length === 3) {
-    return {
-      address: parts[0],
-      city: parts[1],
-      state: parts[2],
-      pincode: "",
-    };
-  }
-
-  return {
-    address: parts.join(", "),
-    city: "",
-    state: "",
-    pincode: "",
-  };
-};
+const looksLikeAwbSearch = (text) => /^[A-Za-z0-9-]{6,}$/.test(text);
 
 const buildReversePickupSearchFilter = async (search, Shipping) => {
   const trimmed = String(search || "").trim();
@@ -44,6 +25,10 @@ const buildReversePickupSearchFilter = async (search, Shipping) => {
     { externalOrderId: searchRegex },
     { originalAwbNumber: searchRegex },
     { awbNumber: searchRegex },
+    { fromName: searchRegex },
+    { fromPhone: searchRegex },
+    { toName: searchRegex },
+    { toPhone: searchRegex },
   ];
 
   const normalized = trimmed.toLowerCase().replace(/\s+/g, "_");
@@ -55,30 +40,25 @@ const buildReversePickupSearchFilter = async (search, Shipping) => {
 
   if (matchedRequestStatus) {
     orConditions.push({ status: matchedRequestStatus });
-  } else {
-    orConditions.push({ status: searchRegex });
   }
 
-  const shippingRows = await Shipping.find({
-    $or: [
-      { awbNumber: searchRegex },
-      { shippingStatus: searchRegex },
-      { pickupStatus: searchRegex },
-      { courierName: searchRegex },
-    ],
-  })
-    .select("orderId")
-    .limit(250)
-    .lean();
+  if (looksLikeAwbSearch(trimmed)) {
+    const shippingRows = await Shipping.find({
+      awbNumber: searchRegex,
+    })
+      .select("orderId")
+      .limit(100)
+      .lean();
 
-  const orderIds = [
-    ...new Set(
-      shippingRows.map((row) => row.orderId).filter(Boolean).map(String)
-    ),
-  ];
+    const orderIds = [
+      ...new Set(
+        shippingRows.map((row) => row.orderId).filter(Boolean).map(String)
+      ),
+    ];
 
-  if (orderIds.length) {
-    orConditions.push({ orderId: { $in: orderIds } });
+    if (orderIds.length) {
+      orConditions.push({ orderId: { $in: orderIds } });
+    }
   }
 
   return { $or: orConditions };
@@ -86,6 +66,5 @@ const buildReversePickupSearchFilter = async (search, Shipping) => {
 
 module.exports = {
   escapeRegex,
-  parsePickupLocation,
   buildReversePickupSearchFilter,
 };

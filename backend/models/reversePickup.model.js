@@ -24,9 +24,36 @@ const reversePickupSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected", "awb_assigned", "failed"],
+      enum: [
+        "pending",
+        "approved",
+        "rejected",
+        "awb_assigned",
+        "pickup_scheduled",
+        "picked_up",
+        "in_transit",
+        "delivered",
+        "failed",
+      ],
       default: "pending",
       index: true,
+    },
+    syncedShippingStatus: { type: String, default: "", trim: true },
+    syncedPickupStatus: { type: String, default: "", trim: true },
+    lastShipmentSyncAt: { type: Date, default: null },
+    adminStatusLocked: { type: Boolean, default: false, index: true },
+    statusHistory: {
+      type: [
+        {
+          status: { type: String, required: true },
+          reasonCode: { type: String, default: "" },
+          reasonText: { type: String, default: "" },
+          source: { type: String, enum: ["admin", "courier", "system"], default: "system" },
+          by: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+          at: { type: Date, default: () => new Date() },
+        },
+      ],
+      default: [],
     },
     fromName: { type: String, required: true, trim: true },
     fromPhone: { type: String, required: true, trim: true },
@@ -110,6 +137,11 @@ const reversePickupSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+reversePickupSchema.index({ companyID: 1, createdAt: -1 });
+reversePickupSchema.index({ companyID: 1, status: 1, createdAt: -1 });
+reversePickupSchema.index({ awbNumber: 1 });
+reversePickupSchema.index({ externalOrderId: 1 });
 
 module.exports =
   mongoose.models.ReversePickup ||

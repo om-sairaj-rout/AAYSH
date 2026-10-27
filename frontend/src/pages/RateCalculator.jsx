@@ -52,6 +52,7 @@ const RateCalculator = () => {
     height: "",
   });
   const [zoneLabel, setZoneLabel] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("COD");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -111,6 +112,7 @@ const RateCalculator = () => {
     });
     setZoneLabel("");
     setResult(null);
+    setPaymentMethod("COD");
   };
 
   const handleCalculate = async () => {
@@ -141,7 +143,7 @@ const RateCalculator = () => {
       height: Number(form.height) || 0,
       zone: form.zone || undefined,
       destinationPincode: form.destinationPincode || undefined,
-      paymentMethod: "COD",
+      paymentMethod,
       invoiceValue: 0,
     };
 
@@ -294,6 +296,32 @@ const RateCalculator = () => {
           </div>
         </div>
 
+        <div className="space-y-2 max-w-md">
+          <label className={labelClass}>Payment type</label>
+          <div className="flex gap-2">
+            {["COD", "PREPAID"].map((method) => {
+              const active = paymentMethod === method;
+              return (
+                <button
+                  key={method}
+                  type="button"
+                  onClick={() => {
+                    setPaymentMethod(method);
+                    setResult(null);
+                  }}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-colors ${
+                    active
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-indigo-200"
+                  }`}
+                >
+                  {method === "COD" ? "COD" : "Prepaid"}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/40">
           <div className="flex items-center gap-2 text-xs font-bold text-[#1B2B4B] uppercase mb-4">
             <Box size={16} />
@@ -351,7 +379,7 @@ const RateCalculator = () => {
           <>
           <div className="space-y-2">
             <h3 className="text-lg font-bold text-slate-800">
-              Applicable rates for {result.zone}
+              {paymentMethod === "COD" ? "COD" : "Prepaid"} rates for {result.zone}
             </h3>
             <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
               <span className="px-2 py-1 rounded-lg bg-slate-100 font-semibold">
@@ -375,8 +403,8 @@ const RateCalculator = () => {
               const data = mode.data;
               const breakdown = data.breakdown || {};
               const orderAmount =
-                breakdown.subtotalBeforeFuel ??
                 breakdown.finalRate ??
+                breakdown.subtotalBeforeFuel ??
                 data.rate?.total;
               const freightSlab = breakdown.weightSlabRate ?? data.rate?.total;
 
@@ -420,7 +448,7 @@ const RateCalculator = () => {
                             ₹{breakdown.weightSlabRate ?? data.rate?.total}
                           </td>
                         </tr>
-                        {breakdown.codCharge > 0 && (
+                        {paymentMethod === "COD" && breakdown.codCharge > 0 && (
                           <tr className="border-b border-slate-100">
                             <td className="px-3 py-2 text-slate-500">COD</td>
                             <td className="px-3 py-2 font-semibold text-right">
@@ -470,9 +498,9 @@ const RateCalculator = () => {
 
           <p className="text-[11px] text-slate-400 flex items-center gap-1">
             <Info size={12} />
-            Order amount matches invoice line totals (freight + COD + document + ROV). Fuel is
-            shown separately when configured.             Chargeable weight uses max(actual, volumetric). COD
-            assumed; ROV applies only when enabled and invoice value is provided.
+            Order amount is for {paymentMethod === "COD" ? "COD" : "prepaid"} shipments (freight
+            + document + ROV + COD if applicable + fuel). ROV applies only when enabled and
+            invoice value is provided.
           </p>
           </>
           )}

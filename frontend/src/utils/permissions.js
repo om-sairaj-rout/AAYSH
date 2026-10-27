@@ -39,6 +39,7 @@ const PATH_SECTION_MAP = {
   "/update/status": "update",
   "/update/AWB": "update",
   "/update/serviceability": "update",
+  "/update/pincode-zones": "update",
   "/update/courier-priority": "update",
   "/update/order-updates": "update",
   "/update/rates": "update",

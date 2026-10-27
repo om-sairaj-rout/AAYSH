@@ -7,6 +7,9 @@ const {
   failCurrentDeliveryAttempt,
   completeCurrentDeliveryAttempt,
 } = require("../../utils/deliveryAttemptService");
+const {
+  syncReversePickupFromShippingDocument,
+} = require("../../utils/reversePickupStatusSync");
 
 const addTracking = async (req, res) => {
   try {
@@ -104,6 +107,8 @@ const addTracking = async (req, res) => {
     }
 
     await shipping.save();
+
+    await syncReversePickupFromShippingDocument(shipping, tracking.eventTime || new Date());
 
     notifyShippingStatusWhatsApp({
       shipping,

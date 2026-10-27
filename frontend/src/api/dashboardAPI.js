@@ -8,6 +8,7 @@ export const getDashboardData = async ({
   companyId,
   from,
   to,
+  analyticsOnly,
 } = {}) => {
   const params = new URLSearchParams({ year: String(year) });
 
@@ -22,6 +23,7 @@ export const getDashboardData = async ({
   }
   if (from) params.set("from", from);
   if (to) params.set("to", to);
+  if (analyticsOnly) params.set("analytics_only", "1");
 
   const res = await fetch(apiUrl(`/api/dashboard?${params.toString()}`), {
     method: "GET",

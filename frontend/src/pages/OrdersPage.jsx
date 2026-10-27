@@ -670,6 +670,7 @@ const OrdersPage = () => {
           companyId: hasGlobalAccess ? selectedCompany : undefined,
           from: fromDate || undefined,
           to: toDate || undefined,
+          analyticsOnly: true,
         });
         setSalesAnalytics(data.salesAnalytics || null);
         setShipmentAnalytics(data.shipmentAnalytics || null);

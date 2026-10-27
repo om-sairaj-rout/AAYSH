@@ -6,7 +6,7 @@ const PincodeServiceability = require("../models/upload/serviceability.model");
 const CourierPriority = require("../models/upload/courierPriority.model");
 const { parseISODateOnly, now } = require("./dateTime");
 const { getAwbCategory } = require("./codToPay");
-const { resolveDestinationZoneForAwb } = require("../constants/awbCategories");
+const { resolvePincodeRateZone } = require("./resolvePincodeRateZone");
 const { calculateOrderWalletCharge } = require("./orderWalletCharge");
 const {
   debitForOrder,
@@ -202,7 +202,22 @@ const assignAwbCore = async ({
       }
     }
 
-    const destinationZone = resolveDestinationZoneForAwb(order, serviceability);
+    const zoneResult = await resolvePincodeRateZone({
+      pincode: serviceabilityPincode,
+    });
+
+    if (!zoneResult.zone) {
+      updatedOrders.push({
+        orderId: order._id,
+        orderNumber: order.externalOrderId,
+        consigneeName: order.consigneeName,
+        destinationPincode: serviceabilityPincode,
+        error: zoneResult.message || "Unable to resolve destination rate zone.",
+      });
+      continue;
+    }
+
+    const destinationZone = zoneResult.zone;
     const category = getAwbCategory(
       order.chargeableWeight || order.weight,
       service,

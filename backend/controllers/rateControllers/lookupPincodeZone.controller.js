@@ -1,4 +1,4 @@
-const PincodeServiceability = require("../../models/upload/serviceability.model");
+const { resolvePincodeRateZone } = require("../../utils/resolvePincodeRateZone");
 
 const lookupPincodeZone = async (req, res) => {
   try {
@@ -11,20 +11,21 @@ const lookupPincodeZone = async (req, res) => {
       });
     }
 
-    const serviceability = await PincodeServiceability.findOne({ pincode }).lean();
+    const resolved = await resolvePincodeRateZone({ pincode });
 
-    if (!serviceability) {
+    if (!resolved.zone) {
       return res.status(404).json({
         success: false,
-        message: "Pincode not found in serviceability data",
+        message: resolved.message || "Zone not found for this pincode",
       });
     }
 
     return res.status(200).json({
       success: true,
       data: {
-        pincode: serviceability.pincode,
-        zone: serviceability.zone,
+        pincode,
+        zone: resolved.zone,
+        source: resolved.source,
       },
     });
   } catch (error) {

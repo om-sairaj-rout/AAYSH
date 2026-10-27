@@ -1,5 +1,5 @@
-const PincodeServiceability = require("../../models/upload/serviceability.model");
 const { RATE_ZONES } = require("../../constants/rateZones");
+const { resolvePincodeRateZone } = require("../../utils/resolvePincodeRateZone");
 const {
   normalizeService,
   calculateRate,
@@ -18,12 +18,16 @@ const resolveZone = async ({ zone, destinationPincode }) => {
     return { zone: null, source: null };
   }
 
-  const serviceability = await PincodeServiceability.findOne({ pincode }).lean();
-  if (!serviceability?.zone) {
+  const resolved = await resolvePincodeRateZone({ pincode });
+  if (!resolved.zone) {
     return { zone: null, source: null, pincode };
   }
 
-  return { zone: serviceability.zone, source: "pincode", pincode };
+  return {
+    zone: resolved.zone,
+    source: resolved.source || "pincode",
+    pincode,
+  };
 };
 
 const calculateRateController = async (req, res) => {
@@ -61,22 +65,12 @@ const calculateRateController = async (req, res) => {
       });
     }
 
-    const useFinalRate =
-      paymentMethod !== undefined ||
-      invoiceValue !== undefined;
-
-    if (useFinalRate) {
-      if (
-        invoiceValue === undefined ||
-        invoiceValue === null ||
-        String(invoiceValue).trim() === ""
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: "invoice_value is required for full rate calculation.",
-        });
-      }
-    }
+    const useFinalRate = paymentMethod !== undefined;
+    const normalizedInvoiceValue =
+      invoiceValue === undefined || invoiceValue === null ||
+      String(invoiceValue).trim() === ""
+        ? 0
+        : Number(invoiceValue);
 
     const slabResolve = await resolveSlabsForCompany(
       normalizedCompanyID,
@@ -103,7 +97,7 @@ const calculateRateController = async (req, res) => {
           height,
           zone: zoneInfo.zone,
           paymentMethod,
-          invoiceValue,
+          invoiceValue: normalizedInvoiceValue,
           slabs: slabResolve.slabs,
           skipSlabResolve: true,
         })

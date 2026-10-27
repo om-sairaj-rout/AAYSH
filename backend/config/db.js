@@ -91,22 +91,16 @@ const ensureUserIndexes = async () => {
   }
 };
 
-function connectToDB() {
-  mongoose
-    .connect(process.env.MONGODB_URI)
-    .then(async () => {
-      console.log("database is connected");
-      await dropLegacyUserIndexes();
-      await ensureUserIndexes();
-      await ensureCompanyIndexes();
-      await dropLegacyOrderIndexes();
-      await ensureOrderIndexes();
-      const { syncCompanyCounter } = require("../utils/generateCompanyId");
-      await syncCompanyCounter();
-    })
-    .catch((err) => {
-      console.error("DB connection error:", err.message);
-    });
+async function connectToDB() {
+  await mongoose.connect(process.env.MONGODB_URI);
+  console.log("database is connected");
+  await dropLegacyUserIndexes();
+  await ensureUserIndexes();
+  await ensureCompanyIndexes();
+  await dropLegacyOrderIndexes();
+  await ensureOrderIndexes();
+  const { syncCompanyCounter } = require("../utils/generateCompanyId");
+  await syncCompanyCounter();
 }
 
 module.exports = connectToDB;

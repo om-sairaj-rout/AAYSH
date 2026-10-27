@@ -1,5 +1,6 @@
 const { RATE_ZONES } = require("../constants/rateZones");
 const getCategory = require("./categoryMapper");
+const { resolvePincodeRateZone } = require("./resolvePincodeRateZone");
 const { calculateRate, normalizeService } = require("./rateCalculator");
 const {
   getCompanyRateProfile,
@@ -29,29 +30,33 @@ const resolveDocChargeAmount = (profile, docCategory) => {
 };
 
 const resolveZoneForOrder = async ({ zone, order, PincodeServiceability }) => {
+  const pincode = String(order?.destinationPincode || "").trim();
+
+  if (pincode) {
+    const resolved = await resolvePincodeRateZone({ pincode });
+    if (resolved.zone) {
+      return {
+        zone: resolved.zone,
+        source: resolved.source,
+        pincode: resolved.pincode,
+      };
+    }
+    return {
+      zone: null,
+      source: null,
+      message: resolved.message,
+    };
+  }
+
   if (zone && RATE_ZONES.includes(zone)) {
     return { zone, source: "manual" };
   }
 
-  const category = order?.category;
-  if (category && RATE_ZONES.includes(category)) {
-    return { zone: category, source: "order.category" };
-  }
-
-  const pincode = String(order?.destinationPincode || "").trim();
-  if (pincode && PincodeServiceability) {
-    const serviceability = await PincodeServiceability.findOne({ pincode }).lean();
-    if (serviceability?.zone) {
-      return { zone: serviceability.zone, source: "pincode" };
-    }
-  }
-
-  if (order?.destinationCity || order?.destinationState) {
-    const derived = getCategory(order.destinationCity, order.destinationState);
-    return { zone: derived, source: "categoryMapper" };
-  }
-
-  return { zone: null, source: null };
+  return {
+    zone: null,
+    source: null,
+    message: "Destination pincode or an explicit zone is required.",
+  };
 };
 
 /**

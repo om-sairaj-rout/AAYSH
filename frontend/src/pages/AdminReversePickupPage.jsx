@@ -8,6 +8,8 @@ import {
   approveReversePickup,
   rejectReversePickup,
   getReversePickupDocumentUrl,
+  getReversePickupFailureReasons,
+  markReversePickupFailed,
 } from "../api/reversePickupAPI";
 import { getCompanies } from "../api/companyAPI";
 import { fetchCourierPartnersAPI } from "../api/courierAPI";
@@ -37,6 +39,14 @@ const AdminReversePickupPage = () => {
   const [couriersList, setCouriersList] = useState([]);
   const [rejectReason, setRejectReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
+  const [pagination, setPagination] = useState({ total: 0, total_pages: 1 });
+  const [failureReasons, setFailureReasons] = useState([]);
+  const [failReasonCode, setFailReasonCode] = useState("");
+  const [failReasonText, setFailReasonText] = useState("");
 
   const loadRequests = async () => {
     try {
@@ -44,9 +54,12 @@ const AdminReversePickupPage = () => {
       const res = await getReversePickups({
         status: statusFilter,
         companyId: companyFilter,
-        perPage: 100,
+        search: debouncedSearch,
+        page: currentPage,
+        perPage,
       });
       setRequests(res.requests || []);
+      setPagination(res.meta?.pagination || { total: 0, total_pages: 1 });
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -68,8 +81,23 @@ const AdminReversePickupPage = () => {
   }, []);
 
   useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, companyFilter, debouncedSearch, perPage]);
+
+  useEffect(() => {
     loadRequests();
-  }, [statusFilter, companyFilter]);
+  }, [statusFilter, companyFilter, debouncedSearch, currentPage, perPage]);
+
+  useEffect(() => {
+    getReversePickupFailureReasons()
+      .then((res) => setFailureReasons(res.reasons || []))
+      .catch(() => {});
+  }, []);
 
   const openApprove = (item) => {
     setSelected(item);
@@ -89,6 +117,38 @@ const AdminReversePickupPage = () => {
     setSelected(item);
     setRejectReason("");
     setModalMode("reject");
+  };
+
+  const openMarkFailed = (item) => {
+    setSelected(item);
+    setFailReasonCode("");
+    setFailReasonText("");
+    setModalMode("markFailed");
+  };
+
+  const handleMarkFailed = async () => {
+    if (!canWrite || !selected) return;
+    try {
+      setActionLoading(true);
+      const res = await markReversePickupFailed(selected._id, {
+        reasonCode: failReasonCode,
+        reasonText: failReasonText,
+      });
+      toast.success("Marked as failed");
+      if (res.request) {
+        setRequests((prev) =>
+          prev.map((row) =>
+            row._id === res.request._id ? { ...row, ...res.request } : row
+          )
+        );
+      }
+      closeModal();
+      await loadRequests();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const closeModal = () => {
@@ -187,7 +247,24 @@ const AdminReversePickupPage = () => {
         </button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search AWB, request ID, order…"
+          className="flex-1 min-w-[200px] rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm"
+        />
+        <select
+          value={perPage}
+          onChange={(e) => setPerPage(Number(e.target.value))}
+          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold"
+        >
+          <option value={10}>10 / page</option>
+          <option value={25}>25 / page</option>
+          <option value={50}>50 / page</option>
+          <option value={100}>100 / page</option>
+        </select>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -327,6 +404,17 @@ const AdminReversePickupPage = () => {
                             Reject
                           </button>
                         </div>
+                      ) : canWrite &&
+                        !["rejected", "failed", "delivered", "pending"].includes(
+                          item.status
+                        ) ? (
+                        <button
+                          type="button"
+                          onClick={() => openMarkFailed(item)}
+                          className="text-xs font-bold text-rose-600 hover:underline"
+                        >
+                          Mark failed
+                        </button>
                       ) : (
                         <p className="text-xs text-slate-400 text-right">—</p>
                       )}
@@ -337,6 +425,30 @@ const AdminReversePickupPage = () => {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 text-sm">
+          <span className="text-slate-500">
+            Page {currentPage} of {pagination.total_pages || 1} ·{" "}
+            {(pagination.total || 0).toLocaleString("en-IN")} total
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={currentPage <= 1 || loading}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="px-3 py-1.5 rounded-lg border text-xs font-semibold disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              disabled={currentPage >= (pagination.total_pages || 1) || loading}
+              onClick={() => setCurrentPage((p) => p + 1)}
+              className="px-3 py-1.5 rounded-lg border text-xs font-semibold disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 
@@ -401,6 +513,50 @@ const AdminReversePickupPage = () => {
                 className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50"
               >
                 {actionLoading ? "Processing..." : "Approve & Process"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selected && modalMode === "markFailed" && (
+        <div className="modal-overlay">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+            <h3 className="text-lg font-bold text-[#1B2B4B]">Mark pickup failed</h3>
+            <p className="text-sm text-slate-500">
+              Record an admin decision for repeated pickup/delivery failures on{" "}
+              <strong>{selected.requestId}</strong>.
+            </p>
+            <select
+              value={failReasonCode}
+              onChange={(e) => setFailReasonCode(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
+            >
+              <option value="">Select reason</option>
+              {failureReasons.map((r) => (
+                <option key={r.code} value={r.code}>{r.label}</option>
+              ))}
+            </select>
+            {failReasonCode === "OTHER" && (
+              <textarea
+                rows={3}
+                value={failReasonText}
+                onChange={(e) => setFailReasonText(e.target.value)}
+                placeholder="Explain the failure…"
+                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
+              />
+            )}
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={closeModal} className="px-4 py-2 rounded-xl border text-sm font-semibold">
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!canWrite || actionLoading || !failReasonCode}
+                onClick={handleMarkFailed}
+                className="px-4 py-2 rounded-xl bg-rose-600 text-white text-sm font-bold disabled:opacity-50"
+              >
+                {actionLoading ? "Saving…" : "Confirm failed"}
               </button>
             </div>
           </div>

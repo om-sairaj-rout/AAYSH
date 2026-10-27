@@ -1,25 +1,19 @@
-const ReversePickup = require("../models/reversePickup.model");
 const Shipping = require("../models/upload/shipping.model");
+const {
+  syncReversePickupFromShippingDocument,
+  TERMINAL_REQUEST_STATUSES,
+} = require("./reversePickupStatusSync");
 
 const syncReversePickupFromShipping = async (order, shipping) => {
   if (!order?.isReversePickup) return;
 
+  if (shipping) {
+    await syncReversePickupFromShippingDocument(shipping);
+    return;
+  }
+
   const reversePickupId = order.reversePickupId;
   if (!reversePickupId) return;
-
-  const update = {};
-
-  if (shipping?.awbNumber !== undefined) {
-    update.awbNumber = String(shipping.awbNumber || "").trim();
-  }
-
-  if (shipping?.courierName !== undefined) {
-    update.courierName = String(shipping.courierName || "").trim();
-  }
-
-  if (Object.keys(update).length === 0) return;
-
-  await ReversePickup.findByIdAndUpdate(reversePickupId, { $set: update });
 };
 
 const enrichReversePickupRequests = async (requests) => {
@@ -50,20 +44,36 @@ const enrichReversePickupRequests = async (requests) => {
   );
 
   return requests.map((row) => {
+    const terminal = TERMINAL_REQUEST_STATUSES.includes(row.status);
     const shipping = shippingByOrderId.get(String(row.orderId));
 
     if (!shipping) {
       return {
         ...row,
+        shippingStatus: terminal ? "" : "",
+        pickupStatus: terminal ? row.syncedPickupStatus || "" : "",
+      };
+    }
+
+    const awbNumber = String(shipping.awbNumber || row.awbNumber || "").trim();
+    const courierName = String(shipping.courierName || row.courierName || "").trim();
+
+    if (terminal || row.adminStatusLocked) {
+      return {
+        ...row,
+        awbNumber,
+        courierName,
         shippingStatus: "",
-        pickupStatus: "",
+        pickupStatus: row.syncedPickupStatus || shipping.pickupStatus || "",
+        livePickupDate: shipping.pickupDate || row.pickupDate,
+        livePickupTime: shipping.pickupTime || row.pickupTime,
       };
     }
 
     return {
       ...row,
-      awbNumber: String(shipping.awbNumber || row.awbNumber || "").trim(),
-      courierName: String(shipping.courierName || row.courierName || "").trim(),
+      awbNumber,
+      courierName,
       shippingStatus: shipping.shippingStatus || "",
       pickupStatus: shipping.pickupStatus || "",
       livePickupDate: shipping.pickupDate || row.pickupDate,

@@ -216,18 +216,24 @@ const formatScheduleAsPickupRow = (
   };
 };
 
-const listSchedulesForPickupTab = async ({
-  tab,
-  search,
-  baseScope = {},
-}) => {
+const buildScheduleAdminVisibilityMatch = () => ({
+  $or: [
+    { status: { $ne: "completed" } },
+    { expectedOrderCount: { $gt: 1 } },
+    { awbAssigned: { $ne: true } },
+    { awbNumber: { $in: [null, ""] } },
+  ],
+});
+
+const buildSchedulePickupFilter = ({ tab, search, baseScope = {} }) => {
   if (tab === "failed") {
-    return [];
+    return null;
   }
 
   const filter = {
     ...baseScope,
     ...buildScheduleTabMatch(tab),
+    ...buildScheduleAdminVisibilityMatch(),
   };
 
   const searchFilter = buildScheduleSearchFilter(search);
@@ -236,20 +242,13 @@ const listSchedulesForPickupTab = async ({
     filter.$and.push(searchFilter);
   }
 
-  const items = await PickupSchedule.find(filter)
-    .sort({ pickupDate: 1, createdAt: -1 })
-    .lean();
+  return filter;
+};
 
-  const visibleItems = items.filter((item) => {
-    if (item.status !== "completed") return true;
-    const orderCount =
-      item.expectedOrderCount ||
-      (Array.isArray(item.completedOrders) ? item.completedOrders.length : 0) ||
-      (Array.isArray(item.orderIds) ? item.orderIds.length : 0) ||
-      1;
-    if (orderCount > 1) return true;
-    return !(item.awbAssigned && item.awbNumber);
-  });
+const enrichScheduleItems = async (visibleItems) => {
+  if (!visibleItems.length) {
+    return [];
+  }
 
   const scheduleIds = visibleItems.map((item) => item._id);
   const primaryOrderIds = visibleItems.flatMap((item) => {
@@ -327,6 +326,47 @@ const listSchedulesForPickupTab = async ({
   );
 };
 
+const countSchedulesForPickupTab = async ({ tab, search, baseScope = {} }) => {
+  const filter = buildSchedulePickupFilter({ tab, search, baseScope });
+  if (!filter) return 0;
+  return PickupSchedule.countDocuments(filter);
+};
+
+const fetchSchedulePickupRowsPaginated = async ({
+  tab,
+  search,
+  baseScope = {},
+  skip = 0,
+  limit,
+}) => {
+  const filter = buildSchedulePickupFilter({ tab, search, baseScope });
+  if (!filter) return [];
+
+  const query = PickupSchedule.find(filter)
+    .sort({ pickupDate: 1, createdAt: -1 })
+    .skip(skip);
+
+  if (limit != null) {
+    query.limit(limit);
+  }
+
+  const visibleItems = await query.lean();
+  return enrichScheduleItems(visibleItems);
+};
+
+const listSchedulesForPickupTab = async ({
+  tab,
+  search,
+  baseScope = {},
+}) =>
+  fetchSchedulePickupRowsPaginated({
+    tab,
+    search,
+    baseScope,
+    skip: 0,
+    limit: undefined,
+  });
+
 const countSchedulesByPickupTabs = async (baseScope = {}) => {
   const tabs = [
     "today",
@@ -345,8 +385,8 @@ const countSchedulesByPickupTabs = async (baseScope = {}) => {
         counts[tab] = 0;
         return;
       }
-      const match = { ...baseScope, ...buildScheduleTabMatch(tab) };
-      counts[tab] = await PickupSchedule.countDocuments(match);
+      const match = buildSchedulePickupFilter({ tab, baseScope });
+      counts[tab] = match ? await PickupSchedule.countDocuments(match) : 0;
     })
   );
 
@@ -380,6 +420,8 @@ module.exports = {
   buildScheduleScopeForUser,
   resolveAdminScheduleCompanyFilter,
   listSchedulesForPickupTab,
+  countSchedulesForPickupTab,
+  fetchSchedulePickupRowsPaginated,
   countSchedulesByPickupTabs,
   mergeAndPaginatePickups,
   addScheduleCounts,

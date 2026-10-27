@@ -29,6 +29,7 @@ import ProtectedRoute from "./ProtectedRoute.jsx";
 import CustomerTracking from "./pages/CustomerTracking.jsx";
 import PortalAwbTrackingPage from "./pages/PortalAwbTrackingPage.jsx";
 import ServiceabilityPage from "./pages/ServiceabilityPage.jsx";
+import PincodeZoneManagementPage from "./pages/PincodeZoneManagementPage.jsx";
 import CourierPriorityPage from "./pages/CourierPriorityPage.jsx";
 import UpdateOrdersPage from "./pages/UpdateOrdersPage.jsx";
 import RegistrationOverviewPage from "./pages/RegistrationOverviewPage.jsx";
@@ -81,6 +82,7 @@ const router = createBrowserRouter([
       { path: "/user/remove-account", element: guard("/user/remove-account", <RemoveAccount />, "write") },
       { path: "/update/AWB", element: guard("/update/AWB", <AwbManagement />) },
       { path: "/update/serviceability", element: guard("/update/serviceability", <ServiceabilityPage />) },
+      { path: "/update/pincode-zones", element: guard("/update/pincode-zones", <PincodeZoneManagementPage />) },
       { path: "/update/courier-priority", element: guard("/update/courier-priority", <CourierPriorityPage />) },
       { path: "/update/rates", element: guard("/update/rates", <RateManagementPage />) },
       { path: "/update/invoice-generation", element: guard("/update/invoice-generation", <InvoiceGenerationPage />) },

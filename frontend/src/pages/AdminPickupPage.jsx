@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { toast } from '../utils/toast';
 import { canAccess } from '../utils/permissions';
@@ -215,12 +215,34 @@ const ADMIN_TAB_TO_QUERY = {
   "All Pickups": "all",
 };
 
+const PICKUP_TAB_QUERY_KEYS = [
+  "today",
+  "scheduled",
+  "future",
+  "failed",
+  "completed",
+  "all",
+];
+
+const defaultTabPagination = () => ({
+  page: 1,
+  perPage: 20,
+  total: 0,
+  total_pages: 1,
+});
+
+const buildInitialTabPagination = () =>
+  Object.fromEntries(
+    PICKUP_TAB_QUERY_KEYS.map((key) => [key, defaultTabPagination()])
+  );
+
 /* ================= MAIN ADMIN PICKUP PAGE COMPONENT ================= */
 const AdminPickupPage = () => {
   const { user } = useSelector((state) => state.auth);
   const canWrite = canAccess(user, "pickup", "write");
   const [activeTab, setActiveTab] = useState("All Pickups");
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedCompany, setSelectedCompany] = useState('ALL');
   const [companiesList, setCompaniesList] = useState([]);
   const [pickups, setPickups] = useState([]);
@@ -234,9 +256,8 @@ const AdminPickupPage = () => {
   });
   const [selectedPickupIds, setSelectedPickupIds] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [perPage, setPerPage] = useState(20);
-  const [pagination, setPagination] = useState({ total: 0, total_pages: 1 });
+  const [listError, setListError] = useState(null);
+  const [tabPagination, setTabPagination] = useState(buildInitialTabPagination);
 
   // Modal States
   const [selectedPickup, setSelectedPickup] = useState(null);
@@ -252,15 +273,85 @@ const AdminPickupPage = () => {
   const isPendingTab = activeTab === "Pending Pickups";
   const isActionTab = isTodayTab || isPendingTab;
 
+  const activeTabKey = ADMIN_TAB_TO_QUERY[activeTab] || "all";
+  const activePagination = tabPagination[activeTabKey] || defaultTabPagination();
+  const currentPage = activePagination.page;
+  const perPage = activePagination.perPage;
+  const totalPages = activePagination.total_pages || 1;
+  const totalPickups = activePagination.total || 0;
+
+  const setActiveTabPage = useCallback((page) => {
+    setTabPagination((prev) => ({
+      ...prev,
+      [activeTabKey]: { ...prev[activeTabKey], page },
+    }));
+  }, [activeTabKey]);
+
+  const setActiveTabPerPage = useCallback((nextPerPage) => {
+    setTabPagination((prev) => ({
+      ...prev,
+      [activeTabKey]: { ...prev[activeTabKey], perPage: nextPerPage, page: 1 },
+    }));
+  }, [activeTabKey]);
+
+  const resetAllTabPages = useCallback(() => {
+    setTabPagination((prev) => {
+      const next = { ...prev };
+      PICKUP_TAB_QUERY_KEYS.forEach((key) => {
+        next[key] = { ...next[key], page: 1 };
+      });
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
-    getAdminPickupsAPI({ tab: "all", userId: "ALL", page: 1, perPage: 1 })
-      .then((res) => {
+    const handle = window.setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+    }, 350);
+    return () => window.clearTimeout(handle);
+  }, [searchInput]);
+
+  const prevFiltersRef = useRef({ search: debouncedSearch, company: selectedCompany });
+
+  useEffect(() => {
+    const prev = prevFiltersRef.current;
+    if (prev.search === debouncedSearch && prev.company === selectedCompany) {
+      return;
+    }
+    prevFiltersRef.current = { search: debouncedSearch, company: selectedCompany };
+    resetAllTabPages();
+  }, [debouncedSearch, selectedCompany, resetAllTabPages]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCounts = async () => {
+      try {
+        const res = await getAdminPickupsAPI({
+          countsOnly: true,
+          includeCompanies: true,
+          companyId: selectedCompany,
+          tab: "all",
+          page: 1,
+          perPage: 1,
+        });
+        if (cancelled) return;
+        if (res.counts) setCounts(res.counts);
         if (Array.isArray(res.users) && res.users.length > 0) {
           setCompaniesList(res.users);
         }
-      })
-      .catch(() => {});
-  }, []);
+      } catch {
+        if (!cancelled) {
+          /* tab badges may stay stale; list fetch still works */
+        }
+      }
+    };
+
+    loadCounts();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCompany, refreshToken]);
 
   useEffect(() => {
     let cancelled = false;
@@ -268,26 +359,33 @@ const AdminPickupPage = () => {
     const loadPickups = async () => {
       try {
         setLoading(true);
+        setListError(null);
 
         const res = await getAdminPickupsAPI({
-          tab: ADMIN_TAB_TO_QUERY[activeTab] || "all",
-          search: searchQuery.trim() || undefined,
+          tab: activeTabKey,
+          search: debouncedSearch || undefined,
           companyId: selectedCompany,
           page: currentPage,
           perPage,
+          includeCounts: false,
+          includeCompanies: false,
         });
 
         if (cancelled) return;
 
         setPickups(res.data || []);
-        setCounts(res.counts || {});
-        setPagination(res.meta?.pagination || { total: 0, total_pages: 1 });
-
-        if (Array.isArray(res.users) && res.users.length > 0) {
-          setCompaniesList(res.users);
-        }
+        const meta = res.meta?.pagination || { total: 0, total_pages: 1 };
+        setTabPagination((prev) => ({
+          ...prev,
+          [activeTabKey]: {
+            ...prev[activeTabKey],
+            total: meta.total ?? 0,
+            total_pages: meta.total_pages ?? 1,
+          },
+        }));
       } catch (err) {
         if (!cancelled) {
+          setListError(err.message);
           toast.error(err.message);
         }
       } finally {
@@ -302,15 +400,20 @@ const AdminPickupPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, searchQuery, selectedCompany, currentPage, perPage, refreshToken]);
+  }, [
+    activeTabKey,
+    debouncedSearch,
+    selectedCompany,
+    currentPage,
+    perPage,
+    refreshToken,
+  ]);
 
   const refreshPickups = () => setRefreshToken((token) => token + 1);
 
   const getStatus = (item) => item.pickupStatus || item.status;
 
   const filteredPickups = pickups;
-  const totalPages = pagination.total_pages || 1;
-  const totalPickups = pagination.total || 0;
 
   const selectablePickups = filteredPickups.filter(
     (p) =>
@@ -438,7 +541,6 @@ const AdminPickupPage = () => {
                 onChange={(e) => {
                   const companyId = e.target.value;
                   setSelectedCompany(companyId);
-                  setCurrentPage(1);
                   setSelectedPickupIds([]);
                   if (companyId !== "ALL") {
                     setActiveTab("All Pickups");
@@ -539,7 +641,6 @@ const AdminPickupPage = () => {
                   key={tab}
                   onClick={() => {
                     setActiveTab(tab);
-                    setCurrentPage(1);
                     setSelectedPickupIds([]);
                   }}
                   className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all flex items-center gap-2 ${
@@ -563,11 +664,8 @@ const AdminPickupPage = () => {
             <input
               type="text"
               placeholder="Search by Order ID, AWB, Company, or Courier..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             />
           </div>
@@ -609,7 +707,13 @@ const AdminPickupPage = () => {
               {loading ? (
                 <tr>
                   <td colSpan={isActionTab ? 8 : 6} className="p-8 text-center text-slate-400 font-medium">
-                    Loading admin pickup database...
+                    Loading pickups…
+                  </td>
+                </tr>
+              ) : listError ? (
+                <tr>
+                  <td colSpan={isActionTab ? 8 : 6} className="p-8 text-center text-rose-500 font-medium">
+                    {listError}
                   </td>
                 </tr>
               ) : filteredPickups.length === 0 ? (
@@ -806,10 +910,7 @@ const AdminPickupPage = () => {
             <span className="text-xs font-semibold text-slate-500">Rows per page:</span>
             <select
               value={perPage}
-              onChange={(e) => {
-                setPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
+              onChange={(e) => setActiveTabPerPage(Number(e.target.value))}
               className="bg-slate-50 border border-gray-200 text-slate-700 font-bold text-xs rounded-lg py-1.5 px-2.5"
             >
               <option value={20}>20</option>
@@ -823,14 +924,14 @@ const AdminPickupPage = () => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              onClick={() => setActiveTabPage(Math.max(currentPage - 1, 1))}
               disabled={currentPage === 1}
               className="p-2 rounded-lg border border-gray-200 text-slate-400 disabled:opacity-30"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              onClick={() => setActiveTabPage(Math.min(currentPage + 1, totalPages))}
               disabled={currentPage === totalPages || totalPickups === 0}
               className="p-2 rounded-lg border border-gray-200 text-slate-400 disabled:opacity-30"
             >
