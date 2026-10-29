@@ -839,9 +839,13 @@ const ReversePickupPage = () => {
                     <td className="px-4 py-4">
                       <ReversePickupRouteCell
                         fromName={item.fromName}
+                        fromAddress={[item.fromAddress, item.fromAddress2]
+                          .filter(Boolean)
+                          .join(", ")}
                         fromCity={item.fromCity}
                         fromPincode={item.fromPincode}
                         toName={item.toName}
+                        toAddress={item.toAddress}
                         toCity={item.toCity}
                         toPincode={item.toPincode}
                       />
