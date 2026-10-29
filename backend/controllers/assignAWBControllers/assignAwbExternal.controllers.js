@@ -1,14 +1,38 @@
-const Awb = require("../../models/awb/awb.model");
-const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
-const PincodeServiceability = require("../../models/upload/serviceability.model");
-const CourierPriority = require("../../models/upload/courierPriority.model");
-const { parseISODateOnly, now } = require("../../utils/dateTime");
-const { getAwbCategory } = require("../../utils/codToPay");
-const { resolvePincodeRateZone } = require("../../utils/resolvePincodeRateZone");
-const {
-  buildCourierAssignmentOrder,
-} = require("../../utils/buildCourierAssignmentOrder");
+const { parseISODateOnly } = require("../../utils/dateTime");
+const { assignAwbCore } = require("../../utils/assignAwbCore");
+
+const mapCoreRowToShipmentResult = (row, shipmentId) => {
+  if (row.error) {
+    return {
+      shipmentId,
+      orderId: row.orderNumber || row.orderId,
+      consigneeName: row.consigneeName,
+      destinationPincode: row.destinationPincode,
+      error: row.error,
+    };
+  }
+
+  return {
+    shipmentId,
+    orderId: row.orderId,
+    consigneeName: row.consigneeName,
+    destinationPincode: row.destinationPincode,
+    awbNumber: row.awbNumber,
+    courier: row.courier,
+    serviceType: row.serviceType,
+    category: row.category,
+  };
+};
+
+const findCoreRowForOrder = (rows, orderId) => {
+  const key = String(orderId);
+  return rows.find(
+    (row) =>
+      String(row.mongoOrderId || "") === key ||
+      String(row.orderId || "") === key
+  );
+};
 
 const generateAwbExternal = async (req, res) => {
   try {
@@ -23,24 +47,20 @@ const generateAwbExternal = async (req, res) => {
 
     const service = serviceType?.toLowerCase();
 
-    // =========================================
-    // Validation
-    // =========================================
-
     if (
-  !service ||
-  !Array.isArray(shipments) ||
-  shipments.length === 0 ||
-  !pickupDate ||
-  !pickupTime ||
-  !pickupLocation
-) {
-  return res.status(400).json({
-    success: false,
-    message:
-      "serviceType, shipments, pickupDate, pickupTime and pickupLocation are required.",
-  });
-}
+      !service ||
+      !Array.isArray(shipments) ||
+      shipments.length === 0 ||
+      !pickupDate ||
+      !pickupTime ||
+      !pickupLocation
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "serviceType, shipments, pickupDate, pickupTime and pickupLocation are required.",
+      });
+    }
 
     if (!["surface", "air", "prime"].includes(service)) {
       return res.status(400).json({
@@ -49,93 +69,28 @@ const generateAwbExternal = async (req, res) => {
       });
     }
 
-    const parsedPickupDate = parseISODateOnly(pickupDate);
-    if (!parsedPickupDate) {
+    if (!parseISODateOnly(pickupDate)) {
       return res.status(400).json({
         success: false,
         message: "Invalid pickupDate. Expected format YYYY-MM-DD.",
       });
     }
 
-    const priority = await CourierPriority.findOne({
-      service,
-    }).lean();
-
-    if (!priority) {
-      return res.status(400).json({
-        success: false,
-        message: "Priority list not configured.",
-      });
-    }
-
-    const updatedShipments = [];
-
-    // =========================================
-    // Fetch all Shipping records
-    // =========================================
-
     const shippingDocs = await Shipping.find({
       shipmentId: { $in: shipments },
-    }).lean();
+    })
+      .select("shipmentId orderId awbNumber")
+      .lean();
 
     const shippingMap = new Map(
       shippingDocs.map((s) => [s.shipmentId, s])
     );
 
-    // =========================================
-    // Fetch Orders
-    // =========================================
-
-    const orderIds = shippingDocs.map((s) => s.orderId);
-
-    const orderDocs = await Order.find({
-      _id: { $in: orderIds },
-    }).lean();
-
-    const orderMap = new Map(
-      orderDocs.map((o) => [
-        o._id.toString(),
-        o,
-      ])
-    );
-
-    // =========================================
-    // Fetch Serviceability
-    // =========================================
-
-    const pincodes = [
-      ...new Set(
-        orderDocs
-          .map((o) => String(o.destinationPincode || "").trim())
-          .filter(Boolean)
-      ),
-    ];
-
-    const serviceabilityDocs =
-      await PincodeServiceability.find({
-        pincode: { $in: pincodes },
-      }).lean();
-
-    const serviceabilityMap = new Map(
-      serviceabilityDocs.map((s) => [
-        s.pincode,
-        s,
-      ])
-    );
-
-    // =========================================
-    // Bulk Updates
-    // =========================================
-
-    const shippingUpdates = [];
-
-    // =========================================
-    // Assign AWB
-    // =========================================
+    const updatedShipments = [];
+    const ordersForCore = [];
 
     for (const shipmentId of shipments) {
-      const shipping =
-        shippingMap.get(shipmentId);
+      const shipping = shippingMap.get(shipmentId);
 
       if (!shipping) {
         updatedShipments.push({
@@ -154,235 +109,69 @@ const generateAwbExternal = async (req, res) => {
         continue;
       }
 
-      const order = orderMap.get(
-        shipping.orderId.toString()
-      );
-
-      if (!order) {
-        updatedShipments.push({
-          shipmentId,
-          error: "Order not found",
-        });
-        continue;
-      }
-
-      const destinationPincode = String(
-        order.destinationPincode || ""
-      ).trim();
-
-      if (!destinationPincode) {
-        updatedShipments.push({
-          shipmentId,
-          orderId: order.externalOrderId,
-          consigneeName: order.consigneeName,
-          destinationPincode: "",
-          error: "Order missing destination pincode",
-        });
-        continue;
-      }
-
-      const serviceability =
-        serviceabilityMap.get(destinationPincode);
-
-      if (!serviceability) {
-        updatedShipments.push({
-          shipmentId,
-          orderId: order.externalOrderId,
-          consigneeName:
-            order.consigneeName,
-          destinationPincode,
-          error:
-            "Destination pincode is not serviceable",
-        });
-        continue;
-      }
-
-      // Couriers supporting requested service
-
-      const availableCouriers =
-        serviceability.couriers.filter(
-          (c) => c[service]
-        );
-
-      if (!availableCouriers.length) {
-        updatedShipments.push({
-          shipmentId,
-          orderId: order.externalOrderId,
-          consigneeName:
-            order.consigneeName,
-          destinationPincode:
-            order.destinationPincode,
-          error: `${service} service unavailable`,
-        });
-        continue;
-      }
-
-      const zoneResult = await resolvePincodeRateZone({
-        pincode: destinationPincode,
+      ordersForCore.push({
+        shipmentId,
+        orderId: shipping.orderId,
       });
-
-      if (!zoneResult.zone) {
-        updatedShipments.push({
-          shipmentId,
-          orderId: order.externalOrderId,
-          consigneeName: order.consigneeName,
-          destinationPincode,
-          error: zoneResult.message || "Unable to resolve destination rate zone.",
-        });
-        continue;
-      }
-
-      const destinationZone = zoneResult.zone;
-      const category = getAwbCategory(
-        order.chargeableWeight || order.weight,
-        service,
-        order.paymentMethod,
-        destinationZone
-      );
-
-      let awb = null;
-      let selectedCourier = null;
-
-      const couriersToTry = buildCourierAssignmentOrder(
-        priority.priority,
-        availableCouriers
-      );
-
-      for (const priorityCourier of couriersToTry) {
-        awb =
-          await Awb.findOneAndUpdate(
-            {
-              courierId:
-                priorityCourier.courierId,
-              category,
-              status: "available",
-            },
-            {
-              $set: {
-                status: "booked",
-                assignedOrder:
-                  order._id,
-              },
-            },
-            {
-              new: true,
-              sort: {
-                createdAt: 1,
-              },
-            }
-          );
-
-        if (awb) {
-          selectedCourier =
-            priorityCourier;
-          break;
-        }
-      }
-
-      if (!awb) {
-        updatedShipments.push({
-          shipmentId,
-          orderId:
-            order.externalOrderId,
-          consigneeName:
-            order.consigneeName,
-          destinationPincode:
-            order.destinationPincode,
-          error:
-            "No AWB available for any courier",
-        });
-
-        continue;
-      }
-
-     // Shipping update
-shippingUpdates.push({
-  updateOne: {
-    filter: {
-      shipmentId,
-    },
-    update: {
-      awbNumber: awb.awbNumber,
-      courierId: selectedCourier.courierId,
-      courierName: selectedCourier.courierName,
-      serviceType: service,
-
-      pickupDate: parsedPickupDate,
-      requestedPickupDate: parsedPickupDate,
-      pickupTime,
-      pickupInstructions: notes,
-      pickupLocation,
-
-      pickupStatus: "Scheduled",
-      shippingStatus: "Booked",
-      bookedAt: now(),
-      totalWeight: order.chargeableWeight || order.weight || 0,
-    },
-  },
-});
-
-updatedShipments.push({
-  shipmentId,
-  orderId: order.externalOrderId,
-  consigneeName: order.consigneeName,
-  destinationPincode: order.destinationPincode,
-
-  awbNumber: awb.awbNumber,
-  courier: selectedCourier.courierName,
-  serviceType: service,
-  category,
-});
     }
 
-// Bulk updates
-if (shippingUpdates.length) {
-  await Shipping.bulkWrite(
-    shippingUpdates
-  );
-}
+    if (ordersForCore.length) {
+      const result = await assignAwbCore({
+        serviceType,
+        orders: ordersForCore.map(({ orderId }) => ({ orderId })),
+        pickupDate,
+        pickupLocation,
+        pickupTime,
+        notes,
+      });
 
-const successCount =
-  updatedShipments.filter(
-    (o) => o.awbNumber
-  ).length;
+      const coreRows = result.data || [];
 
-if (!successCount) {
-  return res.status(400).json({
-    success: false,
-    message:
-      "No shipments could be assigned.",
-    data: updatedShipments,
-  });
-}
+      for (const item of ordersForCore) {
+        const row = findCoreRowForOrder(coreRows, item.orderId);
+        if (!row) {
+          updatedShipments.push({
+            shipmentId: item.shipmentId,
+            error: "Assignment failed",
+          });
+          continue;
+        }
+        updatedShipments.push(
+          mapCoreRowToShipmentResult(row, item.shipmentId)
+        );
+      }
+    }
 
-const failedCount =
-  updatedShipments.filter(
-    (o) => o.error
-  ).length;
+    const successCount = updatedShipments.filter((o) => o.awbNumber).length;
 
-return res.status(200).json({
-  success: successCount > 0,
-  message:
-    "AWB assignment completed",
+    if (!successCount) {
+      return res.status(400).json({
+        success: false,
+        message: "No shipments could be assigned.",
+        data: updatedShipments,
+      });
+    }
 
-  summary: {
-    total: updatedShipments.length,
-    success: successCount,
-    failed: failedCount,
-  },
+    const failedCount = updatedShipments.filter((o) => o.error).length;
 
-  data: updatedShipments,
-});
-} catch (err) {
-  console.error(err);
+    return res.status(200).json({
+      success: successCount > 0,
+      message: "AWB assignment completed",
+      summary: {
+        total: updatedShipments.length,
+        success: successCount,
+        failed: failedCount,
+      },
+      data: updatedShipments,
+    });
+  } catch (err) {
+    console.error(err);
 
-  return res.status(500).json({
-    success: false,
-    message:
-      "Server error during AWB assignment",
-  });
-}
-}
+    return res.status(500).json({
+      success: false,
+      message: "Server error during AWB assignment",
+    });
+  }
+};
 
-module.exports =
-  generateAwbExternal;
+module.exports = generateAwbExternal;
