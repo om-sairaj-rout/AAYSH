@@ -1,13 +1,22 @@
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
+const Tracking = require("../../models/upload/tracking.model");
 const Company = require("../../models/company.model");
 const ReversePickup = require("../../models/reversePickup.model");
 const { buildOrderScopeForCompany } = require("../../utils/companyScope");
 const { buildReversePickupSummary } = require("../../utils/reversePickupDocument");
+const {
+  parsePagination,
+  buildPaginationMeta,
+} = require("../../utils/pagination");
+const { startOfDayIST, endOfDayIST, formatDatesInObject } = require("../../utils/dateTime");
+const { applyOrderSearchFilter } = require("../../utils/orderSearch");
+const { loadTrackingGroupedByShippingId } = require("../../utils/trackingHistoryHelpers");
 
 const getOrdersByCompanyController = async (req, res) => {
   try {
     const { companyID } = req.params;
+    const { payment_method, from, to, search, search_type } = req.query;
 
     if (!companyID || !String(companyID).trim()) {
       return res.status(400).json({
@@ -28,67 +37,115 @@ const getOrdersByCompanyController = async (req, res) => {
       });
     }
 
-    const orders = await Order.find(
-      buildOrderScopeForCompany(normalizedCompanyID)
-    ).lean();
+    const { page, perPage, skip } = parsePagination(req.query, 20);
 
-    const orderIds = orders.map((order) => order._id);
-    const shippings = await Shipping.find({
-      orderId: { $in: orderIds },
-    }).lean();
+    const orderFilter = buildOrderScopeForCompany(normalizedCompanyID);
 
-    const shippingMap = new Map();
-    shippings.forEach((shipping) => {
-      shippingMap.set(String(shipping.orderId), shipping);
-    });
+    if (payment_method && ["COD", "Prepaid"].includes(payment_method)) {
+      orderFilter.paymentMethod = payment_method;
+    }
 
-    const reversePickupOrderIds = orders
+    if (from || to) {
+      orderFilter.orderDate = {};
+      if (from) {
+        orderFilter.orderDate.$gte = startOfDayIST(from);
+      }
+      if (to) {
+        orderFilter.orderDate.$lte = endOfDayIST(to);
+      }
+    }
+
+    if (search) {
+      await applyOrderSearchFilter(orderFilter, search, search_type);
+    }
+
+    const basePipeline = [
+      { $match: orderFilter },
+      {
+        $lookup: {
+          from: "shippings",
+          localField: "_id",
+          foreignField: "orderId",
+          as: "shipping",
+        },
+      },
+      {
+        $unwind: {
+          path: "$shipping",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $sort: {
+          "shipping.pickupDate": -1,
+          orderDate: -1,
+        },
+      },
+    ];
+
+    const [pageOrders, totalResult] = await Promise.all([
+      Order.aggregate([...basePipeline, { $skip: skip }, { $limit: perPage }]),
+      Order.aggregate([...basePipeline, { $count: "total" }]),
+    ]);
+
+    const total = totalResult[0]?.total || 0;
+
+    const shippingIds = pageOrders
+      .map((order) => order.shipping?._id)
+      .filter(Boolean);
+
+    const reversePickupOrderIds = pageOrders
       .filter((order) => order.isReversePickup)
       .map((order) => order._id);
 
-    const reversePickupRows = reversePickupOrderIds.length
-      ? await ReversePickup.find({
-          orderId: { $in: reversePickupOrderIds },
-        })
-          .select(
-            "orderId requestId status awbNumber supportingDocumentName supportingDocumentS3Key supportingDocumentPath fromName fromPhone fromEmail fromAddress fromAddress2 fromCity fromState fromPincode toName toPhone toAddress toCity toState toPincode"
-          )
-          .lean()
-      : [];
+    const [trackingMap, reversePickupRows] = await Promise.all([
+      loadTrackingGroupedByShippingId(Tracking, shippingIds),
+      reversePickupOrderIds.length
+        ? ReversePickup.find({
+            orderId: { $in: reversePickupOrderIds },
+          })
+            .select(
+              "orderId requestId status awbNumber supportingDocumentName supportingDocumentS3Key supportingDocumentPath fromName fromPhone fromEmail fromAddress fromAddress2 fromCity fromState fromPincode toName toPhone toAddress toCity toState toPincode"
+            )
+            .lean()
+        : Promise.resolve([]),
+    ]);
 
     const reversePickupMap = new Map(
       reversePickupRows.map((row) => [String(row.orderId), row])
     );
 
-    const finalOrders = orders
-      .map((order) => {
-        const reversePickupRequest = reversePickupMap.get(String(order._id));
+    const finalOrders = pageOrders.map((order) => {
+      const { shipping: embeddedShipping, ...orderFields } = order;
+      const shippingKey = embeddedShipping?._id
+        ? String(embeddedShipping._id)
+        : "";
+      const trackingHistory = shippingKey
+        ? trackingMap.get(shippingKey) || []
+        : [];
+      const reversePickupRequest = reversePickupMap.get(String(order._id));
 
-        return {
-          ...order,
-          shipping: shippingMap.get(String(order._id)) || null,
-          ...(order.isReversePickup
-            ? {
-                reversePickup: buildReversePickupSummary(reversePickupRequest),
-              }
-            : {}),
-        };
-      })
-      .sort((a, b) => {
-        const dateA = a.shipping?.pickupDate
-          ? new Date(a.shipping.pickupDate).getTime()
-          : 0;
-        const dateB = b.shipping?.pickupDate
-          ? new Date(b.shipping.pickupDate).getTime()
-          : 0;
-        return dateB - dateA;
+      return formatDatesInObject({
+        ...orderFields,
+        shipping: embeddedShipping
+          ? { ...embeddedShipping, trackingHistory }
+          : null,
+        ...(order.isReversePickup
+          ? {
+              reversePickup: buildReversePickupSummary(reversePickupRequest),
+            }
+          : {}),
       });
+    });
 
     return res.status(200).json({
       success: true,
       company,
       orders: finalOrders,
-      count: finalOrders.length,
+      count: total,
+      meta: {
+        pagination: buildPaginationMeta(total, page, perPage, finalOrders.length),
+      },
     });
   } catch (error) {
     console.error("Get Orders By Company Error:", error);

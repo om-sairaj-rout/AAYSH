@@ -31,6 +31,49 @@ import { getOrderPartySections } from '../utils/reversePickupOrderDisplay';
 import { useLatestRequestId } from '../utils/useLatestRequestId';
 import useDocumentPreview from '../utils/useDocumentPreview';
 import { canAccess, hasGlobalDataAccess } from '../utils/permissions';
+import { resolveLatestRemarkForStatus } from '../utils/trackingRemark';
+
+const CurrentStatusRemark = ({
+  trackingHistory,
+  shippingStatus,
+  className = '',
+  variant = 'table',
+}) => {
+  const remark = resolveLatestRemarkForStatus(
+    trackingHistory,
+    shippingStatus || 'Pending'
+  );
+
+  if (!remark) {
+    return (
+      <span
+        className={`text-[10px] text-slate-300 font-medium tabular-nums ${className}`}
+        aria-hidden="true"
+      >
+        —
+      </span>
+    );
+  }
+
+  const shared =
+    'text-[10px] leading-snug text-slate-600 line-clamp-2 break-words';
+  const tableClass = `${shared} mt-1.5 max-w-[11rem] rounded-md border border-slate-100 bg-slate-50/90 px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]`;
+  const modalClass = `${shared} mt-2 max-w-md rounded-lg border border-slate-200/80 bg-white px-2.5 py-1.5`;
+
+  return (
+    <p
+      className={`${variant === 'modal' ? modalClass : tableClass} ${className}`}
+      title={remark}
+    >
+      {variant === 'modal' && (
+        <span className="block text-[9px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">
+          Latest reason
+        </span>
+      )}
+      {remark}
+    </p>
+  );
+};
 import CreateOrderDialog from '../components/CreateOrderDialog';
 
 const SEARCH_TYPES = {
@@ -367,6 +410,11 @@ const OrderDetailsModal = ({
                 {order.paymentMethod || 'COD'}
               </span>
             </div>
+            <CurrentStatusRemark
+              trackingHistory={trackingHistory}
+              shippingStatus={currentStatus}
+              variant="modal"
+            />
             <p className="text-xs text-slate-500 mt-0.5">
               Order Date: {formatDisplayDate(order.orderDate)} | Pickup Date: {formatDisplayDate(order.shipping?.pickupDate)}
             </p>
@@ -1510,8 +1558,8 @@ const OrdersPage = () => {
                     </td>
 
                     {/* SECTION 5: STATUS */}
-                    <td className="p-4 sm:p-5 align-top whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      <div className="pt-0.5">
+                    <td className="p-4 sm:p-5 align-top" onClick={(e) => e.stopPropagation()}>
+                      <div className="pt-0.5 flex flex-col items-start gap-0.5 max-w-[12rem]">
                         {canWrite && order.shipping?.shippingStatus === 'Pending' && (
                           <button
                             onClick={() => handleSingleShipClick(order)}
@@ -1558,6 +1606,11 @@ const OrdersPage = () => {
                         {!['Pending', 'Booked', 'Cancelled','RTO','Delivered','In Transit','Shipped'].includes(order.shipping?.shippingStatus) && (
                           <span className="text-slate-400 italic text-xs">{order.shipping?.shippingStatus || "No Actions"}</span>
                         )}
+                        <CurrentStatusRemark
+                          trackingHistory={order.shipping?.trackingHistory}
+                          shippingStatus={order.shipping?.shippingStatus || 'Pending'}
+                          variant="table"
+                        />
                       </div>
                     </td>
 

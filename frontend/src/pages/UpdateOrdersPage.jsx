@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSelector } from "react-redux";
 import {
   Search,
@@ -13,6 +13,8 @@ import {
   CheckCircle,
   Plus,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { getCompanies } from "../api/companyAPI";
 import { getOrdersByCompany, updateOrder, updateOrderWalletFields } from "../api/ordersAPI";
@@ -25,6 +27,8 @@ import {
   endOfDayIST,
 } from "../utils/dateTime";
 import ReversePickupRouteCell from "../components/ReversePickupRouteCell";
+import OrderTracker from "../components/OrderTracker";
+import { getTrackingByOrderId } from "../api/trackingAPI";
 import {
   getOrderPartySections,
   formatPartyFullAddress,
@@ -220,6 +224,9 @@ const buildUpdatePayload = (formData) => ({
   pickup_time: formData.pickup_time || "",
   pickup_status: formData.pickup_status,
   courier_name: formData.courier_name,
+  ...(formData.shipping_status_remark
+    ? { shipping_status_remark: String(formData.shipping_status_remark).trim() }
+    : {}),
 });
 
 const UpdateOrdersPage = () => {
@@ -234,7 +241,14 @@ const UpdateOrdersPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  
+  const [paymentFilter, setPaymentFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [ordersPerPage, setOrdersPerPage] = useState(20);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    total_pages: 1,
+  });
+
   // Modal & Form State
   const [editingOrder, setEditingOrder] = useState(null);
   const [formData, setFormData] = useState({});
@@ -243,6 +257,8 @@ const UpdateOrdersPage = () => {
   const [message, setMessage] = useState({ type: "", text: "" });
   const [products, setProducts] = useState([]);
   const [productSearch, setProductSearch] = useState("");
+  const [trackingHistory, setTrackingHistory] = useState([]);
+  const [trackingLoading, setTrackingLoading] = useState(false);
 
   const previewSubTotal = useMemo(
     () => calculateItemsSubTotal(formData.order_items || []),
@@ -302,37 +318,100 @@ const UpdateOrdersPage = () => {
     return () => clearTimeout(timer);
   }, [editingOrder, productSearch, selectedCompany]);
 
-  const handleSelectCompany = async (company) => {
+  const loadOrderTrackingHistory = useCallback(async (order, externalOrderId, forceFetch = false) => {
+    const fromOrder = order?.shipping?.trackingHistory;
+    if (!forceFetch && Array.isArray(fromOrder) && fromOrder.length) {
+      setTrackingHistory(fromOrder);
+      return;
+    }
+    if (!externalOrderId) {
+      setTrackingHistory([]);
+      return;
+    }
+    setTrackingLoading(true);
+    try {
+      const res = await getTrackingByOrderId(externalOrderId);
+      const activities = res?.tracking_data?.shipment_track_activities || [];
+      setTrackingHistory(
+        activities.map((item) => ({
+          status: item.status,
+          location: item.location || "",
+          remarks: item.remarks || "",
+          failureReason: item.failure_reason || "",
+          eventTime: item.eventTime || item.date,
+        }))
+      );
+    } catch (error) {
+      console.error("Failed to load status history:", error);
+      setTrackingHistory([]);
+    } finally {
+      setTrackingLoading(false);
+    }
+  }, []);
+
+  const fetchCompanyOrders = useCallback(async () => {
+    if (!selectedCompany?.companyID) return;
+
+    setLoading(true);
+    setMessage({ type: "", text: "" });
+
+    try {
+      const data = await getOrdersByCompany(selectedCompany.companyID, {
+        page: currentPage,
+        perPage: ordersPerPage,
+        paymentMethod: paymentFilter,
+        from: fromDate || undefined,
+        to: toDate || undefined,
+        search: searchQuery.trim() || undefined,
+      });
+
+      if (!data.success) {
+        throw new Error(data.message || "Failed to fetch orders");
+      }
+
+      setOrders(data.orders || []);
+      setPagination(data.meta?.pagination || { total: 0, total_pages: 1 });
+    } catch (err) {
+      console.error("Failed to fetch company orders:", err);
+      setMessage({
+        type: "error",
+        text: err.message || "Failed to load orders",
+      });
+      setOrders([]);
+      setPagination({ total: 0, total_pages: 1 });
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    selectedCompany,
+    currentPage,
+    ordersPerPage,
+    paymentFilter,
+    fromDate,
+    toDate,
+    searchQuery,
+  ]);
+
+  const handleSelectCompany = (company) => {
     setSelectedCompany(company);
     setOrders([]);
     setSearchQuery("");
     setFromDate("");
     setToDate("");
-    setLoading(true);
-    setMessage({ type: "", text: "" });
-  
-    try {
-      const data = await getOrdersByCompany(company.companyID);
-  
-      if (!data.success) {
-        throw new Error(data.message || "Failed to fetch orders");
-      }
-  
-      setOrders(data.orders || []);
-  
-    } catch (err) {
-      console.error("Failed to fetch company orders:", err);
-  
-      setMessage({
-        type: "error",
-        text: err.message || "Failed to load orders",
-      });
-  
-      setOrders([]);
-    } finally {
-      setLoading(false);
-    }
+    setPaymentFilter("all");
+    setCurrentPage(1);
+    setOrdersPerPage(20);
   };
+
+  useEffect(() => {
+    if (!selectedCompany) return undefined;
+
+    const timer = setTimeout(() => {
+      fetchCompanyOrders();
+    }, searchQuery.trim() ? 300 : 0);
+
+    return () => clearTimeout(timer);
+  }, [selectedCompany, fetchCompanyOrders, searchQuery]);
 
   // Open Edit Modal with Pre-filled Form
   const handleOpenEditModal = (order) => {
@@ -347,6 +426,8 @@ const UpdateOrdersPage = () => {
     setEditingOrder(order);
     setProductSearch("");
     setProducts([]);
+    setTrackingHistory([]);
+    loadOrderTrackingHistory(order, order.externalOrderId);
     setFormData({
       order_id: order.externalOrderId,
       company_id: order.companyID || selectedCompany?.companyID || "",
@@ -359,6 +440,7 @@ const UpdateOrdersPage = () => {
       comment: order.comment || "",
 
       shipping_status: order.shipping?.shippingStatus || "Pending",
+      shipping_status_remark: "",
       awb_number: order.shipping?.awbNumber || "",
       pickup_date: order.shipping?.pickupDate
         ? toDateInputValue(order.shipping.pickupDate)
@@ -592,6 +674,10 @@ const UpdateOrdersPage = () => {
           text: "Order updated successfully!",
         });
 
+        setFormData((prev) => ({ ...prev, shipping_status_remark: "" }));
+        await loadOrderTrackingHistory(null, formData.order_id, true);
+        fetchCompanyOrders();
+
         setOrders((prev) =>
           prev.map((o) =>
             o.externalOrderId === formData.order_id
@@ -690,17 +776,15 @@ const UpdateOrdersPage = () => {
     setSearchQuery("");
     setFromDate("");
     setToDate("");
+    setPaymentFilter("all");
+    setCurrentPage(1);
   };
 
-  const filteredOrders = useMemo(
-    () =>
-      orders.filter(
-        (order) =>
-          orderMatchesSearch(order, searchQuery) &&
-          orderMatchesDateRange(order, fromDate, toDate)
-      ),
-    [orders, searchQuery, fromDate, toDate]
-  );
+  const totalPages = pagination.total_pages || 1;
+  const totalOrders = pagination.total || 0;
+  const indexOfFirstOrder =
+    totalOrders === 0 ? 0 : (currentPage - 1) * ordersPerPage + 1;
+  const indexOfLastOrder = Math.min(currentPage * ordersPerPage, totalOrders);
 
   return (
     <div className="w-full min-h-full max-w-full overflow-x-hidden bg-slate-50/50 p-3 sm:p-6 text-slate-800">
@@ -794,7 +878,10 @@ const UpdateOrdersPage = () => {
                 <input
                   type="date"
                   value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
+                  onChange={(e) => {
+                    setFromDate(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className="bg-transparent focus:outline-none text-slate-700"
                 />
               </div>
@@ -803,12 +890,31 @@ const UpdateOrdersPage = () => {
                 <input
                   type="date"
                   value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
+                  onChange={(e) => {
+                    setToDate(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className="bg-transparent focus:outline-none text-slate-700"
                 />
               </div>
 
-              {(searchQuery || fromDate || toDate) && (
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/60 px-3 py-2 rounded-xl">
+                <span>Payment:</span>
+                <select
+                  value={paymentFilter}
+                  onChange={(e) => {
+                    setPaymentFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-transparent focus:outline-none text-slate-700 font-medium"
+                >
+                  <option value="all">All</option>
+                  <option value="Prepaid">Prepaid</option>
+                  <option value="COD">COD</option>
+                </select>
+              </div>
+
+              {(searchQuery || fromDate || toDate || paymentFilter !== "all") && (
                 <button
                   type="button"
                   onClick={clearFilters}
@@ -837,14 +943,14 @@ const UpdateOrdersPage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredOrders.length === 0 ? (
+                  {orders.length === 0 ? (
                     <tr>
                       <td colSpan="6" className="p-8 text-center text-slate-400">
                         No orders found.
                       </td>
                     </tr>
                   ) : (
-                    filteredOrders.map((order) => {
+                    orders.map((order) => {
                         const shippingStatus = order.shipping?.shippingStatus || "Pending";
                         const isEditable = isOrderEditableByRole(order, canWrite, isGlobalAdmin);
                         const parties = getOrderPartySections(order);
@@ -990,6 +1096,52 @@ const UpdateOrdersPage = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-between items-center bg-white border border-slate-200/80 p-4 rounded-2xl gap-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-slate-500">Rows per page:</span>
+              <select
+                value={ordersPerPage}
+                onChange={(e) => {
+                  setOrdersPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs rounded-lg py-1.5 px-2.5 focus:outline-none cursor-pointer"
+              >
+                <option value={20}>20 Rows</option>
+                <option value={25}>25 Rows</option>
+                <option value={50}>50 Rows</option>
+                <option value={100}>100 Rows</option>
+              </select>
+              <span className="text-xs text-slate-400">
+                Showing {totalOrders > 0 ? indexOfFirstOrder : 0} - {indexOfLastOrder} of {totalOrders} orders
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 disabled:opacity-30"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-xs font-bold text-slate-600 px-2">
+                Page {currentPage}{" "}
+                <span className="text-slate-400 font-medium">/ {totalPages}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={currentPage === totalPages || totalOrders === 0}
+                className="p-2 rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 disabled:opacity-30"
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
           </div>
         </div>
@@ -1236,6 +1388,21 @@ const UpdateOrdersPage = () => {
                       ))}
                     </select>
                   </div>
+                  {isGlobalAdmin && (
+                    <div className="sm:col-span-2">
+                      <label className="block text-slate-600 font-medium mb-1">
+                        Remark (saved with status update)
+                      </label>
+                      <input
+                        type="text"
+                        name="shipping_status_remark"
+                        value={formData.shipping_status_remark || ""}
+                        onChange={handleChange}
+                        placeholder="Optional reason for this status"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:border-indigo-500"
+                      />
+                    </div>
+                  )}
                   <div>
                     <label className="block text-slate-600 font-medium mb-1">
                       Pickup Status
@@ -1304,6 +1471,20 @@ const UpdateOrdersPage = () => {
                     />
                   </div>
                 </div>
+                {(trackingLoading || trackingHistory.length > 0 || formData.awb_number) && (
+                  <div className="mt-4">
+                    {trackingLoading ? (
+                      <p className="text-xs text-slate-400">Loading status history...</p>
+                    ) : (
+                      <OrderTracker
+                        awbNumber={formData.awb_number || ""}
+                        currentStatus={formData.shipping_status || "Pending"}
+                        trackingHistory={trackingHistory}
+                        courierName={formData.courier_name}
+                      />
+                    )}
+                  </div>
+                )}
                 {isGlobalAdmin && (
                   <div className="mt-4 space-y-2">
                     <div className="flex items-center justify-between">

@@ -18,6 +18,9 @@ const {
 const { applyAdminDeliveryAttempts } = require("../../utils/deliveryAttemptService");
 const { syncReversePickupFromShipping } = require("../../utils/reversePickupSync");
 const { ensureShippingHasShipmentId } = require("../../utils/generateShipmentId");
+const {
+  applyShippingStatusWithTracking,
+} = require("../../utils/shippingStatusTrackingUpdate");
 
 const SHIPPING_STATUSES = [
   "Pending",
@@ -123,6 +126,9 @@ const updateOrder = async (req, res) => {
       pickup_status,
       courier_name,
       delivery_attempts,
+      shipping_status_remark,
+      status_remark,
+      remark,
     } = req.body;
 
     // =========================================
@@ -641,8 +647,26 @@ const updateOrder = async (req, res) => {
     // =========================================
 
     if (isAdmin) {
-      if (shipping_status !== undefined && shipping_status !== null && shipping_status !== "") {
-        shipping.shippingStatus = shipping_status;
+      const statusRemark = String(
+        shipping_status_remark ?? status_remark ?? remark ?? ""
+      ).trim();
+
+      if (
+        shipping_status !== undefined &&
+        shipping_status !== null &&
+        shipping_status !== ""
+      ) {
+        const nextStatus = String(shipping_status).trim();
+        if (nextStatus !== shipping.shippingStatus || statusRemark) {
+          await applyShippingStatusWithTracking({
+            shipping,
+            order,
+            status: nextStatus,
+            remarks: statusRemark,
+            updatedBy: req.user?.id || null,
+            skipIfUnchanged: true,
+          });
+        }
       }
 
       if (awb_number !== undefined) {

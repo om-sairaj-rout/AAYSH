@@ -1,6 +1,9 @@
 const mongoose = require("mongoose");
 const Order = require("../../models/upload/order.model");
 const Shipping = require("../../models/upload/shipping.model");
+const Tracking = require("../../models/upload/tracking.model");
+const { loadTrackingGroupedByShippingId } = require("../../utils/trackingHistoryHelpers");
+const { resolveLatestRemarkForStatus } = require("../../utils/trackingRemark");
 const {
   toISTDateTime,
   toISTDate,
@@ -14,6 +17,7 @@ const {
 const { applyCompanyOrderFilter } = require("../../utils/companyScope");
 
 const SHIPPING_FIELDS = {
+  _id: 1,
   shipmentId: 1,
   awbNumber: 1,
   courierName: 1,
@@ -42,8 +46,9 @@ const shippingUnwind = {
   },
 };
 
-const formatOrder = (order) => {
+const formatOrder = (order, trackingHistory = []) => {
   const shipping = order.shipping || null;
+  const shippingStatus = shipping?.shippingStatus || "Pending";
 
   return {
     order_id: order.externalOrderId,
@@ -101,10 +106,14 @@ const formatOrder = (order) => {
       awb: shipping?.awbNumber || "",
       courier: shipping?.courierName || "",
       pickup_location: shipping?.pickupLocation || "",
-      status: shipping?.shippingStatus || "Pending",
+      status: shippingStatus,
       shipping_charges: shipping?.shippingCharges || 0,
       delivery_attempts: shipping?.deliveryAttempts || 0,
       attempt_failure_reason: shipping?.attemptFailureReason || "",
+      status_remark: resolveLatestRemarkForStatus(
+        trackingHistory,
+        shippingStatus
+      ),
     },
 
     created_at: toISTDateTime(order.createdAt),
@@ -268,7 +277,22 @@ const getAllOrders = async (req, res) => {
       pageOrders = orders;
     }
 
-    const data = pageOrders.map(formatOrder);
+    const shippingIds = pageOrders
+      .map((order) => order.shipping?._id)
+      .filter(Boolean);
+
+    const trackingMap = await loadTrackingGroupedByShippingId(
+      Tracking,
+      shippingIds
+    );
+
+    const data = pageOrders.map((order) => {
+      const shippingKey = order.shipping?._id
+        ? String(order.shipping._id)
+        : "";
+      const trackingHistory = trackingMap.get(shippingKey) || [];
+      return formatOrder(order, trackingHistory);
+    });
 
     return res.status(200).json({
       success: true,

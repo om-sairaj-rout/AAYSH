@@ -27,6 +27,7 @@ const updateDeliveryLocation = require("../controllers/ordersControllers/updateD
 const updateOrder = require("../controllers/ordersControllers/updateOrder.controllers");
 const cancelOrder = require("../controllers/ordersControllers/cancelOrders.controllers");
 const updateOrderWalletFields = require("../controllers/ordersControllers/updateOrderWalletFields.controllers");
+const updateExternalOrderShipment = require("../controllers/ordersControllers/updateExternalOrderShipment.controllers");
 const getOrdersByUserController = require("../controllers/orderUpdatesControllers/getOrdersByUser.controllers");
 const getOrdersByCompanyController = require("../controllers/orderUpdatesControllers/getOrdersByCompany.controllers");
 
@@ -149,6 +150,13 @@ orderRouter.post(
   checkAuth,
   checkPermission("orders", "write"),
   updateOrderWalletFields
+);
+
+orderRouter.post(
+  "/external/orders/update-shipment-status",
+  checkAuth,
+  checkPermission("orders", "write"),
+  updateExternalOrderShipment
 );
 
 orderRouter.get(

@@ -5,6 +5,19 @@ const defaultFetchOptions = {
   cache: "no-store",
 };
 
+export const getTrackingByOrderId = async (orderId) => {
+  const trimmed = String(orderId || "").trim();
+  const res = await fetch(apiUrl(`/api/track/order/${encodeURIComponent(trimmed)}`), {
+    method: "GET",
+    ...defaultFetchOptions,
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Unable to load status history");
+  }
+  return data;
+};
+
 export const getSecureOrderByAwb = async (awbNumber) => {
   const trimmed = String(awbNumber || "").trim();
   const res = await fetch(apiUrl(`/api/orders/awb/${encodeURIComponent(trimmed)}/secure`), {

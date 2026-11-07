@@ -82,6 +82,7 @@ return res.status(200).json({
   success: true,
   message: "Pickup location updated successfully.",
   updated_orders: updatedOrders,
+  failed_orders: [],
   pickup_location,
 });
 

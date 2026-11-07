@@ -63,7 +63,9 @@ const getTrackingByOrderId = async (req, res) => {
 
         shipment_track_activities: history.map((item) => ({
           date: toISTDateTime(item.eventTime),
+          eventTime: item.eventTime,
           status: item.status,
+          remarks: item.remarks || "",
           activity: item.remarks || item.status,
           location: item.location,
           failure_reason: item.failureReason || "",

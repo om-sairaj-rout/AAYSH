@@ -191,10 +191,36 @@ export const getOrdersByUser = async (userId) => {
   }
 };
 
-export const getOrdersByCompany = async (companyID) => {
+export const getOrdersByCompany = async (
+  companyID,
+  {
+    page = 1,
+    perPage = 20,
+    paymentMethod,
+    from,
+    to,
+    search,
+    searchType,
+  } = {}
+) => {
   try {
+    const params = new URLSearchParams({
+      page: String(page),
+      per_page: String(perPage),
+    });
+
+    if (paymentMethod && paymentMethod !== "all") {
+      params.append("payment_method", paymentMethod);
+    }
+    if (from) params.append("from", from);
+    if (to) params.append("to", to);
+    if (search) params.append("search", search);
+    if (searchType) params.append("search_type", searchType);
+
     const response = await fetch(
-      apiUrl(`/api/companies/${encodeURIComponent(companyID)}/orders`),
+      apiUrl(
+        `/api/companies/${encodeURIComponent(companyID)}/orders?${params.toString()}`
+      ),
       {
         method: "GET",
         credentials: "include",
