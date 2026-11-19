@@ -13,8 +13,11 @@ import {
   MapPin,
   SlidersHorizontal,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   X,
   PackageCheck,
+  Package,
   ShoppingBag,
   Barcode,
   Users,
@@ -31,8 +34,9 @@ import aayshlogo from "../assets/aaysh_logo.png";
 const NAVY = "#1B2B4B";
 const NAVY_DARK = "#152238";
 
-const SideBar = ({ isOpen, setIsOpen }) => {
+const SideBar = ({ isOpen, setIsOpen, isCollapsed = false, onToggleCollapsed }) => {
   const [openMenus, setOpenMenus] = useState({});
+  const [collapsedFlyout, setCollapsedFlyout] = useState(null);
   const [ticketUnreadCount, setTicketUnreadCount] = useState(0);
   const { canManageTeam, user } = useSelector((state) => state.auth);
   const location = useLocation();
@@ -127,6 +131,11 @@ const SideBar = ({ isOpen, setIsOpen }) => {
           name: "Awb Management",
           icon: <Barcode size={20} />,
           path: "/update/AWB",
+        },
+        {
+          name: "Delhivery AWB Pool",
+          icon: <Package size={20} />,
+          path: "/update/delhivery-awb",
         },
         {
           name: "Serviceability Management",
@@ -267,7 +276,10 @@ const SideBar = ({ isOpen, setIsOpen }) => {
 
   const parentLinkClass = (isActive, hasActiveChild) => {
     const active = isActive || hasActiveChild;
-    return `relative flex items-center gap-3 py-3 pl-4 pr-3 rounded-l-2xl transition-all duration-200 ${
+    const collapsed = isCollapsed
+      ? "lg:justify-center lg:px-2 lg:gap-0 gap-3 pl-4 pr-3"
+      : "gap-3 pl-4 pr-3";
+    return `relative flex items-center py-3 rounded-l-2xl transition-all duration-200 ${collapsed} ${
       active
         ? "bg-white text-[#1B2B4B] font-semibold shadow-[4px_0_20px_rgba(0,0,0,0.08)] mr-0"
         : "text-white/65 hover:text-white hover:bg-white/10"
@@ -276,7 +288,10 @@ const SideBar = ({ isOpen, setIsOpen }) => {
 
   const parentToggleClass = (isExpanded, hasActiveChild) => {
     const active = isExpanded || hasActiveChild;
-    return `relative flex items-center justify-between py-3 pl-4 pr-3 rounded-l-2xl cursor-pointer transition-all duration-200 ${
+    const collapsed = isCollapsed
+      ? "lg:justify-center lg:px-2 justify-between pl-4 pr-3"
+      : "justify-between pl-4 pr-3";
+    return `relative flex items-center py-3 rounded-l-2xl cursor-pointer transition-all duration-200 ${collapsed} ${
       active
         ? "bg-white/12 text-white"
         : "text-white/65 hover:text-white hover:bg-white/10"
@@ -287,16 +302,21 @@ const SideBar = ({ isOpen, setIsOpen }) => {
     <aside
       className={`
       fixed inset-y-0 left-0 z-50 lg:z-0 lg:sticky lg:top-0
-      w-64 h-screen flex flex-col overflow-hidden
-      transition-transform duration-300 ease-in-out
+      h-screen flex flex-col overflow-hidden
+      transition-[transform,width] duration-300 ease-in-out
       shadow-[4px_0_24px_rgba(27,43,75,0.18)]
+      w-64 ${isCollapsed ? "lg:w-[4.5rem]" : "lg:w-64"}
       ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
     `}
       style={{ backgroundColor: NAVY, borderRight: `1px solid ${NAVY_DARK}` }}
     >
       {/* Logo */}
-      <div className="shrink-0 px-4 pt-6 pb-5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="shrink-0 pt-6 pb-5 px-4 flex items-center justify-between gap-2">
+        <div
+          className={`flex items-center gap-3 min-w-0 ${
+            isCollapsed ? "lg:hidden" : ""
+          }`}
+        >
           <div className="w-11 h-11 rounded-full bg-white flex items-center justify-center shadow-md overflow-hidden shrink-0">
             <img src={aayshlogo} alt="AayshExpress" className="h-8 w-8 object-contain" />
           </div>
@@ -307,19 +327,42 @@ const SideBar = ({ isOpen, setIsOpen }) => {
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsOpen(false)}
-          className="lg:hidden p-2 rounded-lg text-white/70 hover:bg-white/10 transition-colors"
-        >
-          <X size={20} />
-        </button>
+
+        <div className="flex items-center gap-1 shrink-0 ml-auto">
+          {onToggleCollapsed && (
+            <button
+              type="button"
+              onClick={onToggleCollapsed}
+              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="hidden lg:flex w-9 h-9 rounded-lg items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isCollapsed ? (
+                <ChevronRight size={20} strokeWidth={2.5} />
+              ) : (
+                <ChevronLeft size={20} strokeWidth={2.5} />
+              )}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            className="lg:hidden p-2 rounded-lg text-white/70 hover:bg-white/10 transition-colors"
+            aria-label="Close menu"
+          >
+            <X size={20} />
+          </button>
+        </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 pb-6 no-scrollbar">
         {filteredMenu.map((group, idx) => (
           <div key={idx} className="mb-5">
-            <p className="text-[10px] font-bold text-white/35 mb-3 tracking-[0.14em] uppercase px-4">
+            <p
+              className={`text-[10px] font-bold text-white/35 mb-3 tracking-[0.14em] uppercase px-4 ${
+                isCollapsed ? "lg:hidden" : ""
+              }`}
+            >
               {group.section}
             </p>
             <ul className="space-y-1">
@@ -329,46 +372,93 @@ const SideBar = ({ isOpen, setIsOpen }) => {
                 const hasActiveChild = hasSubItems && isSubItemActive(item.subItems);
 
                 return (
-                  <li key={i}>
+                  <li key={i} className="relative">
                     {hasSubItems ? (
                       <>
                         <div
-                          onClick={() => toggleMenu(item.name)}
-                          className={parentToggleClass(isExpanded, hasActiveChild)}
+                          title={isCollapsed ? item.name : undefined}
+                          onClick={() => {
+                            if (isCollapsed) {
+                              setCollapsedFlyout((prev) =>
+                                prev === item.name ? null : item.name
+                              );
+                              return;
+                            }
+                            toggleMenu(item.name);
+                          }}
+                          className={parentToggleClass(
+                            isCollapsed ? collapsedFlyout === item.name : isExpanded,
+                            hasActiveChild
+                          )}
                         >
-                          <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className={`flex items-center min-w-0 gap-3 ${
+                              isCollapsed ? "lg:justify-center lg:w-full" : ""
+                            }`}
+                          >
                             <span className={hasActiveChild ? "text-white" : "text-white/70"}>
                               {item.icon}
                             </span>
-                            <span className="text-[14px] font-medium truncate">{item.name}</span>
+                            <span
+                              className={`text-[14px] font-medium truncate ${
+                                isCollapsed ? "lg:hidden" : ""
+                              }`}
+                            >
+                              {item.name}
+                            </span>
                           </div>
                           <ChevronDown
                             size={16}
                             className={`shrink-0 text-white/50 transition-transform ${
-                              isExpanded ? "" : "-rotate-90"
+                              isCollapsed ? "lg:hidden" : isExpanded ? "" : "-rotate-90"
                             }`}
                           />
                         </div>
 
-                        {isExpanded && (
+                        {!isCollapsed && isExpanded && (
                           <ul className="mt-1 ml-5 pl-4 border-l border-white/15 space-y-0.5">
                             {item.subItems.map((sub, subIdx) => (
-                                <li key={subIdx}>
-                                  <NavLink
-                                    to={sub.path}
-                                    onClick={() => setIsOpen(false)}
-                                    className={({ isActive }) =>
-                                      `block py-2.5 pr-3 text-[13px] rounded-lg transition-colors ${
-                                        isActive
-                                          ? "text-white font-semibold bg-white/10"
-                                          : "text-white/50 hover:text-white hover:bg-white/5"
-                                      }`
-                                    }
-                                  >
-                                    {sub.name}
-                                  </NavLink>
-                                </li>
-                              ))}
+                              <li key={subIdx}>
+                                <NavLink
+                                  to={sub.path}
+                                  onClick={() => setIsOpen(false)}
+                                  className={({ isActive }) =>
+                                    `block py-2.5 pr-3 text-[13px] rounded-lg transition-colors ${
+                                      isActive
+                                        ? "text-white font-semibold bg-white/10"
+                                        : "text-white/50 hover:text-white hover:bg-white/5"
+                                    }`
+                                  }
+                                >
+                                  {sub.name}
+                                </NavLink>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+
+                        {isCollapsed && collapsedFlyout === item.name && (
+                          <ul className="lg:absolute lg:left-full lg:top-0 lg:ml-2 lg:min-w-[11rem] lg:rounded-xl lg:border lg:border-white/10 lg:bg-[#152238] lg:py-2 lg:shadow-xl lg:z-[60]">
+                            {item.subItems.map((sub, subIdx) => (
+                              <li key={subIdx}>
+                                <NavLink
+                                  to={sub.path}
+                                  onClick={() => {
+                                    setIsOpen(false);
+                                    setCollapsedFlyout(null);
+                                  }}
+                                  className={({ isActive }) =>
+                                    `block px-4 py-2.5 text-[13px] transition-colors ${
+                                      isActive
+                                        ? "text-white font-semibold bg-white/10"
+                                        : "text-white/60 hover:text-white hover:bg-white/5"
+                                    }`
+                                  }
+                                >
+                                  {sub.name}
+                                </NavLink>
+                              </li>
+                            ))}
                           </ul>
                         )}
                       </>
@@ -376,7 +466,11 @@ const SideBar = ({ isOpen, setIsOpen }) => {
                       <NavLink
                         to={item.path}
                         end={item.path === "/pickup"}
-                        onClick={() => setIsOpen(false)}
+                        title={isCollapsed ? item.name : undefined}
+                        onClick={() => {
+                          setIsOpen(false);
+                          setCollapsedFlyout(null);
+                        }}
                         className={({ isActive }) => parentLinkClass(isActive, false)}
                       >
                         {({ isActive }) => (
@@ -384,7 +478,13 @@ const SideBar = ({ isOpen, setIsOpen }) => {
                             <span className={isActive ? "text-[#1B2B4B]" : "text-white/70"}>
                               {item.icon}
                             </span>
-                            <span className="text-[14px] font-medium truncate">{item.name}</span>
+                            <span
+                              className={`text-[14px] font-medium truncate ${
+                                isCollapsed ? "lg:hidden" : ""
+                              }`}
+                            >
+                              {item.name}
+                            </span>
                             {renderUnreadBadge(item.path)}
                           </>
                         )}
@@ -398,9 +498,17 @@ const SideBar = ({ isOpen, setIsOpen }) => {
         ))}
       </nav>
 
-      <div className="shrink-0 p-4 border-t border-white/10">
-        <div className="rounded-2xl bg-white/8 px-4 py-3 text-center">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">
+      <div className="shrink-0 p-2 border-t border-white/10">
+        <div
+          className={`rounded-2xl bg-white/8 py-3 text-center ${
+            isCollapsed ? "lg:px-1 px-4" : "px-4"
+          }`}
+        >
+          <p
+            className={`text-[10px] font-bold uppercase tracking-wider text-white/40 ${
+              isCollapsed ? "lg:hidden" : ""
+            }`}
+          >
             Logistics Portal
           </p>
         </div>

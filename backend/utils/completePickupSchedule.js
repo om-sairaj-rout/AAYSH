@@ -1,5 +1,5 @@
 const PickupSchedule = require("../models/pickupSchedule.model");
-const { assignAwbCore } = require("./assignAwbCore");
+const { assignOrdersWithCourierRouting } = require("./assignOrdersWithCourierRouting");
 const {
   createOrderWithShipping,
   normalizeCreateOrderPayload,
@@ -77,6 +77,16 @@ const normalizeOrdersInput = ({ rawBody, files = [], documentTypes = [] }) => {
       documentTypes,
     },
   ];
+};
+
+const resolvePickupCompletionAwbRouting = (created, schedule) => {
+  void schedule;
+  return {
+    codBlockedByMissingPickup: false,
+    codMissingDelhiveryPickupMessage: "",
+    ordersToAssign: created,
+    codSkipResults: [],
+  };
 };
 
 const completePickupScheduleFlow = async ({
@@ -166,30 +176,56 @@ const completePickupScheduleFlow = async ({
   let awbResults = [];
   let awbFailureReason = "";
 
-  try {
-    const awbResult = await assignAwbCore({
-      serviceType: schedule.preferredServiceType || "surface",
-      orders: created.map(({ order }) => ({ orderId: order._id })),
-      pickupDate: pickupDateStr,
-      pickupLocation: schedule.pickupLocation,
-      pickupTime: schedule.pickupTime || "11:00",
-      notes: schedule.notes || "",
-    });
+  const routingPlan = resolvePickupCompletionAwbRouting(created, schedule);
+  const {
+    codBlockedByMissingPickup,
+    codMissingDelhiveryPickupMessage,
+    ordersToAssign,
+    codSkipResults,
+  } = routingPlan;
 
-    awbResults = Array.isArray(awbResult.data) ? awbResult.data : [];
-    const successCount = awbResults.filter((row) => row.awbNumber).length;
+  if (codBlockedByMissingPickup) {
+    awbFailureReason = codMissingDelhiveryPickupMessage;
+    awbResults = codSkipResults;
+  }
 
-    if (successCount < created.length) {
-      const failed = awbResults.find((row) => row.error);
-      awbFailureReason =
-        failed?.error ||
-        awbResult.message ||
-        "Some orders could not be assigned AWB. Ship from All Orders when ready.";
+  if (ordersToAssign.length > 0) {
+    try {
+      const awbResult = await assignOrdersWithCourierRouting(
+        {
+          serviceType: schedule.preferredServiceType || "surface",
+          orders: ordersToAssign.map(({ order }) => ({ orderId: order._id })),
+          pickupDate: pickupDateStr,
+          pickupLocation: schedule.pickupLocation,
+          pickupTime: schedule.pickupTime || "11:00",
+          notes: schedule.notes || "",
+          delhiveryPickupLocationId: schedule.delhiveryPickupLocationId || null,
+          shipmentType: "SPS",
+        },
+        user
+      );
+
+      const routedResults = Array.isArray(awbResult.data) ? awbResult.data : [];
+      awbResults = [...awbResults, ...routedResults];
+
+      const successCount = awbResults.filter((row) => row.awbNumber).length;
+
+      if (successCount < created.length) {
+        const failed = awbResults.find((row) => row.error);
+        awbFailureReason =
+          codBlockedByMissingPickup && failed?.error === codMissingDelhiveryPickupMessage
+            ? codMissingDelhiveryPickupMessage
+            : failed?.error ||
+              awbResult.message ||
+              "Some orders could not be assigned AWB. Ship from All Orders when ready.";
+      }
+    } catch (error) {
+      if (!awbFailureReason) {
+        awbFailureReason =
+          error.message ||
+          "AWB assignment failed. Ship orders from All Orders when ready.";
+      }
     }
-  } catch (error) {
-    awbFailureReason =
-      error.message ||
-      "AWB assignment failed. Ship orders from All Orders when ready.";
   }
 
   const orderSummaries = [];
@@ -256,6 +292,7 @@ const completePickupScheduleFlow = async ({
 
 module.exports = {
   completePickupScheduleFlow,
+  resolvePickupCompletionAwbRouting,
   mergeScheduleIntoOrderBody,
   normalizeCreateOrderPayload,
   parseDocumentTypes,

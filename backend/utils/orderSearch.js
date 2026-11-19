@@ -118,6 +118,11 @@ const applyLegacyOrderSearch = async (orderFilter, raw) => {
     return;
   }
 
+  if (/^ORD\d+$/i.test(raw)) {
+    await applyTypedOrderSearch(orderFilter, raw, "order_id");
+    return;
+  }
+
   if (/[a-zA-Z]/.test(raw)) {
     await applyTypedOrderSearch(orderFilter, raw, "customer");
     return;

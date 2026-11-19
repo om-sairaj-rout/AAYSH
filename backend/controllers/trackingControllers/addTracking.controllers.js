@@ -106,7 +106,21 @@ const addTracking = async (req, res) => {
         break;
     }
 
+    const statusChanged = previousStatus !== status;
     await shipping.save();
+
+    if (statusChanged && status === "Shipped") {
+      const {
+        enqueueDelhiveryPickupAfterShipped,
+      } = require("../../services/delhivery/delhiveryPickupRequestTrigger");
+      await enqueueDelhiveryPickupAfterShipped({
+        shipping,
+        previousStatus,
+        updatedBy: req.user?.id || null,
+      }).catch((err) => {
+        console.error("[Delhivery pickup persist]", err.message);
+      });
+    }
 
     await syncReversePickupFromShippingDocument(shipping, tracking.eventTime || new Date());
 

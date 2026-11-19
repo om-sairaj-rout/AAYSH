@@ -222,6 +222,7 @@ const compareISODates = compareISTDates;
 
 module.exports = {
   TIMEZONE,
+  getISTParts,
   toISTDate,
   toISTDateTime,
   parseISTDate,

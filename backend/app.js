@@ -34,6 +34,7 @@ const billingRouter = require('./routes/billing.routes');
 const walletRouter = require('./routes/wallet.routes');
 const razorpayRouter = require('./routes/razorpay.routes');
 const pincodeZoneRouter = require('./routes/pincodeZone.routes');
+const delhiveryRouter = require('./routes/delhivery.routes');
 
 const app = express();
 
@@ -91,10 +92,15 @@ app.use('/api', billingRouter)
 app.use('/api', walletRouter)
 app.use('/api', razorpayRouter)
 app.use('/api', pincodeZoneRouter)
+app.use('/api', delhiveryRouter)
 
 
 connectToDB()
   .then(() => {
+    const { startDelhiveryTrackingCron } = require("./cron/delhiveryTrackingCron");
+    startDelhiveryTrackingCron();
+    const { startTrackonTrackingCron } = require("./cron/trackonTrackingCron");
+    startTrackonTrackingCron();
     app.listen(3000, () => {
       console.log("Server is running on port 3000");
     });

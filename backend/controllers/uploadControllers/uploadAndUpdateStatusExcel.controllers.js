@@ -286,6 +286,19 @@ console.log(typeof row["Tracking Date & Time"]);
         console.error("WhatsApp notification failed:", err.message);
       });
 
+      if (status === "Shipped" && previousStatus !== "Shipped") {
+        const {
+          enqueueDelhiveryPickupAfterShipped,
+        } = require("../../services/delhivery/delhiveryPickupRequestTrigger");
+        await enqueueDelhiveryPickupAfterShipped({
+          shipping,
+          previousStatus,
+          updatedBy: req.user?.id || null,
+        }).catch((err) => {
+          console.error("[Delhivery pickup persist]", err.message);
+        });
+      }
+
       // ==========================
       // Update Order Dashboard
       // ==========================

@@ -1,6 +1,10 @@
 const Tracking = require("../models/upload/tracking.model");
 const notifyShippingStatusWhatsApp = require("./notifyShippingStatusWhatsApp");
 const {
+  isNotificationRetriable,
+  NOTIFY_STATUSES,
+} = require("../services/msg91WhatsAppService");
+const {
   startDeliveryAttempt,
   failCurrentDeliveryAttempt,
   completeCurrentDeliveryAttempt,
@@ -8,6 +12,9 @@ const {
 const {
   syncReversePickupFromShippingDocument,
 } = require("./reversePickupStatusSync");
+const {
+  enqueueDelhiveryPickupAfterShipped,
+} = require("../services/delhivery/delhiveryPickupRequestTrigger");
 
 const applyShippingStatusTimestamps = (shipping, status, eventTime = new Date()) => {
   switch (status) {
@@ -138,6 +145,20 @@ const applyShippingStatusWithTracking = async ({
     }
     if (statusChanged) {
       await syncReversePickupFromShippingDocument(shipping, eventTime);
+    }
+
+    let shouldNotifyWhatsApp = statusChanged;
+    if (
+      !shouldNotifyWhatsApp &&
+      NOTIFY_STATUSES.has(trimmedStatus)
+    ) {
+      shouldNotifyWhatsApp = await isNotificationRetriable(
+        shipping._id,
+        trimmedStatus
+      );
+    }
+
+    if (shouldNotifyWhatsApp) {
       notifyShippingStatusWhatsApp({
         shipping,
         previousStatus,
@@ -145,6 +166,18 @@ const applyShippingStatusWithTracking = async ({
       }).catch((err) => {
         console.error("WhatsApp notification failed:", err.message);
       });
+    }
+
+    if (statusChanged && trimmedStatus === "Shipped") {
+      try {
+        await enqueueDelhiveryPickupAfterShipped({
+          shipping,
+          previousStatus,
+          updatedBy,
+        });
+      } catch (err) {
+        console.error("[Delhivery pickup persist]", err.message);
+      }
     }
   }
 

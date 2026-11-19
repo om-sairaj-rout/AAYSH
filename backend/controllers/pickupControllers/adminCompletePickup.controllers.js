@@ -1,5 +1,8 @@
 const Shipping = require("../../models/upload/shipping.model");
 const notifyShippingStatusWhatsApp = require("../../utils/notifyShippingStatusWhatsApp");
+const {
+  enqueueDelhiveryPickupAfterShipped,
+} = require("../../services/delhivery/delhiveryPickupRequestTrigger");
 
 const completePickup = async (req, res) => {
   try {
@@ -33,6 +36,16 @@ const completePickup = async (req, res) => {
     }).catch((err) => {
       console.error("WhatsApp notification failed:", err.message);
     });
+
+    try {
+      await enqueueDelhiveryPickupAfterShipped({
+        shipping: pickup,
+        previousStatus,
+        updatedBy: req.user?.id || null,
+      });
+    } catch (err) {
+      console.error("[Delhivery pickup persist]", err.message);
+    }
 
     return res.json({
       success: true,

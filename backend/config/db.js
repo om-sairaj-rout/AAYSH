@@ -101,6 +101,9 @@ async function connectToDB() {
   await ensureOrderIndexes();
   const { syncCompanyCounter } = require("../utils/generateCompanyId");
   await syncCompanyCounter();
+
+  const { startDelhiveryAwbBackgroundCheck } = require("../jobs/delhiveryAwbBackgroundCheck");
+  startDelhiveryAwbBackgroundCheck();
 }
 
 module.exports = connectToDB;

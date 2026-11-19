@@ -1,6 +1,8 @@
 const Shipping = require("../../models/upload/shipping.model");
 const { parseISODateOnly } = require("../../utils/dateTime");
-const { assignAwbCore } = require("../../utils/assignAwbCore");
+const {
+  assignOrdersWithCourierRouting,
+} = require("../../utils/assignOrdersWithCourierRouting");
 
 const mapCoreRowToShipmentResult = (row, shipmentId) => {
   if (row.error) {
@@ -43,6 +45,10 @@ const generateAwbExternal = async (req, res) => {
       pickupLocation,
       pickupTime,
       notes,
+      delhiveryPickupLocationId,
+      shipmentType,
+      packagesByOrder,
+      mpsPackages,
     } = req.body;
 
     const service = serviceType?.toLowerCase();
@@ -116,14 +122,21 @@ const generateAwbExternal = async (req, res) => {
     }
 
     if (ordersForCore.length) {
-      const result = await assignAwbCore({
-        serviceType,
-        orders: ordersForCore.map(({ orderId }) => ({ orderId })),
-        pickupDate,
-        pickupLocation,
-        pickupTime,
-        notes,
-      });
+      const result = await assignOrdersWithCourierRouting(
+        {
+          serviceType,
+          orders: ordersForCore.map(({ orderId }) => ({ orderId })),
+          pickupDate,
+          pickupLocation,
+          pickupTime,
+          notes,
+          delhiveryPickupLocationId,
+          shipmentType,
+          packagesByOrder,
+          mpsPackages,
+        },
+        req.user
+      );
 
       const coreRows = result.data || [];
 

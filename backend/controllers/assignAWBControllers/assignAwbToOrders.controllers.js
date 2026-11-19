@@ -1,4 +1,6 @@
-const { assignAwbCore } = require("../../utils/assignAwbCore");
+const {
+  assignOrdersWithCourierRouting,
+} = require("../../utils/assignOrdersWithCourierRouting");
 
 const assignAwbToOrders = async (req, res) => {
   try {
@@ -9,16 +11,27 @@ const assignAwbToOrders = async (req, res) => {
       pickupLocation,
       pickupTime,
       notes,
+      delhiveryPickupLocationId,
+      shipmentType,
+      packagesByOrder,
+      mpsPackages,
     } = req.body;
 
-    const result = await assignAwbCore({
-      serviceType,
-      orders,
-      pickupDate,
-      pickupLocation,
-      pickupTime,
-      notes,
-    });
+    const result = await assignOrdersWithCourierRouting(
+      {
+        serviceType,
+        orders,
+        pickupDate,
+        pickupLocation,
+        pickupTime,
+        notes,
+        delhiveryPickupLocationId,
+        shipmentType,
+        packagesByOrder,
+        mpsPackages,
+      },
+      req.user
+    );
 
     if (!result.success) {
       return res.status(400).json({

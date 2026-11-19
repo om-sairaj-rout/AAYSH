@@ -40,6 +40,11 @@ const pickupScheduleSchema = new mongoose.Schema(
       default: "surface",
     },
     notes: { type: String, default: "", trim: true },
+    delhiveryPickupLocationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DelhiveryPickupLocation",
+      default: null,
+    },
     orderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Order",

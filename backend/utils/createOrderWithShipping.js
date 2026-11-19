@@ -22,6 +22,7 @@ const { enrichNormalizedOrderFromCatalog } = require("./catalogOrderEnrichment")
 
 const { generateUniqueShipmentId } = require("./generateShipmentId");
 const { assertWalletMinBalance, isWalletEnabledForCompany } = require("./walletService");
+const { runDelhiveryCodPrecheck } = require("../services/delhivery/delhiveryCodPrecheck");
 
 const generateInvoiceNo = () =>
   `INV-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -60,6 +61,27 @@ const createOrderWithShipping = async ({
   if (validationError) {
     const error = new Error(validationError);
     error.statusCode = 400;
+    throw error;
+  }
+
+  const delhiveryPrecheck = await runDelhiveryCodPrecheck({
+    destinationPincode: normalized.destinationPincode,
+    companyID,
+    paymentMethod: normalized.paymentMethod,
+    serviceType: options.serviceType || "surface",
+    expectedPickupDate: normalized.order_date || null,
+  });
+
+  if (
+    !delhiveryPrecheck.skipped &&
+    delhiveryPrecheck.can_proceed === false
+  ) {
+    const error = new Error(
+      delhiveryPrecheck.message ||
+        "Delhivery COD serviceability check failed for this pincode."
+    );
+    error.statusCode = 400;
+    error.delhivery = delhiveryPrecheck;
     throw error;
   }
 

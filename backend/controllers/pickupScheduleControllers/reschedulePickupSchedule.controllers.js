@@ -4,6 +4,9 @@ const {
   validatePickupTimeWindow,
   formatPickupSchedule,
 } = require("../../utils/pickupScheduleHelpers");
+const {
+  validateDelhiveryPickupLocationForCompany,
+} = require("../../utils/validateDelhiveryPickupLocation");
 
 const assertCanAccessSchedule = (req, schedule) => {
   if (req.user.role === "admin" && !req.user.permissionsManaged) {
@@ -39,7 +42,13 @@ const reschedulePickupSchedule = async (req, res) => {
       });
     }
 
-    const { pickupDate, pickupTime, pickupLocation, notes } = req.body;
+    const {
+      pickupDate,
+      pickupTime,
+      pickupLocation,
+      notes,
+      delhiveryPickupLocationId,
+    } = req.body;
     const parsedDate = parseISODateOnly(pickupDate || schedule.pickupDate);
     const nextTime = String(pickupTime || schedule.pickupTime || "11:00").trim();
 
@@ -55,6 +64,23 @@ const reschedulePickupSchedule = async (req, res) => {
     }
     if (notes !== undefined) {
       schedule.notes = String(notes).trim();
+    }
+    if (delhiveryPickupLocationId !== undefined) {
+      if (!delhiveryPickupLocationId) {
+        schedule.delhiveryPickupLocationId = null;
+      } else {
+        const check = await validateDelhiveryPickupLocationForCompany(
+          delhiveryPickupLocationId,
+          schedule.companyID
+        );
+        if (!check.ok) {
+          return res.status(400).json({
+            success: false,
+            message: check.message,
+          });
+        }
+        schedule.delhiveryPickupLocationId = check.location._id;
+      }
     }
     await schedule.save();
 

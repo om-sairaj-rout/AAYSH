@@ -236,6 +236,123 @@ delayedAt: {
       },
     },
 
+    delhiveryManifestStatus: {
+      type: String,
+      enum: ["idle", "running", "success", "failed", "uncertain"],
+    },
+    delhiveryShipmentType: {
+      type: String,
+      enum: ["SPS", "MPS"],
+    },
+    delhiveryMasterAwb: { type: String, default: "" },
+    delhiveryChildAwbs: { type: [String], default: [] },
+    delhiveryPickupLocationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DelhiveryPickupLocation",
+      default: null,
+    },
+    delhiveryPickupFacilityName: { type: String, default: "" },
+    delhiveryManifestedAt: { type: Date, default: null },
+    delhiveryEditOperationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DelhiveryShipmentEditOperation",
+      default: null,
+    },
+    delhiveryEditOperationStatus: {
+      type: String,
+      default: "",
+      index: true,
+    },
+    delhiveryCancelOperationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DelhiveryShipmentCancellationOperation",
+      default: null,
+    },
+    delhiveryCancelOperationStatus: {
+      type: String,
+      default: "",
+      index: true,
+    },
+    delhiveryCourierCancellationConfirmedAt: {
+      type: Date,
+      default: null,
+    },
+    delhiveryTrackingNextPollAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    delhiveryLastSyncedScanAt: {
+      type: Date,
+      default: null,
+    },
+    delhiveryLastSyncedScanKey: {
+      type: String,
+      default: "",
+    },
+    delhiveryTrackingLastError: {
+      type: String,
+      default: "",
+    },
+    delhiveryPackageTrackCursors: {
+      type: [
+        {
+          waybill: { type: String, default: "" },
+          lastSyncedScanAt: { type: Date, default: null },
+          lastSyncedScanKey: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
+    delhiveryTrackingClaimToken: {
+      type: String,
+      default: "",
+      index: true,
+    },
+    delhiveryTrackingClaimExpiresAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    trackonTrackingNextPollAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    trackonLastSyncedEventAt: {
+      type: Date,
+      default: null,
+    },
+    trackonLastSyncedEventKey: {
+      type: String,
+      default: "",
+    },
+    trackonTrackingLastError: {
+      type: String,
+      default: "",
+    },
+    trackonPackageTrackCursors: {
+      type: [
+        {
+          waybill: { type: String, default: "" },
+          lastSyncedScanAt: { type: Date, default: null },
+          lastSyncedScanKey: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
+    trackonTrackingClaimToken: {
+      type: String,
+      default: "",
+      index: true,
+    },
+    trackonTrackingClaimExpiresAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
   },
   {
     timestamps: true,

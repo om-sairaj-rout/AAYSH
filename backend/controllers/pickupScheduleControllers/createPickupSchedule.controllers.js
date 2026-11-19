@@ -5,6 +5,9 @@ const {
   validatePickupTimeWindow,
   formatPickupSchedule,
 } = require("../../utils/pickupScheduleHelpers");
+const {
+  validateDelhiveryPickupLocationForCompany,
+} = require("../../utils/validateDelhiveryPickupLocation");
 
 const createPickupSchedule = async (req, res) => {
   try {
@@ -17,6 +20,7 @@ const createPickupSchedule = async (req, res) => {
       weight = 0,
       preferredServiceType = "surface",
       notes = "",
+      delhiveryPickupLocationId = null,
     } = req.body;
 
     if (!pickupLocation || !String(pickupLocation).trim()) {
@@ -58,6 +62,21 @@ const createPickupSchedule = async (req, res) => {
       });
     }
 
+    let resolvedDelhiveryPickupId = null;
+    if (delhiveryPickupLocationId) {
+      const check = await validateDelhiveryPickupLocationForCompany(
+        delhiveryPickupLocationId,
+        companyID
+      );
+      if (!check.ok) {
+        return res.status(400).json({
+          success: false,
+          message: check.message,
+        });
+      }
+      resolvedDelhiveryPickupId = check.location._id;
+    }
+
     const schedule = await PickupSchedule.create({
       scheduleId: `SCH-${Date.now()}`,
       companyID,
@@ -71,6 +90,7 @@ const createPickupSchedule = async (req, res) => {
       weight: Number(weight) || 0,
       preferredServiceType: service,
       notes: String(notes || "").trim(),
+      delhiveryPickupLocationId: resolvedDelhiveryPickupId,
     });
 
     return res.status(201).json({

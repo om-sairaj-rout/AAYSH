@@ -48,7 +48,6 @@ const SchedulePickupModal = ({ isOpen, onClose, onSuccess, user }) => {
   const todayStr = todayISODateOnly();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(() => buildDefaultForm(user));
-
   useEffect(() => {
     if (!isOpen) return;
     setForm(buildDefaultForm(user));

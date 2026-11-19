@@ -38,6 +38,7 @@ const PATH_SECTION_MAP = {
   "/upload/template": "upload",
   "/update/status": "update",
   "/update/AWB": "update",
+  "/update/delhivery-awb": "update",
   "/update/serviceability": "update",
   "/update/pincode-zones": "update",
   "/update/courier-priority": "update",

@@ -6,11 +6,17 @@ import Footer from "./Footer";
 
 const Layout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
     <div className="flex w-full h-screen font-sans antialiased overflow-hidden relative" style={{ backgroundColor: '#EFF2F6' }}>
       {/* Sidebar with state controls */}
-      <SideBar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+      <SideBar
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapsed={() => setIsSidebarCollapsed((prev) => !prev)}
+      />
       
       {/* Background Overlay for Mobile view when Sidebar is pulled out */}
       {isSidebarOpen && (

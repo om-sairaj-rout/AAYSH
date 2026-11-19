@@ -75,12 +75,7 @@ const getOrdersByCompanyController = async (req, res) => {
           preserveNullAndEmptyArrays: true,
         },
       },
-      {
-        $sort: {
-          "shipping.pickupDate": -1,
-          orderDate: -1,
-        },
-      },
+      { $sort: { orderDate: -1, _id: -1 } },
     ];
 
     const [pageOrders, totalResult] = await Promise.all([

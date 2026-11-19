@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from '../utils/toast';
 import { createOrder, getNextOrderId, getOrderIdSequences } from "../api/ordersAPI";
+import { fetchDelhiveryCodPrecheck } from "../api/delhiveryAPI";
 import { completePickupScheduleAPI } from "../api/pickupScheduleAPI";
 import { getCompanyDetail } from "../api/companyAPI";
 import { getProducts } from "../api/productsAPI";
@@ -472,6 +473,7 @@ const CreateOrderDialog = forwardRef(({
   const [sequenceLocked, setSequenceLocked] = useState(false);
   const [orderDocuments, setOrderDocuments] = useState([]);
   const [pendingDocumentType, setPendingDocumentType] = useState("INVOICE");
+  const [codDelhiveryCheck, setCodDelhiveryCheck] = useState(null);
   const formInitKeyRef = useRef("");
 
   const activeCompanyId = useMemo(() => {
@@ -525,6 +527,61 @@ const CreateOrderDialog = forwardRef(({
       })
       .catch(() => {});
   }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      setCodDelhiveryCheck(null);
+      return;
+    }
+
+    if (form.payment_method !== "COD") {
+      setCodDelhiveryCheck(null);
+      return;
+    }
+
+    const pin = String(form.billing_pincode || "").trim();
+    if (!/^\d{6}$/.test(pin)) {
+      setCodDelhiveryCheck(null);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setCodDelhiveryCheck({ loading: true });
+      try {
+        const result = await fetchDelhiveryCodPrecheck({
+          destinationPin: pin,
+          paymentMethod: "COD",
+          companyId: activeCompanyId,
+          serviceType: "surface",
+        });
+        if (cancelled) return;
+        setCodDelhiveryCheck({
+          loading: false,
+          enforced: !result.skipped,
+          ...result,
+        });
+      } catch (err) {
+        if (cancelled) return;
+        setCodDelhiveryCheck({
+          loading: false,
+          enforced: true,
+          can_proceed: false,
+          message: err.message || "Delhivery check failed",
+        });
+      }
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    open,
+    form.payment_method,
+    form.billing_pincode,
+    activeCompanyId,
+  ]);
 
   useEffect(() => {
     if (!open) {
@@ -865,6 +922,21 @@ const CreateOrderDialog = forwardRef(({
       invoiceVal < 0
     ) {
       toast.validation("Invoice value is required");
+      return false;
+    }
+    if (form.payment_method === "COD" && codDelhiveryCheck?.loading) {
+      toast.validation("Checking Delhivery COD serviceability. Please wait.");
+      return false;
+    }
+    if (
+      form.payment_method === "COD" &&
+      codDelhiveryCheck?.enforced &&
+      codDelhiveryCheck.can_proceed === false
+    ) {
+      toast.validation(
+        codDelhiveryCheck.message ||
+          "This pincode is not serviceable for Delhivery COD."
+      );
       return false;
     }
     return true;
@@ -1276,6 +1348,39 @@ const CreateOrderDialog = forwardRef(({
                   <option value="COD">COD</option>
                   <option value="Prepaid">Prepaid</option>
                 </select>
+                {form.payment_method === "COD" && (
+                  <div className="md:col-span-2 rounded-xl border border-indigo-100 bg-indigo-50/40 px-3 py-2 text-xs text-slate-700">
+                    <p className="font-semibold text-[#1B2B4B]">
+                      Delhivery COD (Phase 1)
+                    </p>
+                    {!form.billing_pincode || form.billing_pincode.length < 6 ? (
+                      <p className="mt-1">
+                        Enter a 6-digit customer pincode to check Delhivery
+                        serviceability and expected TAT.
+                      </p>
+                    ) : codDelhiveryCheck?.loading ? (
+                      <p className="mt-1">Checking Delhivery…</p>
+                    ) : codDelhiveryCheck ? (
+                      <>
+                        <p className="mt-1">
+                          {codDelhiveryCheck.message ||
+                            "Delhivery check completed."}
+                        </p>
+                        {codDelhiveryCheck.tat?.tat && (
+                          <p className="mt-1 text-slate-600">
+                            TAT: {codDelhiveryCheck.tat.tat}
+                          </p>
+                        )}
+                        {codDelhiveryCheck.skipped && (
+                          <p className="mt-1 text-slate-500">
+                            Delhivery API not configured on server — COD
+                            creation proceeds without live check.
+                          </p>
+                        )}
+                      </>
+                    ) : null}
+                  </div>
+                )}
               </div>
             </section>
 

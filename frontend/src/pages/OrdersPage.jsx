@@ -22,6 +22,12 @@ import { generateLabelAPI, generateInvoiceAPI, generateManifestAPI } from '../ap
 import { getReversePickupDocumentByOrderId } from '../api/reversePickupAPI';
 import { toast } from '../utils/toast';
 import OrderTracker from '../components/OrderTracker';
+import EditDelhiveryShipmentModal from '../components/EditDelhiveryShipmentModal';
+import CancelDelhiveryShipmentModal from '../components/CancelDelhiveryShipmentModal';
+import DelhiveryShipmentDocuments from '../components/DelhiveryShipmentDocuments';
+import DelhiveryNdrActions from '../components/DelhiveryNdrActions';
+import OrderDateRangePicker from '../components/OrderDateRangePicker';
+import { isUnrestrictedAdmin } from '../utils/permissions';
 import OrdersAnalyticsPanel from '../components/OrdersAnalyticsPanel';
 import DocumentPreviewDialog from '../components/DocumentPreviewDialog';
 import {
@@ -355,19 +361,39 @@ const OrderDetailsModal = ({
   onDocumentsUpdated,
   onViewDocument,
   onDownloadDocument,
+  onOrderRefreshed,
+  user,
 }) => {
   const [pendingDocumentType, setPendingDocumentType] = useState('INVOICE');
   const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [editDelhiveryOpen, setEditDelhiveryOpen] = useState(false);
+  const [cancelDelhiveryOpen, setCancelDelhiveryOpen] = useState(false);
 
   if (!isOpen || !order) return null;
 
   const awbNumber = order.shipping?.awbNumber;
+  const isDelhiveryShipment =
+    String(order.shipping?.courierName || '').trim() === 'Delhivery' &&
+    Boolean(awbNumber) &&
+    order.shipping?.delhiveryManifestStatus === 'success';
   const currentStatus = order.shipping?.shippingStatus || 'Pending';
   const trackingHistory = order.shipping?.trackingHistory || [];
   const parties = getOrderPartySections(order);
   const pickupParty = parties.pickup;
   const deliveryParty = parties.delivery;
   const documents = order.companyDocuments || [];
+  const isDelhiveryAdmin = isUnrestrictedAdmin(user);
+  const delhiveryWaybills = [
+    ...new Set(
+      [
+        order.shipping?.delhiveryMasterAwb,
+        order.shipping?.awbNumber,
+        ...(order.shipping?.delhiveryChildAwbs || []),
+      ]
+        .map((w) => String(w || '').trim())
+        .filter(Boolean)
+    ),
+  ];
 
   const handleDocumentSelect = async (event) => {
     const file = event.target.files?.[0];
@@ -419,12 +445,32 @@ const OrderDetailsModal = ({
               Order Date: {formatDisplayDate(order.orderDate)} | Pickup Date: {formatDisplayDate(order.shipping?.pickupDate)}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            {canWrite && isDelhiveryShipment && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setEditDelhiveryOpen(true)}
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg bg-cyan-600 text-white hover:bg-cyan-700"
+                >
+                  Edit shipment
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCancelDelhiveryOpen(true)}
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-700"
+                >
+                  Cancel Delhivery Shipment
+                </button>
+              </>
+            )}
+            <button
+              onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
@@ -643,6 +689,18 @@ const OrderDetailsModal = ({
             )}
           </div>
 
+          {isDelhiveryShipment && (
+            <DelhiveryShipmentDocuments orderId={order._id} enabled={isDelhiveryShipment} />
+          )}
+
+          {isDelhiveryShipment && isDelhiveryAdmin && (
+            <DelhiveryNdrActions
+              orderId={order._id}
+              enabled={isDelhiveryShipment && isDelhiveryAdmin}
+              waybillOptions={delhiveryWaybills}
+            />
+          )}
+
         </div>
 
         <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex justify-end">
@@ -654,6 +712,18 @@ const OrderDetailsModal = ({
           </button>
         </div>
       </div>
+      <EditDelhiveryShipmentModal
+        isOpen={editDelhiveryOpen}
+        onClose={() => setEditDelhiveryOpen(false)}
+        order={order}
+        onSuccess={() => onOrderRefreshed?.(order._id)}
+      />
+      <CancelDelhiveryShipmentModal
+        isOpen={cancelDelhiveryOpen}
+        onClose={() => setCancelDelhiveryOpen(false)}
+        order={order}
+        onSuccess={() => onOrderRefreshed?.(order._id)}
+      />
     </div>
   );
 };
@@ -1191,8 +1261,8 @@ const OrdersPage = () => {
         />
 
         {/* ================= SEGMENT TABS & BULK ACTIONS BAR ================= */}
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 bg-white p-3 rounded-xl shadow-sm">
-          <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-100 bg-white p-3 rounded-xl shadow-sm">
+          <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto no-scrollbar min-w-0 max-w-full">
             {['All Orders', 'Pending', 'Booked','In Transit','Delivered','RTO','Cancelled', "Today's Shipments"].map((tabName) => {
               const isActive = activeSegment === tabName;
               return (
@@ -1203,7 +1273,7 @@ const OrdersPage = () => {
                     setCurrentPage(1);
                     setSelectedOrders([]);
                   }}
-                  className={`px-4 py-2 text-sm font-semibold rounded-lg border transition-all flex items-center gap-2 ${
+                  className={`shrink-0 px-4 py-2 text-sm font-semibold rounded-lg border transition-all flex items-center gap-2 whitespace-nowrap ${
                     isActive
                       ? 'bg-[#1E293B] border-[#1E293B] text-white shadow-sm'
                       : 'bg-white border-gray-200 text-slate-600 hover:bg-gray-50'
@@ -1342,31 +1412,15 @@ const OrdersPage = () => {
               </div>
             )}
 
-            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
-              <span className="text-xs font-bold text-slate-500">From:</span>
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => {
-                  setFromDate(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="bg-transparent text-xs font-medium text-slate-700 outline-none cursor-pointer"
-              />
-            </div>
-
-            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
-              <span className="text-xs font-bold text-slate-500">To:</span>
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => {
-                  setToDate(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="bg-transparent text-xs font-medium text-slate-700 outline-none cursor-pointer"
-              />
-            </div>
+            <OrderDateRangePicker
+              fromDate={fromDate}
+              toDate={toDate}
+              onChange={({ from, to }) => {
+                setFromDate(from || "");
+                setToDate(to || "");
+                setCurrentPage(1);
+              }}
+            />
 
             {(isSearchActive(searchType, searchQuery) || fromDate || toDate || (hasGlobalAccess && selectedCompany !== 'ALL')) && (
               <button
@@ -1708,9 +1762,11 @@ const OrdersPage = () => {
         onClose={() => { setIsDetailsModalOpen(false); setSelectedOrderDetails(null); }}
         order={selectedOrderDetails}
         canWrite={canWrite}
+        user={user}
         onDocumentsUpdated={handleOrderDocumentsUpdated}
         onViewDocument={handleViewCompanyDocument}
         onDownloadDocument={handleDownloadCompanyDocument}
+        onOrderRefreshed={fetchOrders}
       />
 
       <CreateOrderDialog

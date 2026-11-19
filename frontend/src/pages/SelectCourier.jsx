@@ -64,6 +64,16 @@ const SelectCourier = () => {
   const [assignmentResponse, setAssignmentResponse] = useState(null);
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
 
+  const hasPrepaid = useMemo(
+    () =>
+      orders.some(
+        (o) =>
+          String(o.paymentMethod || o.payment_method || '').toUpperCase() !==
+            'COD' || o.isReversePickup
+      ),
+    [orders]
+  );
+
   useEffect(() => {
     if (!canWrite) {
       toast.error('You do not have permission to ship orders');
@@ -315,19 +325,21 @@ const SelectCourier = () => {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-              Pickup Location <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={pickupLocation}
-              onChange={(e) => setPickupLocation(e.target.value)}
-              placeholder="Enter pickup location"
-              className="w-full text-sm font-medium bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-            />
-          </div>
+          {hasPrepaid && (
+            <div>
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                Trackon pickup location <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                required={hasPrepaid}
+                value={pickupLocation}
+                onChange={(e) => setPickupLocation(e.target.value)}
+                placeholder="Enter pickup location for Trackon (prepaid)"
+                className="w-full text-sm font-medium bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase mb-1">

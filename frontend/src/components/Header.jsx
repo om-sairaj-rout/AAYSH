@@ -83,6 +83,7 @@ const Header = ({ setIsSidebarOpen }) => {
     "/user/edit-account": "Edit User Profile",
     "/user/remove-account": "Remove User Account",
     "/update/AWB": "AWB Management",
+    "/update/delhivery-awb": "Delhivery AWB Pool",
     "/update/status": "Update Status",
     "/update/rates": "Rate Management",
     "/pickup": "Pickup Management",

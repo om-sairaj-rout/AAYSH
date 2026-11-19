@@ -100,6 +100,27 @@ const calculateInvoiceValue = (formData) =>
     ).toFixed(2)
   );
 
+const resolveCompanyOrdersSearch = (searchQuery) => {
+  const term = String(searchQuery || "").trim();
+  if (!term) return { search: undefined, searchType: undefined };
+
+  if (term.startsWith("#")) {
+    const orderId = term.replace(/^#+/, "").trim();
+    if (!orderId) return { search: undefined, searchType: undefined };
+    return { search: orderId, searchType: "order_id" };
+  }
+
+  if (/^ORD\d+$/i.test(term)) {
+    return { search: term, searchType: "order_id" };
+  }
+
+  if (/^\d{10}$/.test(term)) {
+    return { search: term, searchType: "phone" };
+  }
+
+  return { search: term };
+};
+
 const parseSearchDateRange = (term) => {
   const trimmed = String(term || "").trim();
   if (!trimmed) return null;
@@ -356,13 +377,15 @@ const UpdateOrdersPage = () => {
     setMessage({ type: "", text: "" });
 
     try {
+      const searchParams = resolveCompanyOrdersSearch(searchQuery);
       const data = await getOrdersByCompany(selectedCompany.companyID, {
         page: currentPage,
         perPage: ordersPerPage,
         paymentMethod: paymentFilter,
         from: fromDate || undefined,
         to: toDate || undefined,
-        search: searchQuery.trim() || undefined,
+        search: searchParams.search,
+        searchType: searchParams.searchType,
       });
 
       if (!data.success) {

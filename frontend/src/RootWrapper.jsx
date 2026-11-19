@@ -20,6 +20,7 @@ import OrdersPage from "./pages/OrdersPage.jsx";
 import EditAccount from "./pages/EditAccount.jsx";
 import RemoveAccount from "./pages/RemoveAccount.jsx";
 import AwbManagement from "./pages/AwbManagement.jsx";
+import DelhiveryAwbManagement from "./pages/DelhiveryAwbManagement.jsx";
 import SelectCourier from "./pages/SelectCourier.jsx";
 import AwbPage from "./pages/AwbPage.jsx";
 import PickupRoute from "./PickupRoute.jsx";
@@ -81,6 +82,10 @@ const router = createBrowserRouter([
       { path: "/user/edit-account", element: guard("/user/edit-account", <EditAccount />) },
       { path: "/user/remove-account", element: guard("/user/remove-account", <RemoveAccount />, "write") },
       { path: "/update/AWB", element: guard("/update/AWB", <AwbManagement />) },
+      {
+        path: "/update/delhivery-awb",
+        element: guard("/update/delhivery-awb", <DelhiveryAwbManagement />),
+      },
       { path: "/update/serviceability", element: guard("/update/serviceability", <ServiceabilityPage />) },
       { path: "/update/pincode-zones", element: guard("/update/pincode-zones", <PincodeZoneManagementPage />) },
       { path: "/update/courier-priority", element: guard("/update/courier-priority", <CourierPriorityPage />) },
