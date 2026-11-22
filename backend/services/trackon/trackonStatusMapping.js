@@ -107,14 +107,74 @@ const mapTrackonCodeToAaysh = (trackingCode) => {
 };
 
 /**
- * Never regress Delivered/RTO; otherwise require forward rank advance (or lateral Undelivered/Delayed).
+ * Best forward status from full Trackon payload (rank, then event time).
+ * Catches Delivered in summary/lstDetails even when partition skips backdated rows.
  */
+const RTO_TERMINAL_TRACKING_CODES = new Set([
+  "RSET",
+  "RMFT",
+  "RIST",
+  "RISR",
+  "RITE",
+  "RIRE",
+  "RHOB",
+  "RHOD",
+  "RHON",
+]);
+
+const pickBestForwardTrackonStatusEvent = (events) => {
+  let best = null;
+
+  for (const ev of events || []) {
+    const mapped = mapTrackonCodeToAaysh(ev.trackingCode);
+    if (
+      !mapped?.aayshStatus ||
+      mapped.skipStatusChange ||
+      mapped.reversePickupCode ||
+      mapped.unknownCode
+    ) {
+      continue;
+    }
+
+    const rank = rankOf(mapped.aayshStatus);
+    const t = ev.eventAt instanceof Date ? ev.eventAt.getTime() : 0;
+
+    if (!best || rank > best.rank || (rank === best.rank && t > best.t)) {
+      best = { ev, mapped, rank, t };
+    }
+  }
+
+  if (best?.mapped?.aayshStatus === "Delivered") {
+    let latestRto = null;
+    for (const ev of events || []) {
+      const code = String(ev.trackingCode || "").trim().toUpperCase();
+      if (!RTO_TERMINAL_TRACKING_CODES.has(code)) continue;
+      const mapped = mapTrackonCodeToAaysh(code);
+      if (mapped?.aayshStatus !== "RTO") continue;
+      const t = ev.eventAt instanceof Date ? ev.eventAt.getTime() : 0;
+      if (!latestRto || t > latestRto.t) {
+        latestRto = { ev, mapped, rank: rankOf("RTO"), t };
+      }
+    }
+    if (latestRto && latestRto.t >= best.t) {
+      best = latestRto;
+    }
+  }
+
+  return best;
+};
+
 const shouldApplyTrackonMappedStatus = (currentStatus, nextStatus) => {
   const current = String(currentStatus || "").trim();
   const next = String(nextStatus || "").trim();
   if (!next) return false;
   if (current === "Delivered" || current === "RTO") return false;
   if (next === current) return true;
+
+  if (next === "Undelivered" || next === "Delayed") {
+    return true;
+  }
+
   const currentRank = rankOf(current);
   const nextRank = rankOf(next);
   if (currentRank < 0) return true;
@@ -130,6 +190,7 @@ module.exports = {
   isTerminalAayshStatus,
   isReversePickupTrackonCode,
   mapTrackonCodeToAaysh,
+  pickBestForwardTrackonStatusEvent,
   shouldApplyTrackonMappedStatus,
   rankOf,
 };

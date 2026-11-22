@@ -2,6 +2,7 @@ const assert = require("assert");
 const {
   TRACKON_CODE_TO_AAYSH,
   mapTrackonCodeToAaysh,
+  pickBestForwardTrackonStatusEvent,
   shouldApplyTrackonMappedStatus,
   isReversePickupTrackonCode,
 } = require("../services/trackon/trackonStatusMapping");
@@ -208,6 +209,7 @@ const syncKey = buildTrackonEventSyncKey({
 
 const shippingWithCursor = {
   awbNumber: "TRK100",
+  shippingStatus: "In Transit",
   trackonLastSyncedEventAt: new Date("2025-11-18T10:00:00.000Z"),
   trackonLastSyncedEventKey: syncKey,
 };
@@ -216,7 +218,8 @@ const { newEvents } = partitionTrackonEventsForSync(
   shippingWithCursor,
   parsed.events,
   "TRK100",
-  buildTrackonEventSyncKey
+  buildTrackonEventSyncKey,
+  mapTrackonCodeToAaysh
 );
 assert.strictEqual(
   newEvents.some((e) => e.trackingCode === "BOKN"),
@@ -229,7 +232,8 @@ const { newEvents: freshNew } = partitionTrackonEventsForSync(
   freshShip,
   parsed.events,
   "TRK100",
-  buildTrackonEventSyncKey
+  buildTrackonEventSyncKey,
+  mapTrackonCodeToAaysh
 );
 assert.ok(freshNew.length >= 1);
 
@@ -274,6 +278,144 @@ for (let i = 0; i < codes.length; i++) {
   }
 }
 assert.strictEqual(shouldApplyTrackonMappedStatus("Delivered", "In Transit"), false);
+
+const awb100475Cursor = {
+  awbNumber: "100475098683",
+  shippingStatus: "In Transit",
+  trackonLastSyncedEventAt: new Date("2026-11-22T06:36:00.000Z"),
+  trackonLastSyncedEventKey:
+    "100475098683|ISDE|2026-11-22T06:36:00.000Z|arrived at destination|ndah-noida branch, uttar pradesh|arrived at destination",
+};
+const backdatedDelivered = parseTrackonTrackingPayload({
+  summaryTrack: null,
+  CustomersummaryTrack: {
+    AWBNO: "100475098683",
+    TRACKING_CODE: "DDUB",
+    CURRENT_STATUS: "DELIVERED",
+    CURRENT_CITY: "NOIDA",
+    EVENTDATE: "21/11/2026",
+    EVENTTIME: "14:00",
+  },
+  lstDetails: [
+    {
+      TRACKING_CODE: "DDUB",
+      CURRENT_STATUS: "DELIVERED",
+      CURRENT_CITY: "NOIDA",
+      EVENTDATE: "21/11/2026",
+      EVENTTIME: "14:00",
+    },
+  ],
+});
+const { newEvents: awbPartitioned } = partitionTrackonEventsForSync(
+  awb100475Cursor,
+  backdatedDelivered.events,
+  "100475098683",
+  buildTrackonEventSyncKey,
+  mapTrackonCodeToAaysh
+);
+assert.strictEqual(
+  awbPartitioned.some((e) => e.trackingCode === "DDUB"),
+  true,
+  "AWB 100475098683: backdated Delivered must not be dropped by cursor"
+);
+const bestForward = pickBestForwardTrackonStatusEvent(backdatedDelivered.events);
+assert.strictEqual(bestForward.mapped.aayshStatus, "Delivered");
+assert.strictEqual(bestForward.ev.city, "NOIDA");
+
+assert.strictEqual(
+  shouldApplyTrackonMappedStatus("Out For Delivery", "Undelivered"),
+  true,
+  "NDR Undelivered from OFD"
+);
+assert.strictEqual(
+  shouldApplyTrackonMappedStatus("Undelivered", "Out For Delivery"),
+  true,
+  "redelivery attempt after Undelivered"
+);
+assert.strictEqual(
+  shouldApplyTrackonMappedStatus("Undelivered", "Delivered"),
+  true,
+  "Delivered after failed attempt"
+);
+
+const rtoVsDelivered = parseTrackonTrackingPayload({
+  summaryTrack: null,
+  CustomersummaryTrack: {
+    AWBNO: "AWB9",
+    TRACKING_CODE: "DDUB",
+    CURRENT_STATUS: "DELIVERED",
+    EVENTDATE: "20/11/2026",
+    EVENTTIME: "10:00",
+  },
+  lstDetails: [
+    {
+      TRACKING_CODE: "DDUB",
+      CURRENT_STATUS: "DELIVERED",
+      EVENTDATE: "20/11/2026",
+      EVENTTIME: "10:00",
+    },
+    {
+      TRACKING_CODE: "RHOD",
+      CURRENT_STATUS: "RTO DELIVERED",
+      CURRENT_CITY: "MUMBAI",
+      EVENTDATE: "20/11/2026",
+      EVENTTIME: "18:00",
+    },
+  ],
+});
+const rtoBest = pickBestForwardTrackonStatusEvent(rtoVsDelivered.events);
+assert.strictEqual(rtoBest.mapped.aayshStatus, "RTO");
+assert.strictEqual(rtoBest.ev.trackingCode, "RHOD");
+
+const stuckPayload = parseTrackonTrackingPayload({
+  summaryTrack: null,
+  CustomersummaryTrack: {
+    AWBNO: "AWB9",
+    TRACKING_CODE: "DDUB",
+    CURRENT_STATUS: "DELIVERED",
+    CURRENT_CITY: "PUNE",
+    EVENTDATE: "20/11/2026",
+    EVENTTIME: "10:00",
+  },
+  lstDetails: [
+    {
+      TRACKING_CODE: "DDUB",
+      CURRENT_STATUS: "DELIVERED",
+      CURRENT_CITY: "PUNE",
+      EVENTDATE: "20/11/2026",
+      EVENTTIME: "10:00",
+    },
+  ],
+});
+const deliveredKey = buildTrackonEventSyncKey({
+  awb: "AWB9",
+  trackingCode: "DDUB",
+  eventAt: parseTrackonEventDateTime("20/11/2026", "10:00"),
+  currentStatus: "DELIVERED",
+  city: "PUNE",
+  remarks: "DELIVERED",
+});
+const syncedButWrongStatus = {
+  awbNumber: "AWB9",
+  shippingStatus: "In Transit",
+  trackonLastSyncedEventAt: parseTrackonEventDateTime("20/11/2026", "10:00"),
+  trackonLastSyncedEventKey: deliveredKey,
+};
+const { newEvents: replayBlocked } = partitionTrackonEventsForSync(
+  syncedButWrongStatus,
+  stuckPayload.events,
+  "AWB9",
+  buildTrackonEventSyncKey,
+  mapTrackonCodeToAaysh
+);
+assert.strictEqual(replayBlocked.length, 0, "partition skips duplicate keys");
+const rescueBest = pickBestForwardTrackonStatusEvent(stuckPayload.events);
+assert.strictEqual(rescueBest.mapped.aayshStatus, "Delivered");
+assert.strictEqual(
+  shouldApplyTrackonMappedStatus(syncedButWrongStatus.shippingStatus, "Delivered"),
+  true,
+  "best-forward can still advance when partition is empty"
+);
 
 assert.strictEqual(typeof claimTrackonTrackingPoll, "function");
 assert.strictEqual(typeof claimShippingsForTrackonPoll, "function");

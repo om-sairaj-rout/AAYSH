@@ -9,6 +9,7 @@ const {
 } = require("./trackonTrackParse");
 const {
   mapTrackonCodeToAaysh,
+  pickBestForwardTrackonStatusEvent,
   shouldApplyTrackonMappedStatus,
 } = require("./trackonStatusMapping");
 const {
@@ -150,19 +151,18 @@ const syncTrackonShippingFromTrack = async (shipping, order, trackonRaw) => {
     shipping,
     parsed.events,
     awb,
-    buildTrackonEventSyncKey
+    buildTrackonEventSyncKey,
+    mapTrackonCodeToAaysh
   );
-
-  if (!newEvents.length) {
-    scheduleNextPoll(shipping);
-    await shipping.save();
-    return { ok: true, updated: false, reason: "no_new_events" };
-  }
 
   let anyChanged = false;
 
   for (const ev of newEvents) {
-    const mapped = mapTrackonCodeToAaysh(ev.trackingCode);
+    const mapped =
+      mapTrackonCodeToAaysh(ev.trackingCode) || {
+        aayshStatus: null,
+        unknownCode: true,
+      };
     const eventTime = ev.eventAt || new Date();
     const location = ev.city || "";
     const remarks =
@@ -233,11 +233,60 @@ const syncTrackonShippingFromTrack = async (shipping, order, trackonRaw) => {
     setTrackonCursor(shipping, awb, eventTime, ev.syncKey);
   }
 
+  const bestForward = pickBestForwardTrackonStatusEvent(parsed.events);
+  if (
+    bestForward &&
+    shouldApplyTrackonMappedStatus(
+      shipping.shippingStatus,
+      bestForward.mapped.aayshStatus
+    )
+  ) {
+    const eventTime = bestForward.ev.eventAt || new Date();
+    const location = bestForward.ev.city || "";
+    const remarks =
+      bestForward.ev.remarks ||
+      [bestForward.ev.trackingCode, bestForward.ev.currentStatus]
+        .filter(Boolean)
+        .join(" ");
+
+    const result = await applyShippingStatusWithTracking({
+      shipping,
+      order,
+      status: bestForward.mapped.aayshStatus,
+      remarks,
+      failureReason:
+        bestForward.mapped.aayshStatus === "Undelivered"
+          ? bestForward.ev.ndrReason || remarks
+          : "",
+      location,
+      eventTime,
+      updatedBy: null,
+      skipIfUnchanged: true,
+    });
+    anyChanged = anyChanged || result.changed;
+    const bestSyncKey =
+      bestForward.ev.syncKey ||
+      buildTrackonEventSyncKey({
+        awb,
+        trackingCode: bestForward.ev.trackingCode,
+        eventAt: bestForward.ev.eventAt,
+        currentStatus: bestForward.ev.currentStatus,
+        city: bestForward.ev.city,
+        remarks: bestForward.ev.remarks,
+      });
+    setTrackonCursor(shipping, awb, eventTime, bestSyncKey);
+  }
+
   shipping.trackonTrackingLastError = "";
   scheduleNextPoll(shipping);
   await shipping.save();
 
-  return { ok: true, updated: anyChanged, newEvents: newEvents.length };
+  return {
+    ok: true,
+    updated: anyChanged,
+    newEvents: newEvents.length,
+    reason: newEvents.length ? undefined : "no_new_partitioned_events",
+  };
 };
 
 const runTrackonTrackingSyncOnce = async ({ source = "cron" } = {}) => {

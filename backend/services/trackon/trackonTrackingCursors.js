@@ -1,4 +1,6 @@
-const isOlderTrackonEvent = (cursor, eventAt, syncKey) => {
+const { rankOf } = require("./trackonStatusMapping");
+
+const isOlderTrackonEvent = (cursor, eventAt, syncKey, mappedAayshStatus, currentAayshStatus) => {
   const lastAt = cursor?.lastSyncedScanAt
     ? new Date(cursor.lastSyncedScanAt).getTime()
     : 0;
@@ -6,7 +8,22 @@ const isOlderTrackonEvent = (cursor, eventAt, syncKey) => {
   const key = String(syncKey || "").trim();
   const ms = eventAt ? eventAt.getTime() : 0;
 
-  if (ms && lastAt && ms < lastAt) return true;
+  if (key && lastKey && key === lastKey) return true;
+
+  if (ms && lastAt && ms < lastAt) {
+    const nextRank = rankOf(mappedAayshStatus);
+    const currentRank = rankOf(currentAayshStatus);
+    const shippedRank = rankOf("Shipped");
+    if (
+      mappedAayshStatus &&
+      currentRank >= shippedRank &&
+      nextRank > currentRank
+    ) {
+      return false;
+    }
+    return true;
+  }
+
   if (ms && lastAt && ms === lastAt && key && lastKey === key) return true;
   if (!ms && key && lastKey && lastKey === key) return true;
   return false;
@@ -56,9 +73,10 @@ const setTrackonCursor = (shipping, awb, eventAt, syncKey) => {
   }
 };
 
-const partitionTrackonEventsForSync = (shipping, events, awb, buildKey) => {
+const partitionTrackonEventsForSync = (shipping, events, awb, buildKey, mapCode) => {
   const newEvents = [];
   const wb = String(awb || shipping?.awbNumber || "").trim();
+  const currentStatus = String(shipping?.shippingStatus || "").trim();
 
   for (const ev of events || []) {
     const eventAt = ev.eventAt || null;
@@ -71,8 +89,17 @@ const partitionTrackonEventsForSync = (shipping, events, awb, buildKey) => {
       remarks: ev.remarks,
     });
 
+    const mappedAayshStatus = mapCode
+      ? mapCode(ev.trackingCode)?.aayshStatus
+      : null;
     const cursor = getTrackonCursor(shipping, wb);
-    const older = isOlderTrackonEvent(cursor, eventAt, syncKey);
+    const older = isOlderTrackonEvent(
+      cursor,
+      eventAt,
+      syncKey,
+      mappedAayshStatus,
+      currentStatus
+    );
     ev.hasNewEvent = !older;
     ev.syncKey = syncKey;
 
