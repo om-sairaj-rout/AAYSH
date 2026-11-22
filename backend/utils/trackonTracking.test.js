@@ -155,6 +155,15 @@ assert.strictEqual(errPayload.events.length, 0);
 
 assert.strictEqual(shouldPollTrackonShipping(trackonShip, order), true);
 assert.strictEqual(
+  shouldPollTrackonShipping({ ...trackonShip, courierName: "TRACKON" }, order),
+  true,
+  "stored courierName TRACKON must be eligible"
+);
+assert.strictEqual(
+  shouldPollTrackonShipping({ ...trackonShip, courierName: "TRACKON D" }, order),
+  true
+);
+assert.strictEqual(
   shouldPollTrackonShipping({ ...trackonShip, courierName: "Delhivery" }, order),
   false
 );
@@ -248,8 +257,23 @@ assert.strictEqual(isTimeoutError({ code: "ECONNABORTED" }), true);
 assert.strictEqual(isTimeoutError({ message: "timeout of 15000ms exceeded" }), true);
 assert.strictEqual(isTimeoutError({ code: "ENOTFOUND" }), false);
 
-assert.strictEqual(trackonEligibleMongoFilter.courierName, "Trackon");
+assert.ok(trackonEligibleMongoFilter.courierName.$regex);
 assert.ok(trackonEligibleMongoFilter.awbNumber.$ne === "");
+
+const statusProgression = ["Shipped", "In Transit", "Out For Delivery", "Delivered"];
+const codes = ["PRSS", "MFTD", "DRSG", "DDUB"];
+for (let i = 0; i < codes.length; i++) {
+  const next = mapTrackonCodeToAaysh(codes[i]).aayshStatus;
+  assert.strictEqual(next, statusProgression[i], `${codes[i]} progression`);
+  if (i > 0) {
+    assert.strictEqual(
+      shouldApplyTrackonMappedStatus(statusProgression[i - 1], next),
+      true,
+      `advance ${statusProgression[i - 1]} -> ${next}`
+    );
+  }
+}
+assert.strictEqual(shouldApplyTrackonMappedStatus("Delivered", "In Transit"), false);
 
 assert.strictEqual(typeof claimTrackonTrackingPoll, "function");
 assert.strictEqual(typeof claimShippingsForTrackonPoll, "function");

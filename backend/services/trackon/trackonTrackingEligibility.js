@@ -3,6 +3,7 @@ const {
 } = require("./trackonStatusMapping");
 
 const TRACKON_COURIER_NAME = "Trackon";
+const TRACKON_COURIER_NAME_PATTERN = /^trackon(\s.*)?$/i;
 
 const TRACKON_TRACKING_EXCLUDED_SHIPPING_STATUSES = [
   "Pending",
@@ -14,8 +15,9 @@ const TRACKON_TRACKING_EXCLUDED_SHIPPING_STATUSES = [
   "Exchange",
 ];
 
+/** Production records use `TRACKON` / `TRACKON D` — not title-case `Trackon`. */
 const isTrackonForwardCourier = (shipping) =>
-  String(shipping?.courierName || "").trim() === TRACKON_COURIER_NAME;
+  TRACKON_COURIER_NAME_PATTERN.test(String(shipping?.courierName || "").trim());
 
 const isTrackonAwbReady = (shipping) =>
   Boolean(String(shipping?.awbNumber || "").trim());
@@ -44,7 +46,7 @@ const isTrackonManifestReady = (shipping) =>
   isTrackonForwardCourier(shipping) && isTrackonAwbReady(shipping);
 
 const trackonEligibleMongoFilter = {
-  courierName: TRACKON_COURIER_NAME,
+  courierName: { $regex: TRACKON_COURIER_NAME_PATTERN },
   awbNumber: { $exists: true, $ne: "" },
 };
 
