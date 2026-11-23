@@ -18,9 +18,10 @@ const CustomerTracking = () => {
         setLoading(true);
         const res = await getPublicOrderByAwb(awbNumber);
 
-        if (res?.success && res.order) {
+        if (res?.success && (res.order || res.shipping)) {
           setOrder({
-            ...res.order,
+            ...(res.order || {}),
+            trackonOnly: Boolean(res.trackonOnly),
             expectedDeliveryDate: res.expectedDeliveryDate,
             shipping: {
               ...res.shipping,

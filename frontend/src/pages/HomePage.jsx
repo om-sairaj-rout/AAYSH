@@ -12,21 +12,24 @@ import {
   Phone,
   X,
   Package,
-  Building,
-  User,
   Calendar,
   Sun,
   Moon,
-  MapPin,
-  Zap,
   Globe,
   ChevronRight,
   Route,
 } from "lucide-react";
 import aayshlogo2 from "../assets/aaysh_logo_2.png";
 import { useNavigate } from "react-router-dom";
+
 import WhatsAppBut from "../components/WhatsAppBut";
 import { getPublicOrderByAwb } from "../api/ordersAPI";
+
+const IMG = {
+  hero: "/images/hero-logistics.jpg",
+  features: "/images/features-warehouse.jpg",
+  trust: "/images/trust-fleet.jpg",
+};
 import { formatDisplayDate } from "../utils/dateTime";
 import OrderTracker from "../components/OrderTracker";
 
@@ -59,53 +62,43 @@ const HomePage = () => {
 
   const t = isDark
     ? {
-        page: "bg-[#060b14] text-slate-100",
-        nav: "bg-[#060b14]/80 border-white/10 backdrop-blur-xl",
+        page: "bg-[#1F1F1F] text-slate-100",
+        nav: "bg-[#1F1F1F]/95 border-white/10 backdrop-blur-xl",
         navLink: "text-slate-400 hover:text-white",
-        heroGlow: "from-cyan-500/20 via-blue-600/10 to-transparent",
-        heroGrid: "opacity-[0.07]",
-        badge: "bg-cyan-500/10 text-cyan-300 border-cyan-500/20",
         h1: "text-white",
-        h1Accent: "text-cyan-400",
         sub: "text-slate-400",
-        card: "bg-white/[0.04] border-white/10 backdrop-blur-md",
-        cardHover: "hover:border-cyan-500/30 hover:bg-white/[0.06]",
-        input: "bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-cyan-500/50",
-        btnPrimary: "bg-cyan-500 hover:bg-cyan-400 text-[#060b14]",
+        card: "bg-white/[0.04] border-white/10",
+        cardHover: "hover:border-orange-500/40 hover:shadow-lg",
+        input: "bg-white/95 border-white/20 text-[#2B2B2B] placeholder-slate-500",
+        btnPrimary: "bg-[#F57C00] hover:bg-[#E06F00] text-white",
         btnSecondary: "bg-white/10 hover:bg-white/15 text-white border border-white/10",
-        statCard: "bg-gradient-to-br from-white/[0.06] to-white/[0.02] border-white/10",
-        section: "bg-[#0a1120]",
-        sectionAlt: "bg-[#060b14]",
-        featureIcon: "bg-cyan-500/15 text-cyan-400",
-        footer: "border-white/10 bg-[#040810] text-slate-500",
-        trackSection: "bg-[#0a1120]/80 border-white/10",
-        trackCard: "bg-white/[0.04] border-white/10",
+        section: "bg-[#1F1F1F]",
+        sectionAlt: "bg-[#2B2B2B]",
+        featureIcon: "bg-orange-500/20 text-orange-400",
+        footer: "border-white/10 bg-[#141414] text-slate-500",
+        trackSection: "bg-[#2B2B2B] border-white/10",
+        trackCard: "bg-white/[0.06] border-white/10",
         trackMuted: "text-slate-500",
         contactCard: "bg-white/[0.04] border-white/10",
       }
     : {
-        page: "bg-[#f4f7fb] text-slate-800",
-        nav: "bg-white/90 border-slate-200/80 backdrop-blur-xl",
-        navLink: "text-slate-600 hover:text-[#1B2B4B]",
-        heroGlow: "from-cyan-100/80 via-blue-50/50 to-transparent",
-        heroGrid: "opacity-[0.35]",
-        badge: "bg-cyan-50 text-cyan-700 border-cyan-200/60",
-        h1: "text-[#1B2B4B]",
-        h1Accent: "text-cyan-600",
-        sub: "text-slate-500",
-        card: "bg-white border-slate-200/80 shadow-sm",
-        cardHover: "hover:border-cyan-200 hover:shadow-md",
-        input: "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-cyan-500",
-        btnPrimary: "bg-[#1B2B4B] hover:bg-[#152238] text-white",
-        btnSecondary: "bg-white hover:bg-slate-50 text-[#1B2B4B] border border-slate-200",
-        statCard: "bg-white border-slate-200/80 shadow-sm",
+        page: "bg-white text-[#2B2B2B]",
+        nav: "bg-white/95 border-slate-200 shadow-sm backdrop-blur-xl",
+        navLink: "text-slate-600 hover:text-[#2B2B2B]",
+        h1: "text-[#2B2B2B]",
+        sub: "text-slate-600",
+        card: "bg-white border-slate-200/90 shadow-sm",
+        cardHover: "hover:border-orange-200 hover:shadow-md",
+        input: "bg-white border-slate-200 text-[#2B2B2B] placeholder-slate-400 focus:border-orange-400 focus:ring-orange-400/20",
+        btnPrimary: "bg-[#F57C00] hover:bg-[#E06F00] text-white",
+        btnSecondary: "bg-white hover:bg-slate-50 text-[#2B2B2B] border border-slate-200",
         section: "bg-white",
-        sectionAlt: "bg-[#f4f7fb]",
-        featureIcon: "bg-[#1B2B4B] text-white",
-        footer: "border-slate-200 bg-white text-slate-400",
-        trackSection: "bg-slate-100/80 border-slate-200",
-        trackCard: "bg-white border-slate-200",
-        trackMuted: "text-slate-400",
+        sectionAlt: "bg-slate-50",
+        featureIcon: "bg-[#2B2B2B] text-[#F57C00]",
+        footer: "border-slate-200 bg-white text-slate-500",
+        trackSection: "bg-slate-50 border-slate-200",
+        trackCard: "bg-white border-slate-200 shadow-sm",
+        trackMuted: "text-slate-500",
         contactCard: "bg-white border-slate-200 shadow-lg",
       };
 
@@ -125,13 +118,14 @@ const HomePage = () => {
 
       const res = await getPublicOrderByAwb(awbNumber.trim());
 
-      if (res?.success && res.order) {
+      if (res?.success && (res.order || res.shipping)) {
         setOrderData({
-          ...res.order,
+          ...(res.order || {}),
+          trackonOnly: Boolean(res.trackonOnly),
           expectedDeliveryDate: res.expectedDeliveryDate,
           shipping: {
             ...res.shipping,
-            trackingHistory: res.tracking,
+            trackingHistory: res.tracking || [],
           },
         });
       } else {
@@ -143,9 +137,13 @@ const HomePage = () => {
       setOrderData(null);
       const message = err?.message || "";
       setTrackError(
-        message.toLowerCase().includes("not found") || message.toLowerCase().includes("no shipment")
-          ? "No shipment found for this AWB number."
-          : "Unable to fetch tracking. Please try again."
+        message.toLowerCase().includes("temporarily unavailable")
+          ? message
+          : message.toLowerCase().includes("valid awb")
+            ? "Please enter a valid AWB number."
+            : message.toLowerCase().includes("not found") || message.toLowerCase().includes("no shipment")
+              ? "No shipment found for this AWB number."
+              : "Unable to fetch tracking. Please try again."
       );
     } finally {
       setLoadingTrack(false);
@@ -159,7 +157,7 @@ const HomePage = () => {
         case "Booked":
           return `${base} bg-emerald-500/15 text-emerald-300 border-emerald-500/30`;
         case "Delivered":
-          return `${base} bg-cyan-500/15 text-cyan-300 border-cyan-500/30`;
+          return `${base} bg-orange-500/15 text-orange-300 border-orange-500/30`;
         case "In Transit":
           return `${base} bg-blue-500/15 text-blue-300 border-blue-500/30`;
         case "Cancelled":
@@ -172,7 +170,7 @@ const HomePage = () => {
       case "Booked":
         return `${base} bg-emerald-50 text-emerald-700 border-emerald-200`;
       case "Delivered":
-        return `${base} bg-cyan-50 text-cyan-700 border-cyan-200`;
+        return `${base} bg-orange-50 text-orange-800 border-orange-200`;
       case "In Transit":
         return `${base} bg-blue-50 text-blue-700 border-blue-200`;
       case "Cancelled":
@@ -218,63 +216,30 @@ const HomePage = () => {
 
       {/* Nav */}
       <nav className={`sticky top-0 z-50 border-b transition-colors duration-500 ${t.nav}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center justify-between gap-3 w-full sm:w-auto">
-            <div className="flex items-center gap-3 min-w-0">
-              <img src={aayshlogo2} alt="Aaysh Express" className="h-10 w-auto object-contain" />
-              <span className={`text-lg font-bold tracking-tight hidden sm:block ${t.h1}`}>
-                AAYSH<span className="text-cyan-500">EXPRESS</span>
-              </span>
-            </div>
-            <div className="flex items-center gap-2 sm:hidden">
-              <button
-                type="button"
-                onClick={toggle}
-                aria-label="Toggle theme"
-                className={`p-2.5 rounded-xl transition-all ${t.btnSecondary}`}
-              >
-                {isDark ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/login")}
-                className={`inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold ${t.btnPrimary}`}
-              >
-                Login
-              </button>
-            </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+          <a href="/" className="flex items-center gap-3 min-w-0 shrink-0">
+            <img src={aayshlogo2} alt="Aaysh Express" className="h-10 sm:h-11 w-auto object-contain" />
+            <span className={`text-base sm:text-lg font-bold tracking-tight hidden xs:block ${t.h1}`}>
+              AAYSH<span className="text-[#F57C00]">EXPRESS</span>
+            </span>
+          </a>
+
+          <div className="hidden lg:flex items-center gap-10 text-sm font-semibold">
+            <a href="#track" className={`transition-colors ${t.navLink}`}>
+              Track parcel
+            </a>
+            <a href="#features" className={`transition-colors ${t.navLink}`}>
+              Features
+            </a>
+            <a href="#how-it-works" className={`transition-colors ${t.navLink}`}>
+              How it works
+            </a>
+            <a href="#contact" className={`transition-colors ${t.navLink}`}>
+              Support
+            </a>
           </div>
 
-          <form
-            onSubmit={handleTrack}
-            className={`flex-1 w-full sm:max-w-md flex gap-2 p-1.5 rounded-xl border ${t.card}`}
-          >
-            <div className="relative flex-1 min-w-0">
-              <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${t.trackMuted}`} />
-              <input
-                type="text"
-                placeholder="Track AWB..."
-                value={awbNumber}
-                onChange={(e) => setAwbNumber(e.target.value)}
-                className={`w-full text-sm pl-9 pr-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-cyan-500/30 ${t.input}`}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loadingTrack}
-              className={`shrink-0 px-4 py-2.5 rounded-lg text-xs font-bold ${t.btnPrimary}`}
-            >
-              {loadingTrack ? "…" : "Track"}
-            </button>
-          </form>
-
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium">
-            <a href="#features" className={`transition-colors ${t.navLink}`}>Features</a>
-            <a href="#how-it-works" className={`transition-colors ${t.navLink}`}>How it works</a>
-            <a href="#contact" className={`transition-colors ${t.navLink}`}>Support</a>
-          </div>
-
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={toggle}
@@ -286,107 +251,98 @@ const HomePage = () => {
             <button
               type="button"
               onClick={() => navigate("/login")}
-              className={`hidden sm:inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${t.btnPrimary}`}
+              className={`inline-flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${t.btnPrimary}`}
             >
-              Client Login <ChevronRight size={16} />
+              Client Login <ChevronRight size={16} className="hidden sm:block" />
             </button>
           </div>
         </div>
       </nav>
 
-      {/* Hero */}
-      <header className="relative overflow-hidden">
-        <div className={`absolute inset-0 bg-gradient-to-br ${t.heroGlow} pointer-events-none`} />
-        <div
-          className={`absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,currentColor_1px,transparent_0)] [background-size:24px_24px] ${t.heroGrid} pointer-events-none`}
-          style={{ color: isDark ? "#fff" : "#1B2B4B" }}
+      {/* Hero — truck left, content right */}
+      <header id="track" className="relative min-h-[min(92vh,880px)] flex items-center overflow-hidden">
+        <img
+          src={IMG.hero}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover object-[12%_48%] sm:object-[10%_46%] lg:object-left"
+          loading="eager"
+          fetchPriority="high"
         />
-        <div className="absolute top-20 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-72 h-72 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div
+          className="absolute inset-0 bg-gradient-to-l from-[#1F1F1F]/95 via-[#2B2B2B]/85 to-[#2B2B2B]/45 from-0% via-50% to-100%"
+          aria-hidden
+        />
+        <div
+          className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20"
+          aria-hidden
+        />
+        {/* Mobile: extra tint behind lower content only */}
+        <div
+          className="absolute inset-x-0 bottom-0 h-[70%] bg-gradient-to-t from-[#1F1F1F]/90 via-[#2B2B2B]/70 to-transparent lg:hidden pointer-events-none"
+          aria-hidden
+        />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24 lg:pt-24 lg:pb-32">
-          <div className="grid lg:grid-cols-2 gap-14 items-center">
-            <div className="space-y-8 text-center lg:text-left">
-              <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold border ${t.badge}`}>
-                <Zap size={14} />
-                Enterprise Logistics Platform
-              </span>
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24 flex justify-end items-end lg:items-center min-h-[min(92vh,880px)]">
+          <div className="w-full max-w-xl sm:max-w-lg lg:max-w-2xl xl:max-w-3xl ml-auto space-y-5 sm:space-y-6 lg:space-y-8">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest bg-white/10 text-white border border-white/20 backdrop-blur-sm lg:ml-auto">
+              <Truck size={14} className="text-[#F57C00]" />
+              Pan-India logistics
+            </span>
 
-              <h1 className={`text-4xl sm:text-5xl lg:text-[3.25rem] font-extrabold leading-[1.08] tracking-tight ${t.h1}`}>
-                Ship smarter.{" "}
-                <span className={t.h1Accent}>Track everything.</span>
-              </h1>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.08] tracking-tight text-white">
+              Delivering trust
+              <span className="block mt-2 text-[#F57C00]">across every mile</span>
+            </h1>
 
-              <p className={`text-base sm:text-lg max-w-xl mx-auto lg:mx-0 leading-relaxed ${t.sub}`}>
-                Aaysh Express powers end-to-end fulfillment — bulk uploads, AWB assignment,
-                pickup scheduling, and live tracking in one premium workspace.
-              </p>
+            <p className="text-base sm:text-lg max-w-xl leading-relaxed text-slate-200">
+              Book, ship, and track with Aaysh Express — built for growing brands that need
+              reliability, speed, and full shipment visibility.
+            </p>
 
-              <p className={`text-sm max-w-lg mx-auto lg:mx-0 ${t.sub}`}>
-                Enter your AWB in the header search bar to view live tracking below.
-              </p>
-
-              <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
-                <button
-                  type="button"
-                  onClick={() => navigate("/login")}
-                  className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${t.btnPrimary}`}
-                >
-                  Get Started <ArrowRight size={16} />
-                </button>
-                <a
-                  href="#features"
-                  className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all ${t.btnSecondary}`}
-                >
-                  Explore Features
-                </a>
+            <div className="rounded-2xl border border-white/15 bg-white/95 backdrop-blur-md p-5 sm:p-7 shadow-2xl shadow-black/30 w-full">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 rounded-xl bg-[#2B2B2B] text-[#F57C00]">
+                  <Search className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-[#2B2B2B]">Track your shipment</h2>
+                  <p className="text-xs text-slate-500">Enter AWB / consignment number</p>
+                </div>
               </div>
+              <form onSubmit={handleTrack} className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="Enter AWB number"
+                  value={awbNumber}
+                  onChange={(e) => setAwbNumber(e.target.value)}
+                  className="flex-1 text-base px-4 py-3.5 rounded-xl border border-slate-200 bg-white text-[#2B2B2B] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#F57C00]/40 focus:border-[#F57C00]"
+                />
+                <button
+                  type="submit"
+                  disabled={loadingTrack}
+                  className="px-8 py-3.5 rounded-xl text-sm font-bold uppercase tracking-wide text-white bg-[#F57C00] hover:bg-[#E06F00] shadow-md shadow-orange-900/25 disabled:opacity-70 transition-colors"
+                >
+                  {loadingTrack ? "Searching…" : "Track"}
+                </button>
+              </form>
+              <p className="text-[11px] mt-3 text-slate-500">
+                AWB not in Aaysh? We also query Trackon automatically.
+              </p>
             </div>
 
-            {/* Hero visual */}
-            <div className="relative hidden lg:block">
-              <div className={`rounded-3xl border p-6 space-y-4 ${t.card}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                      <Globe className="w-5 h-5 text-cyan-500" />
-                    </div>
-                    <div>
-                      <p className={`text-xs font-medium ${t.trackMuted}`}>Network Coverage</p>
-                      <p className={`text-lg font-bold ${t.h1}`}>Pan-India</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-full">
-                    Live
-                  </span>
+            <div className="flex flex-wrap gap-5 pt-1 lg:justify-end">
+              {[
+                { icon: ShieldCheck, label: "Secure platform" },
+                { icon: Clock, label: "24×7 tracking" },
+                { icon: Globe, label: "Nationwide" },
+              ].map(({ icon: Icon, label }) => (
+                <div key={label} className="flex items-center gap-2 text-xs font-semibold text-slate-200">
+                  <Icon className="w-4 h-4 text-[#F57C00]" />
+                  {label}
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { label: "Active Shipments", value: "24/7", icon: Truck },
-                    { label: "AWB Generation", value: "Instant", icon: FileText },
-                    { label: "Pickup SLA", value: "Same Day", icon: Clock },
-                    { label: "Secure Access", value: "Encrypted", icon: ShieldCheck },
-                  ].map((item) => (
-                    <div key={item.label} className={`rounded-2xl p-4 border ${t.statCard}`}>
-                      <item.icon className={`w-4 h-4 mb-2 ${isDark ? "text-cyan-400" : "text-cyan-600"}`} />
-                      <p className={`text-lg font-bold ${t.h1}`}>{item.value}</p>
-                      <p className={`text-[11px] mt-0.5 ${t.trackMuted}`}>{item.label}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className={`rounded-2xl p-4 border flex items-center gap-3 ${t.statCard}`}>
-                  <MapPin className="w-5 h-5 text-cyan-500 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-xs ${t.trackMuted}`}>Latest route</p>
-                    <p className={`text-sm font-semibold truncate ${t.h1}`}>
-                      Mumbai → Delhi · In Transit
-                    </p>
-                  </div>
-                  <ChevronRight className={`w-4 h-4 shrink-0 ${t.trackMuted}`} />
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
@@ -413,7 +369,7 @@ const HomePage = () => {
 
             {loadingTrack ? (
               <div className="flex flex-col items-center py-16">
-                <div className="w-10 h-10 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4" />
+                <div className="w-10 h-10 border-2 border-[#F57C00] border-t-transparent rounded-full animate-spin mb-4" />
                 <p className={`text-sm font-medium ${t.sub}`}>Fetching shipment details...</p>
               </div>
             ) : trackError ? (
@@ -424,14 +380,19 @@ const HomePage = () => {
               </div>
             ) : orderData ? (
               <div className="space-y-4">
+                {orderData.trackonOnly && (
+                  <div className={`text-center text-xs font-medium px-4 py-2 rounded-lg border ${isDark ? "border-orange-500/30 text-orange-200 bg-orange-500/10" : "border-orange-200 text-orange-900 bg-orange-50"}`}>
+                    Live tracking from Trackon courier network (shipment not booked in Aaysh)
+                  </div>
+                )}
                 <div className={`rounded-2xl border p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 ${t.trackCard}`}>
                   <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-xl bg-cyan-500/15 text-cyan-500">
+                    <div className="p-3 rounded-xl bg-orange-500/15 text-[#F57C00]">
                       <Truck className="w-6 h-6" />
                     </div>
                     <div>
                       <p className={`text-[10px] uppercase font-bold tracking-wider ${t.trackMuted}`}>AWB Number</p>
-                      <h1 className={`text-xl font-mono font-bold ${isDark ? "text-cyan-400" : "text-[#1B2B4B]"}`}>
+                      <h1 className={`text-xl font-mono font-bold ${isDark ? "text-orange-400" : "text-[#2B2B2B]"}`}>
                         {orderData.shipping?.awbNumber || orderData.awbNumber || "Unassigned"}
                       </h1>
                     </div>
@@ -469,10 +430,39 @@ const HomePage = () => {
       )}
 
       {/* Features */}
-      <section id="features" className={`py-24 transition-colors ${t.section}`}>
+      <section id="features" className={`py-20 lg:py-24 transition-colors ${t.section}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-500 mb-3">Platform</p>
+          <div className="grid lg:grid-cols-2 gap-10 items-center mb-16 lg:mb-20 rounded-3xl overflow-hidden border border-slate-200/80 shadow-sm">
+            <div className="relative min-h-[220px] sm:min-h-[320px] bg-[#2B2B2B]">
+              <img
+                src={IMG.features}
+                alt="Warehouse and fulfillment operations"
+                className="absolute inset-0 w-full h-full object-cover"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-[#1F1F1F]/38" aria-hidden />
+            </div>
+            <div className="p-8 sm:p-10 lg:p-12">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#F57C00] mb-3">Why Aaysh</p>
+              <h2 className={`text-2xl sm:text-3xl font-bold tracking-tight ${t.h1}`}>
+                End-to-end shipping built for business
+              </h2>
+              <p className={`mt-4 text-sm sm:text-base leading-relaxed ${t.sub}`}>
+                Upload orders in bulk, assign courier AWBs, schedule pickups, and monitor every
+                milestone — with the same tools your operations team uses inside the client portal.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/login")}
+                className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-[#2B2B2B] hover:bg-[#1F1F1F] transition-colors"
+              >
+                Open client portal <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#F57C00] mb-3">Platform</p>
             <h2 className={`text-3xl sm:text-4xl font-bold tracking-tight ${t.h1}`}>
               Built for modern logistics teams
             </h2>
@@ -502,7 +492,7 @@ const HomePage = () => {
       <section id="how-it-works" className={`py-24 transition-colors ${t.sectionAlt}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-500 mb-3">Workflow</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#F57C00] mb-3">Workflow</p>
             <h2 className={`text-3xl sm:text-4xl font-bold tracking-tight ${t.h1}`}>How it works</h2>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -512,7 +502,7 @@ const HomePage = () => {
                   <div className={`hidden lg:block absolute top-8 left-[60%] w-[80%] h-px ${isDark ? "bg-white/10" : "bg-slate-200"}`} />
                 )}
                 <div className={`rounded-2xl border p-6 text-center ${t.card}`}>
-                  <span className="text-3xl font-black text-cyan-500/30">{step.num}</span>
+                  <span className="text-3xl font-black text-[#F57C00]/25">{step.num}</span>
                   <h3 className={`text-base font-bold mt-2 ${t.h1}`}>{step.title}</h3>
                   <p className={`text-sm mt-1 ${t.sub}`}>{step.desc}</p>
                 </div>
@@ -523,11 +513,18 @@ const HomePage = () => {
       </section>
 
       {/* Trust banner */}
-      <section className={`py-20 relative overflow-hidden ${isDark ? "bg-[#0d1526]" : "bg-[#1B2B4B]"}`}>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,0.15),transparent_50%)]" />
+      <section className="py-20 lg:py-28 relative overflow-hidden">
+        <img
+          src={IMG.trust}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-[#2B2B2B]/90" aria-hidden />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-black/40" aria-hidden />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-2xl">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-400 mb-3">Enterprise Ready</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#F57C00] mb-3">Enterprise Ready</p>
             <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
               Reliable infrastructure for merchants at any scale
             </h2>
@@ -537,7 +534,7 @@ const HomePage = () => {
             <div className="mt-8 grid sm:grid-cols-2 gap-4">
               {["Multi-user permissions", "Real-time status sync", "Company-scoped data", "Audit-ready reports"].map((item) => (
                 <div key={item} className="flex items-center gap-2 text-sm text-slate-200">
-                  <ShieldCheck className="w-5 h-5 text-cyan-400 shrink-0" />
+                  <ShieldCheck className="w-5 h-5 text-[#F57C00] shrink-0" />
                   {item}
                 </div>
               ))}
@@ -552,7 +549,7 @@ const HomePage = () => {
           <div className="grid lg:grid-cols-2 gap-12 items-start">
             <div className="space-y-8">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-500 mb-3">Support</p>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#F57C00] mb-3">Support</p>
                 <h2 className={`text-3xl font-bold tracking-tight ${t.h1}`}>We're here to help</h2>
                 <p className={`mt-3 text-sm leading-relaxed ${t.sub}`}>
                   Reach our logistics desk or log in to submit a support ticket with attachments.
@@ -560,14 +557,14 @@ const HomePage = () => {
               </div>
               <div className="space-y-4">
                 <div className={`flex items-start gap-4 p-5 rounded-2xl border ${t.contactCard}`}>
-                  <Mail className="w-5 h-5 text-cyan-500 shrink-0 mt-0.5" />
+                  <Mail className="w-5 h-5 text-[#F57C00] shrink-0 mt-0.5" />
                   <div>
                     <h4 className={`font-semibold text-sm ${t.h1}`}>Email</h4>
                     <p className={`text-sm mt-0.5 ${t.sub}`}>customersupport@aayshexpress.com</p>
                   </div>
                 </div>
                 <div className={`flex items-start gap-4 p-5 rounded-2xl border ${t.contactCard}`}>
-                  <Phone className="w-5 h-5 text-cyan-500 shrink-0 mt-0.5" />
+                  <Phone className="w-5 h-5 text-[#F57C00] shrink-0 mt-0.5" />
                   <div>
                     <h4 className={`font-semibold text-sm ${t.h1}`}>Phone</h4>
                     <p className={`text-sm mt-0.5 ${t.sub}`}>+91 8882719505</p>
@@ -607,13 +604,13 @@ const HomePage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
           <p>
             © {new Date().getFullYear()}{" "}
-            <span className={`font-bold ${isDark ? "text-slate-300" : "text-[#1B2B4B]"}`}>
-              AAYSH<span className="text-cyan-500">EXPRESS</span>
+            <span className={`font-bold ${isDark ? "text-slate-300" : "text-[#2B2B2B]"}`}>
+              AAYSH<span className="text-[#F57C00]">EXPRESS</span>
             </span>
             . All rights reserved.
           </p>
           <p className="flex items-center gap-1">
-            Theme: <span className="capitalize font-medium text-cyan-500">{theme}</span>
+            Theme: <span className="capitalize font-medium text-[#F57C00]">{theme}</span>
           </p>
         </div>
       </footer>

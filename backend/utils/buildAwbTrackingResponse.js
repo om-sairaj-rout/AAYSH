@@ -3,6 +3,9 @@ const Shipping = require("../models/upload/shipping.model");
 const Tracking = require("../models/upload/tracking.model");
 const orderCalculations = require("./orderCalculations");
 const { toISTDateTime, formatDatesInObject } = require("./dateTime");
+const {
+  fetchTrackonPublicTrackingBundle,
+} = require("./trackonPublicTracking");
 
 const fetchAwbTrackingBundle = async (awbNumber) => {
   const trimmed = String(awbNumber || "").trim();
@@ -12,6 +15,13 @@ const fetchAwbTrackingBundle = async (awbNumber) => {
 
   const shipping = await Shipping.findOne({ awbNumber: trimmed }).lean();
   if (!shipping) {
+    const trackonBundle = await fetchTrackonPublicTrackingBundle(trimmed);
+    if (trackonBundle.ok) {
+      return trackonBundle;
+    }
+    if (trackonBundle.status === 503) {
+      return trackonBundle;
+    }
     return { ok: false, status: 404, message: "No shipment found for this AWB" };
   }
 
@@ -47,10 +57,11 @@ const formatPublicTrackingResponse = (bundle) => {
 
   return {
     success: true,
-    order: formatDatesInObject(order),
-    shipping: formatDatesInObject(safeShipping),
-    tracking: formatDatesInObject(tracking),
-    expectedDeliveryDate,
+    trackonOnly: Boolean(bundle.trackonOnly),
+    order: formatDatesInObject(bundle.order || order),
+    shipping: formatDatesInObject(bundle.shipping || safeShipping),
+    tracking: formatDatesInObject(bundle.tracking || tracking),
+    expectedDeliveryDate: bundle.expectedDeliveryDate ?? expectedDeliveryDate,
   };
 };
 
