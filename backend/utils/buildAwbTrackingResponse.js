@@ -6,6 +6,11 @@ const { toISTDateTime, formatDatesInObject } = require("./dateTime");
 const {
   fetchTrackonPublicTrackingBundle,
 } = require("./trackonPublicTracking");
+const {
+  pickPublicOrder,
+  pickPublicShipping,
+  pickPublicTrackingEvents,
+} = require("./publicTrackingResponseSanitize");
 
 const fetchAwbTrackingBundle = async (awbNumber) => {
   const trimmed = String(awbNumber || "").trim();
@@ -50,7 +55,18 @@ const fetchAwbTrackingBundle = async (awbNumber) => {
   };
 };
 
-const formatPublicTrackingResponse = (bundle) => {
+/** Public / unauthenticated consumers (website, AiSensy) — allowlisted fields only. */
+const formatPublicTrackingResponse = (bundle) => ({
+  success: true,
+  trackonOnly: Boolean(bundle.trackonOnly),
+  order: pickPublicOrder(bundle),
+  shipping: pickPublicShipping(bundle.shipping || {}),
+  tracking: pickPublicTrackingEvents(bundle.tracking || []),
+  expectedDeliveryDate: bundle.expectedDeliveryDate ?? null,
+});
+
+/** Authenticated company-scoped tracking — full order/shipping (POD stripped). */
+const formatSecureTrackingResponse = (bundle) => {
   const { order, shipping, tracking, expectedDeliveryDate } = bundle;
   const safeShipping = { ...shipping };
   delete safeShipping.podDocument;
@@ -68,4 +84,5 @@ const formatPublicTrackingResponse = (bundle) => {
 module.exports = {
   fetchAwbTrackingBundle,
   formatPublicTrackingResponse,
+  formatSecureTrackingResponse,
 };

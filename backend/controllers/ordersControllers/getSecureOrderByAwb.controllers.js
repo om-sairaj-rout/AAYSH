@@ -1,7 +1,7 @@
 const { userOwnsOrder } = require("../../utils/companyScope");
 const {
   fetchAwbTrackingBundle,
-  formatPublicTrackingResponse,
+  formatSecureTrackingResponse,
 } = require("../../utils/buildAwbTrackingResponse");
 const { getPodAvailability } = require("../../utils/shipmentPod");
 
@@ -24,7 +24,7 @@ const getSecureOrderByAwb = async (req, res) => {
       });
     }
 
-    const payload = formatPublicTrackingResponse(bundle);
+    const payload = formatSecureTrackingResponse(bundle);
     const pod = getPodAvailability(bundle.shipping);
 
     return res.status(200).json({
