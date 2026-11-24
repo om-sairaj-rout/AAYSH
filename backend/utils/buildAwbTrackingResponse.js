@@ -12,7 +12,8 @@ const {
   pickPublicTrackingEvents,
 } = require("./publicTrackingResponseSanitize");
 
-const fetchAwbTrackingBundle = async (awbNumber) => {
+const fetchAwbTrackingBundle = async (awbNumber, options = {}) => {
+  const { allowTrackonFallback = true } = options;
   const trimmed = String(awbNumber || "").trim();
   if (!trimmed) {
     return { ok: false, status: 400, message: "AWB number is required" };
@@ -20,6 +21,9 @@ const fetchAwbTrackingBundle = async (awbNumber) => {
 
   const shipping = await Shipping.findOne({ awbNumber: trimmed }).lean();
   if (!shipping) {
+    if (!allowTrackonFallback) {
+      return { ok: false, status: 404, message: "No shipment found for this AWB" };
+    }
     const trackonBundle = await fetchTrackonPublicTrackingBundle(trimmed);
     if (trackonBundle.ok) {
       return trackonBundle;

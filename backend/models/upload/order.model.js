@@ -364,5 +364,7 @@ OrderSchema.index({ externalOrderId: 1 }, { unique: true });
 OrderSchema.index({ companyID: 1 });
 OrderSchema.index({ companyID: 1, createdAt: -1 });
 OrderSchema.index({ companyID: 1, orderDate: -1 });
+OrderSchema.index({ billingPhone: 1, createdAt: -1 });
+OrderSchema.index({ billingAlternatePhone: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Order", OrderSchema);

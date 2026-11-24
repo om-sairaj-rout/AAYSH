@@ -71,6 +71,9 @@ const getOrderByAwbController = require("./controllers/ordersControllers/getOrde
 app.get("/api/public/orders/awb/:awbNumber", getOrderByAwbController);
 app.get("/api/orders/awb/:awbNumber", getOrderByAwbController);
 
+const aisensyRouter = require("./routes/aisensy.routes");
+app.use("/api", aisensyRouter);
+
 app.use('/api', authRouter);
 app.use('/api', companyRouter);
 app.use('/api', shipmentRouter);

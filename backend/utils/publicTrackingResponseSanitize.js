@@ -99,7 +99,6 @@ const FORBIDDEN_PUBLIC_RESPONSE_KEYS = [
   "trackonTrackingClaimToken",
   "trackonLastSyncedEventKey",
   "delhiveryTrackingClaimToken",
-  "orderId",
   "courierId",
   "shippingId",
   "updatedBy",
@@ -118,10 +117,40 @@ const collectObjectKeysDeep = (value, keys = new Set()) => {
   return keys;
 };
 
+const AISENSY_PUBLIC_TOP_LEVEL_KEYS = new Set([
+  "success",
+  "trackonOnly",
+  "order",
+  "shipping",
+  "tracking",
+  "expectedDeliveryDate",
+  "orderId",
+  "matchCount",
+  "page",
+  "perPage",
+  "totalPages",
+  "shipments",
+]);
+
 const assertNoForbiddenPublicKeys = (payload) => {
   const found = collectObjectKeysDeep(payload);
   const leaked = FORBIDDEN_PUBLIC_RESPONSE_KEYS.filter((k) => found.has(k));
   return leaked;
+};
+
+const assertNoForbiddenPublicKeysDeep = (payload, allowedTopKeys = AISENSY_PUBLIC_TOP_LEVEL_KEYS) => {
+  const cloned =
+    payload && typeof payload === "object"
+      ? JSON.parse(JSON.stringify(payload))
+      : payload;
+  if (cloned && typeof cloned === "object" && !Array.isArray(cloned)) {
+    for (const key of Object.keys(cloned)) {
+      if (allowedTopKeys.has(key)) {
+        delete cloned[key];
+      }
+    }
+  }
+  return assertNoForbiddenPublicKeys(cloned);
 };
 
 module.exports = {
@@ -130,5 +159,7 @@ module.exports = {
   pickPublicOrder,
   pickPublicTrackingEvents,
   FORBIDDEN_PUBLIC_RESPONSE_KEYS,
+  AISENSY_PUBLIC_TOP_LEVEL_KEYS,
   assertNoForbiddenPublicKeys,
+  assertNoForbiddenPublicKeysDeep,
 };
