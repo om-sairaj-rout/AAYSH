@@ -3,6 +3,11 @@ const User = require("../../models/user.model");
 const { uploadDocumentToS3 } = require("../../utils/s3");
 const { notifySupportTicket } = require("../../utils/notifySupportTicket");
 const { validateRequiredPhone } = require("../../utils/phone");
+const {
+  parseIssueTypesInput,
+  validateIssueTypes,
+  deriveLegacyCategory,
+} = require("../../utils/ticketIssueTypes");
 
 const requirePartyField = (value, label) => {
   const trimmed = String(value || "").trim();
@@ -12,11 +17,9 @@ const requirePartyField = (value, label) => {
   return null;
 };
 
-const validateRequiredPincode = (value, label) => {
+const validateOptionalPincode = (value, label) => {
   const digits = String(value || "").replace(/\D/g, "");
-  if (!digits) {
-    return { ok: false, message: `${label} is required` };
-  }
+  if (!digits) return { ok: true, value: "" };
   if (!/^\d{6}$/.test(digits)) {
     return { ok: false, message: `${label} must be a valid 6-digit pincode` };
   }
@@ -28,6 +31,7 @@ const createTicket = async (req, res) => {
     const {
       subject,
       category,
+      issueTypes,
       description,
       orderAwbNumber,
       fromName,
@@ -51,17 +55,19 @@ const createTicket = async (req, res) => {
       });
     }
 
-    if (!String(category || "").trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Issue type is required",
-      });
-    }
-
     if (!String(description || "").trim()) {
       return res.status(400).json({
         success: false,
         message: "Description is required",
+      });
+    }
+
+    const parsedIssueTypes = parseIssueTypesInput(issueTypes || category);
+    const issueCheck = validateIssueTypes(parsedIssueTypes);
+    if (!issueCheck.ok) {
+      return res.status(400).json({
+        success: false,
+        message: issueCheck.message,
       });
     }
 
@@ -70,10 +76,6 @@ const createTicket = async (req, res) => {
       requirePartyField(fromAddress, "From address"),
       requirePartyField(fromCity, "From city"),
       requirePartyField(fromState, "From state"),
-      requirePartyField(toName, "To name"),
-      requirePartyField(toAddress, "To address"),
-      requirePartyField(toCity, "To city"),
-      requirePartyField(toState, "To state"),
     ].filter(Boolean);
 
     if (partyErrors.length) {
@@ -91,15 +93,7 @@ const createTicket = async (req, res) => {
       });
     }
 
-    const toPhoneError = validateRequiredPhone(toPhone, "To phone number");
-    if (!toPhoneError.ok) {
-      return res.status(400).json({
-        success: false,
-        message: toPhoneError.message,
-      });
-    }
-
-    const fromPincodeError = validateRequiredPincode(fromPincode, "From pincode");
+    const fromPincodeError = validateOptionalPincode(fromPincode, "From pincode");
     if (!fromPincodeError.ok) {
       return res.status(400).json({
         success: false,
@@ -107,7 +101,7 @@ const createTicket = async (req, res) => {
       });
     }
 
-    const toPincodeError = validateRequiredPincode(toPincode, "To pincode");
+  const toPincodeError = validateOptionalPincode(toPincode, "To pincode");
     if (!toPincodeError.ok) {
       return res.status(400).json({
         success: false,
@@ -115,13 +109,11 @@ const createTicket = async (req, res) => {
       });
     }
 
+    const legacyCategory = deriveLegacyCategory(issueCheck.value);
     const validCategories = Ticket.schema.path("category").enumValues;
-    if (!validCategories.includes(category)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid issue type",
-      });
-    }
+    const resolvedCategory = validCategories.includes(legacyCategory)
+      ? legacyCategory
+      : "Other";
 
     const submitter = await User.findById(req.user.id)
       .select(
@@ -168,7 +160,8 @@ const createTicket = async (req, res) => {
     const ticket = await Ticket.create({
       ticketId: `TKT-${Date.now()}`,
       subject: String(subject).trim(),
-      category,
+      category: resolvedCategory,
+      issueTypes: issueCheck.value,
       description: String(description).trim(),
       orderAwbNumber: String(orderAwbNumber || "").trim(),
       fromName: String(fromName).trim(),
@@ -177,11 +170,11 @@ const createTicket = async (req, res) => {
       fromCity: String(fromCity).trim(),
       fromState: String(fromState).trim(),
       fromPincode: fromPincodeError.value,
-      toName: String(toName).trim(),
-      toPhone: toPhoneError.value,
-      toAddress: String(toAddress).trim(),
-      toCity: String(toCity).trim(),
-      toState: String(toState).trim(),
+      toName: String(toName || "").trim(),
+      toPhone: String(toPhone || "").trim(),
+      toAddress: String(toAddress || "").trim(),
+      toCity: String(toCity || "").trim(),
+      toState: String(toState || "").trim(),
       toPincode: toPincodeError.value,
       unreadForAdmin: true,
       unreadForUser: false,
@@ -207,7 +200,10 @@ const createTicket = async (req, res) => {
     let emailSent = false;
     let emailError = null;
     try {
-      const emailResult = await notifySupportTicket(ticket.toObject());
+      const emailResult = await notifySupportTicket({
+        ...ticket.toObject(),
+        category: issueCheck.value.join("; "),
+      });
       emailSent = Boolean(emailResult?.sent);
       if (!emailSent) {
         emailError = emailResult?.reason || "email_not_sent";

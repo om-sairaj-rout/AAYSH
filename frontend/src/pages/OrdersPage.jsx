@@ -442,7 +442,12 @@ const OrderDetailsModal = ({
               variant="modal"
             />
             <p className="text-xs text-slate-500 mt-0.5">
-              Order Date: {formatDisplayDate(order.orderDate)} | Pickup Date: {formatDisplayDate(order.shipping?.pickupDate)}
+              Order Date: {formatDisplayDate(order.orderDate)} | Pickup Date:{" "}
+              {formatDisplayDate(order.shipping?.pickupDate)}
+              {" | "}
+              {currentStatus === "Delivered"
+                ? `Delivered: ${formatDisplayDate(order.deliveryDate || order.shipping?.deliveredAt) || "—"}`
+                : `Est. Delivery: ${formatDisplayDate(order.expectedDeliveryDate) || "Pending"}`}
             </p>
           </div>
           <div className="flex items-center gap-2">

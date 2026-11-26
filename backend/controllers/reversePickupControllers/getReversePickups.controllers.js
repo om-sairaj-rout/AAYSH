@@ -8,7 +8,7 @@ const { enrichReversePickupRequests } = require("../../utils/reversePickupSync")
 const { buildReversePickupSearchFilter } = require("../../utils/reversePickupSearch");
 
 const LIST_SELECT =
-  "requestId companyID status fromName fromPhone fromAddress fromAddress2 fromCity fromState fromPincode toName toPhone toAddress toCity toState toPincode awbNumber originalAwbNumber courierName modeType pickupDate pickupTime pieces weight failureReason adminStatusLocked syncedShippingStatus syncedPickupStatus createdAt orderId externalOrderId requestDate";
+  "requestId companyID status fromName fromPhone fromAddress fromAddress2 fromCity fromState fromPincode toName toPhone toAddress toCity toState toPincode awbNumber originalAwbNumber courierName modeType pickupDate pickupTime pieces weight failureReason adminStatusLocked syncedShippingStatus syncedPickupStatus createdAt orderId externalOrderId requestDate reviewedAt pickupCompletedAt";
 
 const getReversePickups = async (req, res) => {
   try {

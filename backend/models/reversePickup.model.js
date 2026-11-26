@@ -117,6 +117,7 @@ const reversePickupSchema = new mongoose.Schema(
       default: null,
     },
     reviewedAt: { type: Date, default: null },
+    pickupCompletedAt: { type: Date, default: null },
     rejectionReason: { type: String, default: "", trim: true },
     failureReason: { type: String, default: "", trim: true },
     adminNotes: { type: String, default: "", trim: true },

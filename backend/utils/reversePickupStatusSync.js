@@ -87,14 +87,22 @@ const syncReversePickupFromShippingDocument = async (shipping, eventTime = new D
     return;
   }
 
+  const statusUpdate = {
+    ...awbCourierUpdate,
+    status: nextStatus,
+  };
+
+  if (nextStatus === "picked_up" && !reversePickup.pickupCompletedAt) {
+    const completedAt =
+      shipping.pickedUpAt ||
+      shipping.actualPickupDate ||
+      eventTime;
+    statusUpdate.pickupCompletedAt = completedAt;
+  }
+
   await ReversePickup.updateOne(
     { _id: reversePickup._id },
-    {
-      $set: {
-        ...awbCourierUpdate,
-        status: nextStatus,
-      },
-    }
+    { $set: statusUpdate }
   );
 };
 

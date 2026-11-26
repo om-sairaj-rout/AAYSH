@@ -35,7 +35,7 @@ const enrichReversePickupRequests = async (requests) => {
 
   const shippings = await Shipping.find({ orderId: { $in: orderIds } })
     .select(
-      "orderId awbNumber courierName shippingStatus pickupStatus pickupDate pickupTime"
+      "orderId awbNumber courierName shippingStatus pickupStatus pickupDate pickupTime pickedUpAt actualPickupDate"
     )
     .lean();
 
@@ -59,6 +59,12 @@ const enrichReversePickupRequests = async (requests) => {
     const courierName = String(shipping.courierName || row.courierName || "").trim();
 
     if (terminal || row.adminStatusLocked) {
+      const pickupCompletedAt =
+        row.pickupCompletedAt ||
+        shipping?.pickedUpAt ||
+        shipping?.actualPickupDate ||
+        null;
+
       return {
         ...row,
         awbNumber,
@@ -67,8 +73,15 @@ const enrichReversePickupRequests = async (requests) => {
         pickupStatus: row.syncedPickupStatus || shipping.pickupStatus || "",
         livePickupDate: shipping.pickupDate || row.pickupDate,
         livePickupTime: shipping.pickupTime || row.pickupTime,
+        pickupCompletedAt,
       };
     }
+
+    const pickupCompletedAt =
+      row.pickupCompletedAt ||
+      shipping.pickedUpAt ||
+      shipping.actualPickupDate ||
+      null;
 
     return {
       ...row,
@@ -78,6 +91,7 @@ const enrichReversePickupRequests = async (requests) => {
       pickupStatus: shipping.pickupStatus || "",
       livePickupDate: shipping.pickupDate || row.pickupDate,
       livePickupTime: shipping.pickupTime || row.pickupTime,
+      pickupCompletedAt,
     };
   });
 };

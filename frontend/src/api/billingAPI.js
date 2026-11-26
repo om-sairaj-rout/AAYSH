@@ -162,6 +162,24 @@ export const downloadSavedBillingInvoiceExcelAPI = async (id) =>
     "tax-invoice.xlsx"
   );
 
+export const downloadBillingInvoiceUploadTemplateAPI = async () => {
+  const res = await fetch(apiUrl("/api/billing/invoice/upload-template"), {
+    method: "GET",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || "Failed to download template");
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "aaysh-billing-invoice-upload-template.xlsx";
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
 export const deleteSavedBillingInvoiceAPI = async (id) => {
   const res = await fetch(apiUrl(`/api/billing/invoice/history/${id}`), {
     method: "DELETE",

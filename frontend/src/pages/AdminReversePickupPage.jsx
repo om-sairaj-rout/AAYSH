@@ -303,7 +303,8 @@ const AdminReversePickupPage = () => {
                 <th className="px-4 py-3">Company</th>
                 <th className="px-4 py-3">Route</th>
                 <th className="px-4 py-3">Package</th>
-                <th className="px-4 py-3">Pickup</th>
+                <th className="px-4 py-3">Pickup Completed</th>
+                <th className="px-4 py-3">Approval Date</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
@@ -311,13 +312,13 @@ const AdminReversePickupPage = () => {
             <tbody className="divide-y divide-slate-50">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-slate-400">
+                  <td colSpan={9} className="px-4 py-10 text-center text-slate-400">
                     Loading...
                   </td>
                 </tr>
               ) : requests.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-slate-400">
+                  <td colSpan={9} className="px-4 py-10 text-center text-slate-400">
                     No requests found.
                   </td>
                 </tr>
@@ -369,10 +370,21 @@ const AdminReversePickupPage = () => {
                       <br />
                       {item.modeType || item.preferredServiceType}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-xs">
-                      {formatDisplayDate(item.livePickupDate || item.pickupDate)}
-                      <br />
-                      {item.livePickupTime || item.pickupTime}
+                    <td className="px-4 py-4 whitespace-nowrap text-xs text-slate-700">
+                      {formatDisplayDate(item.pickupCompletedAt) || "—"}
+                      {(item.pickupCompletedAt ||
+                        ["picked_up", "in_transit", "delivered"].includes(item.status)) &&
+                        (item.livePickupTime || item.pickupTime) && (
+                          <>
+                            <br />
+                            <span className="text-slate-400">
+                              {item.livePickupTime || item.pickupTime}
+                            </span>
+                          </>
+                        )}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-xs text-slate-700">
+                      {formatDisplayDate(item.reviewedAt) || "—"}
                     </td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold border ${getReversePickupStatusClass(statusDisplay)}`}>

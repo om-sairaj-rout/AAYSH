@@ -7,6 +7,7 @@ const {
   startOfDayIST,
   endOfDayIST,
   formatDatesInObject,
+  toISTDateTime,
 } = require("../../utils/dateTime");
 const {
   parsePagination,
@@ -16,6 +17,7 @@ const { applyOrderSearchFilter } = require("../../utils/orderSearch");
 const { applyCompanyOrderFilter } = require("../../utils/companyScope");
 const ReversePickup = require("../../models/reversePickup.model");
 const { buildReversePickupSummary } = require("../../utils/reversePickupDocument");
+const orderCalculations = require("../../utils/orderCalculations");
 
 const SHIPMENT_STATUSES = [
   "Booked",
@@ -323,12 +325,23 @@ const getOrdersController = async (req, res) => {
       const { shipping: _shipping, ...orderFields } = order;
       const reversePickupRequest = reversePickupMap.get(String(order._id));
 
+      const expectedInstant = shipping
+        ? orderCalculations.getExpectedDeliveryDate(order, shipping)
+        : null;
+
+      const isDelivered =
+        String(shippingData.shippingStatus || "").toLowerCase() === "delivered";
+
       return formatDatesInObject({
         ...orderFields,
         consignorPhone:
           order.consignorPhone ||
           uploaderPhoneMap.get(String(order.uploadedBy)) ||
           "",
+        expectedDeliveryDate: expectedInstant
+          ? toISTDateTime(expectedInstant)
+          : null,
+        deliveryDate: isDelivered ? shipping?.deliveredAt || null : null,
         reversePickup: buildReversePickupSummary(reversePickupRequest),
         companyDocuments: (order.documents || []).map((document, index) => ({
           index,

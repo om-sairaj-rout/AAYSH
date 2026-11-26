@@ -1,4 +1,53 @@
 const Ticket = require("../../models/ticket.model");
+const { uploadDocumentToS3 } = require("../../utils/s3");
+
+const ALLOWED_MIME = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+
+const ALLOWED_EXT = new Set([
+  ".pdf",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".gif",
+  ".doc",
+  ".docx",
+]);
+
+const validateMessageAttachment = (file) => {
+  if (!file || !file.buffer?.length) return { ok: true };
+  const mime = String(file.mimetype || "").toLowerCase();
+  const name = String(file.originalname || "").toLowerCase();
+  const ext = name.includes(".") ? name.slice(name.lastIndexOf(".")) : "";
+
+  if (file.size > 10 * 1024 * 1024) {
+    return { ok: false, message: "Attachment must be 10 MB or smaller" };
+  }
+
+  if (!ALLOWED_MIME.has(mime) && (!ext || !ALLOWED_EXT.has(ext))) {
+    return {
+      ok: false,
+      message: "Attachment must be a PDF, image, or Word document",
+    };
+  }
+
+  return { ok: true };
+};
+
+const populateTicket = (id) =>
+  Ticket.findById(id)
+    .populate("submittedBy", "companyName email fullName")
+    .populate("assignedTo", "email fullName")
+    .populate("resolvedBy", "email fullName")
+    .populate("messages.sender", "fullName email companyName")
+    .lean();
 
 const addTicketMessage = async (req, res) => {
   try {
@@ -6,10 +55,18 @@ const addTicketMessage = async (req, res) => {
     const { message } = req.body;
     const trimmedMessage = String(message || "").trim();
 
-    if (!trimmedMessage) {
+    if (!trimmedMessage && !req.file) {
       return res.status(400).json({
         success: false,
-        message: "Message is required",
+        message: "Message or attachment is required",
+      });
+    }
+
+    const attachmentCheck = validateMessageAttachment(req.file);
+    if (!attachmentCheck.ok) {
+      return res.status(400).json({
+        success: false,
+        message: attachmentCheck.message,
       });
     }
 
@@ -51,12 +108,27 @@ const addTicketMessage = async (req, res) => {
       }
     }
 
-    ticket.messages.push({
+    const entry = {
       sender: req.user.id,
       senderRole: isAdmin ? "admin" : "user",
-      message: trimmedMessage,
+      message: trimmedMessage || "(attachment)",
       createdAt: new Date(),
-    });
+    };
+
+    if (req.file) {
+      const uploaded = await uploadDocumentToS3({
+        buffer: req.file.buffer,
+        originalName: req.file.originalname,
+        folder: `documents/tickets/${ticket.ticketId}/messages`,
+        contentType: req.file.mimetype,
+      });
+      entry.attachmentName = uploaded.fileName;
+      entry.s3Key = uploaded.s3Key;
+      entry.s3Bucket = uploaded.s3Bucket;
+      entry.contentType = req.file.mimetype || "";
+    }
+
+    ticket.messages.push(entry);
 
     if (isAdmin) {
       ticket.unreadForUser = true;
@@ -65,7 +137,9 @@ const addTicketMessage = async (req, res) => {
         ticket.status = "in_progress";
       }
       ticket.assignedTo = req.user.id;
-      ticket.adminReply = trimmedMessage;
+      if (trimmedMessage) {
+        ticket.adminReply = trimmedMessage;
+      }
     } else {
       ticket.unreadForAdmin = true;
       ticket.unreadForUser = false;
@@ -73,12 +147,7 @@ const addTicketMessage = async (req, res) => {
 
     await ticket.save();
 
-    const populated = await Ticket.findById(ticket._id)
-      .populate("submittedBy", "companyName email fullName")
-      .populate("assignedTo", "email fullName")
-      .populate("resolvedBy", "email fullName")
-      .populate("messages.sender", "fullName email companyName")
-      .lean();
+    const populated = await populateTicket(ticket._id);
 
     return res.status(200).json({
       success: true,

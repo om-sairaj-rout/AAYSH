@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatDisplayDateTime } from '../utils/dateTime';
+import { dedupeConsecutiveTrackingEvents } from '../utils/trackingDisplay';
 
 /**
  * Reusable Order Tracking Progress Bar & Timeline Component
@@ -19,11 +20,11 @@ const OrderTracker = ({ awbNumber, currentStatus = 'Booked', trackingHistory = [
     );
   }
 
-  // Reverse history so latest checkpoints appear at the top
-  // Sort by latest date & time first
-const sortedHistory = [...trackingHistory].sort((a, b) => {
-  return new Date(b.eventTime).getTime() - new Date(a.eventTime).getTime();
-});
+  const displayHistory = dedupeConsecutiveTrackingEvents(trackingHistory);
+
+  const sortedHistory = [...displayHistory].sort((a, b) => {
+    return new Date(b.eventTime).getTime() - new Date(a.eventTime).getTime();
+  });
 
   // Extract latest checkpoint location if available
   const latestLocation = sortedHistory.length > 0 && sortedHistory[0]?.location 
@@ -170,8 +171,10 @@ const sortedHistory = [...trackingHistory].sort((a, b) => {
                     </p>
                   )}
 
-                  {event.failureReason && (
-                    <p className="text-red-600 font-semibold mt-0.5">Reason: {event.failureReason}</p>
+                  {(event.failureReason || event.failure_reason) && (
+                    <p className="text-red-600 font-semibold mt-0.5">
+                      Reason: {event.failureReason || event.failure_reason}
+                    </p>
                   )}
                 </div>
               );

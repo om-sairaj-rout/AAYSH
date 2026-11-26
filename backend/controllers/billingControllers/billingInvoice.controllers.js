@@ -12,6 +12,9 @@ const {
   prepareInvoiceSnapshot,
 } = require("../../utils/billingInvoicePersist");
 const { recalculateInvoiceLinesFromRates } = require("../../utils/billingInvoiceRecalculate");
+const {
+  buildBillingInvoiceUploadTemplateBuffer,
+} = require("../../utils/billingInvoiceUploadTemplate");
 
 const applyCompanyStateCode = (invoice) => {
   if (!invoice?.company) return invoice;
@@ -324,6 +327,23 @@ const exportSavedBillingInvoiceExcel = async (req, res) => {
   }
 };
 
+const downloadBillingInvoiceUploadTemplate = async (req, res) => {
+  try {
+    const buffer = buildBillingInvoiceUploadTemplateBuffer();
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="aaysh-billing-invoice-upload-template.xlsx"'
+    );
+    return res.send(buffer);
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   previewBillingInvoice,
   previewBillingInvoiceFromExcel,
@@ -334,4 +354,5 @@ module.exports = {
   exportSavedBillingInvoicePdf,
   exportSavedBillingInvoiceExcel,
   deleteSavedBillingInvoice,
+  downloadBillingInvoiceUploadTemplate,
 };

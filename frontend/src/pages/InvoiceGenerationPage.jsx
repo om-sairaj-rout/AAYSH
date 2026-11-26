@@ -20,6 +20,7 @@ import {
   downloadSavedBillingInvoicePdfAPI,
   downloadSavedBillingInvoiceExcelAPI,
   deleteSavedBillingInvoiceAPI,
+  downloadBillingInvoiceUploadTemplateAPI,
 } from "../api/billingAPI";
 import { toast } from "../utils/toast";
 import { useSelector } from "react-redux";
@@ -622,6 +623,18 @@ const InvoiceGenerationPage = () => {
                 >
                   <Upload size={16} />
                   Choose Excel file
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadBillingInvoiceUploadTemplateAPI().catch((err) =>
+                      toast.error(err.message || "Failed to download template")
+                    )
+                  }
+                  className="inline-flex items-center gap-2 px-4 py-2.5 border border-indigo-200 bg-indigo-50 rounded-xl text-sm font-bold text-indigo-700 hover:bg-indigo-100"
+                >
+                  <FileSpreadsheet size={16} />
+                  Download Template
                 </button>
                 {excelFile && (
                   <span className="text-sm text-slate-600 truncate max-w-md">

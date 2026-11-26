@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Package, Search } from "lucide-react";
 import { toast } from "../utils/toast";
 import AwbTrackingDetails from "../components/AwbTrackingDetails";
+import { mapAwbTrackingOrder } from "../utils/trackingOrderMap";
 import {
   getSecureOrderByAwb,
   getShipmentPodDownloadUrl,
@@ -28,14 +29,7 @@ const PortalAwbTrackingPage = () => {
       if (res?.success && res.order) {
         setSearchedAwb(trimmed);
         setSearchParams({ awb: trimmed }, { replace: true });
-        setOrder({
-          ...res.order,
-          expectedDeliveryDate: res.expectedDeliveryDate,
-          shipping: {
-            ...res.shipping,
-            trackingHistory: res.tracking || [],
-          },
-        });
+        setOrder(mapAwbTrackingOrder(res));
         setPod(res.pod || null);
       } else {
         toast.error("No shipment found for this AWB");

@@ -31,6 +31,8 @@ const IMG = {
   trust: "/images/trust-fleet.jpg",
 };
 import { formatDisplayDate } from "../utils/dateTime";
+import { mapAwbTrackingOrder } from "../utils/trackingOrderMap";
+import { getTrackingDeliveryDisplay } from "../utils/trackingDisplay";
 import OrderTracker from "../components/OrderTracker";
 
 const THEME_KEY = "aaysh-home-theme";
@@ -119,15 +121,7 @@ const HomePage = () => {
       const res = await getPublicOrderByAwb(awbNumber.trim());
 
       if (res?.success && (res.order || res.shipping)) {
-        setOrderData({
-          ...(res.order || {}),
-          trackonOnly: Boolean(res.trackonOnly),
-          expectedDeliveryDate: res.expectedDeliveryDate,
-          shipping: {
-            ...res.shipping,
-            trackingHistory: res.tracking || [],
-          },
-        });
+        setOrderData(mapAwbTrackingOrder(res));
       } else {
         setOrderData(null);
         setTrackError("No shipment found for this AWB number.");
@@ -379,6 +373,9 @@ const HomePage = () => {
                 <p className={`text-sm ${t.sub}`}>{trackError}</p>
               </div>
             ) : orderData ? (
+              (() => {
+                const deliveryRow = getTrackingDeliveryDisplay(orderData);
+                return (
               <div className="space-y-4">
                 {orderData.trackonOnly && (
                   <div className={`text-center text-xs font-medium px-4 py-2 rounded-lg border ${isDark ? "border-orange-500/30 text-orange-200 bg-orange-500/10" : "border-orange-200 text-orange-900 bg-orange-50"}`}>
@@ -399,10 +396,12 @@ const HomePage = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-xs border-t md:border-t-0 md:border-l border-white/10 md:pl-6 pt-3 md:pt-0">
                     <div>
-                      <span className={`block ${t.trackMuted}`}>Pickup Date</span>
+                      <span className={`block ${t.trackMuted}`}>
+                        {deliveryRow.label}
+                      </span>
                       <span className={`font-semibold flex items-center gap-1 mt-0.5 ${t.h1}`}>
                         <Calendar className="w-3.5 h-3.5" />
-                        {formatDisplayDate(orderData.shipping?.pickupDate)}
+                        {deliveryRow.value}
                       </span>
                     </div>
                     <div>
@@ -424,6 +423,8 @@ const HomePage = () => {
                 </div>
 
               </div>
+                );
+              })()
             ) : null}
           </div>
         </section>

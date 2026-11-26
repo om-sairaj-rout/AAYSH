@@ -11,9 +11,11 @@ import {
   getTicketAttachmentUrl,
   addTicketMessage,
   markTicketRead,
-  TICKET_CATEGORIES,
+  TICKET_ISSUE_GROUPS,
+  getTicketMessageAttachmentUrl,
 } from "../api/ticketsAPI";
-import TicketConversation from "../components/TicketConversation";
+import TicketChatPanel from "../components/TicketChatPanel";
+import { formatTicketIssueTypes } from "../utils/ticketIssueTypes";
 import UnreadDot from "../components/UnreadDot";
 import {
   canUserReplyToTicket,
@@ -57,7 +59,7 @@ const buildFormFromUser = (user, orderAwbNumber = "") => ({
   toState: "",
   toPincode: "",
   subject: "",
-  category: "Shipment",
+  issueTypes: [],
   description: "",
   attachment: null,
 });
@@ -76,6 +78,7 @@ const SupportTicketsPage = () => {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [replyText, setReplyText] = useState("");
+  const [replyAttachment, setReplyAttachment] = useState(null);
   const [replyLoading, setReplyLoading] = useState(false);
   const { preview, openPreviewWithLoader, closePreview } = useDocumentPreview();
 
@@ -84,7 +87,7 @@ const SupportTicketsPage = () => {
       setForm((prev) => ({
         ...buildFormFromUser(user, prev.orderAwbNumber || awbFromUrl),
         subject: prev.subject,
-        category: prev.category,
+        issueTypes: prev.issueTypes,
         description: prev.description,
         attachment: prev.attachment,
       }));
@@ -126,8 +129,8 @@ const SupportTicketsPage = () => {
       toast.validation("From name, phone, address, city, state, and pincode are required");
       return;
     }
-    if (!form.toName.trim() || !form.toPhone.trim() || !form.toAddress.trim() || !form.toCity.trim() || !form.toState.trim() || !form.toPincode.trim()) {
-      toast.validation("To name, phone, address, city, state, and pincode are required");
+    if (!form.issueTypes?.length) {
+      toast.validation("Select at least one issue type");
       return;
     }
 
@@ -135,7 +138,7 @@ const SupportTicketsPage = () => {
       setSubmitting(true);
       const response = await createTicket({
         subject: form.subject.trim(),
-        category: form.category,
+        issueTypes: form.issueTypes,
         description: form.description.trim(),
         orderAwbNumber: form.orderAwbNumber.trim(),
         fromName: form.fromName.trim(),
@@ -144,12 +147,6 @@ const SupportTicketsPage = () => {
         fromCity: form.fromCity.trim(),
         fromState: form.fromState.trim(),
         fromPincode: form.fromPincode.trim(),
-        toName: form.toName.trim(),
-        toPhone: form.toPhone.trim(),
-        toAddress: form.toAddress.trim(),
-        toCity: form.toCity.trim(),
-        toState: form.toState.trim(),
-        toPincode: form.toPincode.trim(),
         attachment: form.attachment,
       });
       toast.success(
@@ -206,13 +203,27 @@ const SupportTicketsPage = () => {
     }
   };
 
+  const toggleIssueType = (value) => {
+    setForm((prev) => {
+      const set = new Set(prev.issueTypes || []);
+      if (set.has(value)) set.delete(value);
+      else set.add(value);
+      return { ...prev, issueTypes: [...set] };
+    });
+  };
+
   const handleSendReply = async () => {
-    if (!selectedTicket || !replyText.trim()) return;
+    if (!selectedTicket || (!replyText.trim() && !replyAttachment)) return;
     try {
       setReplyLoading(true);
-      const res = await addTicketMessage(selectedTicket._id, replyText.trim());
+      const res = await addTicketMessage(
+        selectedTicket._id,
+        replyText.trim(),
+        replyAttachment
+      );
       setSelectedTicket(res.ticket);
       setReplyText("");
+      setReplyAttachment(null);
       await loadTickets();
       notifyTicketUnreadChanged();
       toast.success("Reply sent");
@@ -221,6 +232,18 @@ const SupportTicketsPage = () => {
     } finally {
       setReplyLoading(false);
     }
+  };
+
+  const openMessageAttachment = (messageIndex) => {
+    if (!selectedTicket) return;
+    openPreviewWithLoader(
+      () => getTicketMessageAttachmentUrl(selectedTicket._id, messageIndex),
+      {
+        title: `${selectedTicket.ticketId} — Message attachment`,
+        fileName:
+          selectedTicket.messages?.[messageIndex]?.attachmentName || "attachment",
+      }
+    );
   };
 
   return (
@@ -333,22 +356,33 @@ const SupportTicketsPage = () => {
                 className={inputClass}
               />
             </div>
-            <div>
+            <div className="md:col-span-2">
               <label className={labelClass}>
-                Complaint / Issue Type <span className="text-red-500">*</span>
+                Issue type <span className="text-red-500">*</span>
               </label>
-              <select
-                required
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className={inputClass}
-              >
-                {TICKET_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
+              <div className="space-y-4">
+                {TICKET_ISSUE_GROUPS.map((group) => (
+                  <div key={group.label} className="rounded-xl border border-slate-200 p-3 bg-slate-50/60">
+                    <p className="text-xs font-bold text-slate-600 mb-2">{group.label}</p>
+                    <div className="space-y-2">
+                      {group.options.map((option) => (
+                        <label
+                          key={option}
+                          className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            className="mt-1"
+                            checked={form.issueTypes?.includes(option)}
+                            onChange={() => toggleIssueType(option)}
+                          />
+                          <span>{option}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 ))}
-              </select>
+              </div>
             </div>
             <div className="md:col-span-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
@@ -409,72 +443,6 @@ const SupportTicketsPage = () => {
                       setForm({
                         ...form,
                         fromPincode: e.target.value.replace(/\D/g, "").slice(0, 6),
-                      })
-                    }
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="md:col-span-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-                To Details <span className="text-red-500">*</span>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className={labelClass}>Name</label>
-                  <input
-                    required
-                    value={form.toName}
-                    onChange={(e) => setForm({ ...form, toName: e.target.value })}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Phone</label>
-                  <input
-                    required
-                    value={form.toPhone}
-                    onChange={(e) => setForm({ ...form, toPhone: e.target.value })}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Address</label>
-                  <input
-                    required
-                    value={form.toAddress}
-                    onChange={(e) => setForm({ ...form, toAddress: e.target.value })}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>City</label>
-                  <input
-                    required
-                    value={form.toCity}
-                    onChange={(e) => setForm({ ...form, toCity: e.target.value })}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>State</label>
-                  <input
-                    required
-                    value={form.toState}
-                    onChange={(e) => setForm({ ...form, toState: e.target.value })}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Pincode</label>
-                  <input
-                    required
-                    value={form.toPincode}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        toPincode: e.target.value.replace(/\D/g, "").slice(0, 6),
                       })
                     }
                     className={inputClass}
@@ -575,20 +543,19 @@ const SupportTicketsPage = () => {
                 <th className="px-4 py-4">Order / AWB</th>
                 <th className="px-4 py-4">Status</th>
                 <th className="px-4 py-4">Attachment</th>
-                <th className="px-4 py-4">Response</th>
                 <th className="px-4 py-4 text-right">Thread</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
                     Loading tickets...
                   </td>
                 </tr>
               ) : tickets.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
                     No tickets yet. Click New Ticket to submit a complaint.
                   </td>
                 </tr>
@@ -614,7 +581,9 @@ const SupportTicketsPage = () => {
                         {ticket.description}
                       </p>
                     </td>
-                    <td className="px-4 py-4 text-slate-600">{ticket.category}</td>
+                    <td className="px-4 py-4 text-slate-600 text-xs max-w-[220px]">
+                      {formatTicketIssueTypes(ticket)}
+                    </td>
                     <td className="px-4 py-4 text-slate-600">
                       {ticket.orderAwbNumber || "—"}
                     </td>
@@ -641,11 +610,6 @@ const SupportTicketsPage = () => {
                       ) : (
                         <span className="text-slate-400 text-xs">—</span>
                       )}
-                    </td>
-                    <td className="px-4 py-4 text-xs text-slate-600 max-w-[200px]">
-                      {ticket.messages?.length
-                        ? ticket.messages[ticket.messages.length - 1]?.message
-                        : ticket.adminReply || "—"}
                     </td>
                     <td className="px-4 py-4 text-right">
                       <button
@@ -685,40 +649,44 @@ const SupportTicketsPage = () => {
                 Close
               </button>
             </div>
-            <TicketConversation
+            <p className="text-xs text-slate-500 mb-3">
+              Issue types: {formatTicketIssueTypes(selectedTicket)}
+            </p>
+            <TicketChatPanel
               messages={selectedTicket.messages}
-              fallbackText={selectedTicket.description}
+              viewerMode="user"
+              composer={
+                canWrite && canUserReplyToTicket(selectedTicket)
+                  ? {
+                      enabled: true,
+                      text: replyText,
+                      attachment: replyAttachment,
+                      attachmentName: replyAttachment?.name,
+                      onTextChange: setReplyText,
+                      onAttachmentChange: setReplyAttachment,
+                      onSend: handleSendReply,
+                      onOpenAttachment: openMessageAttachment,
+                      sending: replyLoading,
+                      placeholder: "Reply to support…",
+                    }
+                  : selectedTicket.status !== "resolved"
+                    ? { enabled: false }
+                    : { enabled: false }
+              }
             />
-            {canWrite && canUserReplyToTicket(selectedTicket) ? (
-              <textarea
-                rows={3}
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                placeholder="Reply to support..."
-                className={`${inputClass} min-h-[80px]`}
-              />
-            ) : selectedTicket.status !== "resolved" ? (
-              <p className="text-sm text-slate-500 bg-slate-50 rounded-xl px-4 py-3">
-                Our team will respond shortly. You can reply here once admin has messaged you.
-              </p>
-            ) : (
-              <p className="text-sm text-emerald-700 bg-emerald-50 rounded-xl px-4 py-3">
+            {canWrite &&
+              !canUserReplyToTicket(selectedTicket) &&
+              selectedTicket.status !== "resolved" && (
+                <p className="text-sm text-slate-500 bg-slate-50 rounded-xl px-4 py-3 mt-3">
+                  Our team will respond shortly. You can reply here once support has messaged you.
+                </p>
+              )}
+            {selectedTicket.status === "resolved" && (
+              <p className="text-sm text-emerald-700 bg-emerald-50 rounded-xl px-4 py-3 mt-3">
                 This ticket has been resolved.
               </p>
             )}
             </div>
-            {canWrite && canUserReplyToTicket(selectedTicket) && (
-              <div className="modal-panel-footer">
-                <button
-                  type="button"
-                  disabled={replyLoading || !replyText.trim()}
-                  onClick={handleSendReply}
-                  className="modal-action-btn bg-[#1B2B4B] text-white disabled:opacity-50"
-                >
-                  {replyLoading ? "Sending..." : "Send Reply"}
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}

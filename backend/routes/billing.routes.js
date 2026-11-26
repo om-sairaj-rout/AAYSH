@@ -12,6 +12,7 @@ const {
   exportSavedBillingInvoicePdf,
   exportSavedBillingInvoiceExcel,
   deleteSavedBillingInvoice,
+  downloadBillingInvoiceUploadTemplate,
 } = require("../controllers/billingControllers/billingInvoice.controllers");
 
 billingRouter.post(
@@ -76,6 +77,13 @@ billingRouter.delete(
   checkAuth,
   checkPermission("update", "write"),
   deleteSavedBillingInvoice
+);
+
+billingRouter.get(
+  "/billing/invoice/upload-template",
+  checkAuth,
+  checkPermission("update", "read"),
+  downloadBillingInvoiceUploadTemplate
 );
 
 module.exports = billingRouter;

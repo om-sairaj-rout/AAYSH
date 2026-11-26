@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import OrderTracker from "./OrderTracker";
 import { formatDisplayDate } from "../utils/dateTime";
+import { getTrackingDeliveryDisplay } from "../utils/trackingDisplay";
 
 const getStatusBanner = (status) => {
   switch (status?.toLowerCase()) {
@@ -63,6 +64,7 @@ const AwbTrackingDetails = ({
   if (!order) return null;
 
   const currentStatus = order.shipping?.shippingStatus || "Booked";
+  const deliveryDisplay = getTrackingDeliveryDisplay(order);
   const banner = getStatusBanner(currentStatus);
   const BannerIcon = banner.icon;
 
@@ -145,15 +147,11 @@ const AwbTrackingDetails = ({
             </div>
             <div>
               <span className="text-xs font-medium text-slate-400 block">
-                {currentStatus === "Delivered" ? "Delivered On" : "Estimated Delivery"}
+                {deliveryDisplay.label}
               </span>
               <span className="font-semibold text-slate-800 text-sm mt-1 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                {currentStatus?.toLowerCase() === "delivered" && order.deliveryDate
-                  ? formatDisplayDate(order.deliveryDate)
-                  : order.expectedDeliveryDate
-                    ? formatDisplayDate(order.expectedDeliveryDate)
-                    : "Pending Update"}
+                {deliveryDisplay.value}
               </span>
             </div>
           </div>

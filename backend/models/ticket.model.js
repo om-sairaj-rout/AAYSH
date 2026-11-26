@@ -25,6 +25,10 @@ const ticketSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    issueTypes: {
+      type: [String],
+      default: [],
+    },
     description: { type: String, required: true, trim: true },
     status: {
       type: String,
@@ -81,6 +85,10 @@ const ticketSchema = new mongoose.Schema(
           required: true,
         },
         message: { type: String, required: true, trim: true },
+        attachmentName: { type: String, default: "", trim: true },
+        s3Key: { type: String, default: "", trim: true },
+        s3Bucket: { type: String, default: "", trim: true },
+        contentType: { type: String, default: "", trim: true },
         createdAt: { type: Date, default: Date.now },
       },
     ],

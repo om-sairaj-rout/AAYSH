@@ -5,6 +5,7 @@ import { ChevronLeft, Package, Truck, User, Building, FileText, Calendar, Phone 
 import { getOrderByAwb } from '../api/ordersAPI'; 
 import OrderTracker from '../components/OrderTracker'; // <--- Imported OrderTracker Component
 import { formatDisplayDate } from '../utils/dateTime';
+import { mapAwbTrackingOrder } from '../utils/trackingOrderMap';
 import { hasGlobalDataAccess } from '../utils/permissions';
 
 const AwbPage = () => {
@@ -24,15 +25,9 @@ const AwbPage = () => {
         setLoading(true);
         const res = await getOrderByAwb(awbNumber);
 
-        if (res?.success && res.order) {
-  setOrder({
-    ...res.order,
-    shipping: {
-      ...res.shipping,
-      trackingHistory: res.tracking || [],
-    },
-  });
-} else {
+        if (res?.success && (res.order || res.shipping)) {
+          setOrder(mapAwbTrackingOrder(res));
+        } else {
           setError("No shipment information found matching this AWB number.");
         }
       } catch (err) {
@@ -130,17 +125,23 @@ const AwbPage = () => {
                 </span>
               </div>
 
-              {order.shipping?.shippingStatus === "Delivered" && order.deliveryDate && (
-                <div className="mt-2">
-                  <span className="text-slate-400 font-medium block">
-                    Delivery Date
-                  </span>
-                  <span className="font-semibold text-slate-700 flex items-center gap-1 mt-0.5">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    {formatDisplayDate(order.deliveryDate)}
-                  </span>
-                </div>
-              )}
+              <div className="mt-2">
+                <span className="text-slate-400 font-medium block">
+                  {order.shipping?.shippingStatus === "Delivered"
+                    ? "Delivered On"
+                    : "Estimated Delivery"}
+                </span>
+                <span className="font-semibold text-slate-700 flex items-center gap-1 mt-0.5">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  {order.shipping?.shippingStatus === "Delivered"
+                    ? formatDisplayDate(
+                        order.deliveryDate || order.shipping?.deliveredAt
+                      ) || "—"
+                    : order.expectedDeliveryDate
+                      ? formatDisplayDate(order.expectedDeliveryDate)
+                      : "Pending Update"}
+                </span>
+              </div>
             </div>
           </div>
         </div>

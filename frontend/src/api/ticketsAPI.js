@@ -6,6 +6,8 @@ const defaultFetchOptions = {
   cache: "no-store",
 };
 
+export { TICKET_ISSUE_GROUPS, TICKET_ISSUE_TYPES } from "../utils/ticketIssueTypes";
+
 export const TICKET_CATEGORIES = [
   "Shipment",
   "AWB",
@@ -24,6 +26,10 @@ export const createTicket = async (payload) => {
       if (value instanceof File) {
         formData.append("attachment", value);
       }
+      return;
+    }
+    if (key === "issueTypes" && Array.isArray(value)) {
+      formData.append("issueTypes", JSON.stringify(value));
       return;
     }
     formData.append(key, String(value));
@@ -105,12 +111,25 @@ export const updateTicket = async (id, payload) => {
   return data;
 };
 
-export const addTicketMessage = async (id, message) => {
+export const addTicketMessage = async (id, message, attachment = null) => {
+  const body = attachment
+    ? (() => {
+        const formData = new FormData();
+        formData.append("message", message || "");
+        formData.append("attachment", attachment);
+        return formData;
+      })()
+    : JSON.stringify({ message });
+
   const res = await fetch(apiUrl(`/api/tickets/${id}/messages`), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    ...defaultFetchOptions,
-    body: JSON.stringify({ message }),
+    ...(attachment
+      ? { ...defaultFetchOptions, body }
+      : {
+          headers: { "Content-Type": "application/json" },
+          ...defaultFetchOptions,
+          body,
+        }),
   });
 
   const { data } = await parseJsonResponse(res);
@@ -120,12 +139,25 @@ export const addTicketMessage = async (id, message) => {
   return data;
 };
 
-export const addAdminTicketMessage = async (id, message) => {
+export const addAdminTicketMessage = async (id, message, attachment = null) => {
+  const body = attachment
+    ? (() => {
+        const formData = new FormData();
+        formData.append("message", message || "");
+        formData.append("attachment", attachment);
+        return formData;
+      })()
+    : JSON.stringify({ message });
+
   const res = await fetch(apiUrl(`/api/admin/tickets/${id}/messages`), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    ...defaultFetchOptions,
-    body: JSON.stringify({ message }),
+    ...(attachment
+      ? { ...defaultFetchOptions, body }
+      : {
+          headers: { "Content-Type": "application/json" },
+          ...defaultFetchOptions,
+          body,
+        }),
   });
 
   const { data } = await parseJsonResponse(res);
@@ -185,6 +217,29 @@ export const getAdminTicketUnreadCount = async () => {
     throw new Error(data.message || "Failed to fetch unread count");
   }
   return data;
+};
+
+export const getTicketMessageAttachmentUrl = async (ticketId, messageIndex) => {
+  const res = await fetch(
+    apiUrl(
+      `/api/tickets/${ticketId}/messages/${messageIndex}/attachment-url`
+    ),
+    {
+      method: "GET",
+      ...defaultFetchOptions,
+    }
+  );
+
+  const { data } = await parseJsonResponse(res);
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to get attachment URL");
+  }
+
+  return {
+    url: data.url,
+    fileName: data.fileName || "attachment",
+    contentType: data.contentType || "",
+  };
 };
 
 export const getTicketAttachmentUrl = async (ticketId) => {

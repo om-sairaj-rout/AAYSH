@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Package } from 'lucide-react';
 import { getPublicOrderByAwb } from '../api/ordersAPI';
 import AwbTrackingDetails from '../components/AwbTrackingDetails';
+import { mapAwbTrackingOrder } from '../utils/trackingOrderMap';
 
 const CustomerTracking = () => {
   const { awbNumber } = useParams();
@@ -19,15 +20,7 @@ const CustomerTracking = () => {
         const res = await getPublicOrderByAwb(awbNumber);
 
         if (res?.success && (res.order || res.shipping)) {
-          setOrder({
-            ...(res.order || {}),
-            trackonOnly: Boolean(res.trackonOnly),
-            expectedDeliveryDate: res.expectedDeliveryDate,
-            shipping: {
-              ...res.shipping,
-              trackingHistory: res.tracking || [],
-            },
-          });
+          setOrder(mapAwbTrackingOrder(res));
         } else {
           setError("We couldn't find any package matching this tracking number.");
         }

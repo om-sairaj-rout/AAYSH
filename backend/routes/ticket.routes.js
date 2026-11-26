@@ -13,6 +13,7 @@ const {
   getAdminTicketUnreadCount,
 } = require("../controllers/ticketControllers/getTicketUnreadCount.controllers");
 const getTicketAttachmentUrl = require("../controllers/ticketControllers/getTicketAttachmentUrl.controllers");
+const getTicketMessageAttachmentUrl = require("../controllers/ticketControllers/getTicketMessageAttachmentUrl.controllers");
 
 ticketRouter.post(
   "/tickets",
@@ -32,6 +33,7 @@ ticketRouter.post(
   "/tickets/:id/messages",
   checkAuth,
   checkPermission("support", "write"),
+  upload.single("attachment"),
   addTicketMessage
 );
 ticketRouter.post(
@@ -45,6 +47,12 @@ ticketRouter.get(
   checkAuth,
   checkPermission("support", "read"),
   getTicketAttachmentUrl
+);
+ticketRouter.get(
+  "/tickets/:id/messages/:messageIndex/attachment-url",
+  checkAuth,
+  checkPermission("support", "read"),
+  getTicketMessageAttachmentUrl
 );
 ticketRouter.get(
   "/admin/tickets",
@@ -68,6 +76,7 @@ ticketRouter.post(
   "/admin/tickets/:id/messages",
   checkAuth,
   checkPermission("tickets", "write"),
+  upload.single("attachment"),
   addTicketMessage
 );
 ticketRouter.post(

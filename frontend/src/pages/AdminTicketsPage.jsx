@@ -9,11 +9,13 @@ import {
   getAdminTickets,
   updateTicket,
   getTicketAttachmentUrl,
+  getTicketMessageAttachmentUrl,
   addAdminTicketMessage,
   markAdminTicketRead,
 } from "../api/ticketsAPI";
 import { formatDisplayDate } from "../utils/dateTime";
-import TicketConversation from "../components/TicketConversation";
+import TicketChatPanel from "../components/TicketChatPanel";
+import { formatTicketIssueTypes } from "../utils/ticketIssueTypes";
 import UnreadDot from "../components/UnreadDot";
 import { notifyTicketUnreadChanged } from "../utils/ticketHelpers";
 import { getCompanies } from "../api/companyAPI";
@@ -47,6 +49,7 @@ const AdminTicketsPage = () => {
     adminReply: "",
   });
   const [replyText, setReplyText] = useState("");
+  const [replyAttachment, setReplyAttachment] = useState(null);
   const [replyLoading, setReplyLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const { preview, openPreviewWithLoader, closePreview } = useDocumentPreview();
@@ -114,12 +117,17 @@ const AdminTicketsPage = () => {
   };
 
   const handleSendReply = async () => {
-    if (!selected || !replyText.trim()) return;
+    if (!selected || (!replyText.trim() && !replyAttachment)) return;
     try {
       setReplyLoading(true);
-      const res = await addAdminTicketMessage(selected._id, replyText.trim());
+      const res = await addAdminTicketMessage(
+        selected._id,
+        replyText.trim(),
+        replyAttachment
+      );
       setSelected(res.ticket);
       setReplyText("");
+      setReplyAttachment(null);
       await loadTickets();
       notifyTicketUnreadChanged();
       toast.success("Message sent");
@@ -128,6 +136,18 @@ const AdminTicketsPage = () => {
     } finally {
       setReplyLoading(false);
     }
+  };
+
+  const openMessageAttachment = (messageIndex) => {
+    if (!selected) return;
+    openPreviewWithLoader(
+      () => getTicketMessageAttachmentUrl(selected._id, messageIndex),
+      {
+        title: `${selected.ticketId} — Message attachment`,
+        fileName:
+          selected.messages?.[messageIndex]?.attachmentName || "attachment",
+      }
+    );
   };
 
   const handleUpdate = async () => {
@@ -274,7 +294,9 @@ const AdminTicketsPage = () => {
                         {ticket.fullName || ticket.submittedBy?.fullName || "—"}
                         {ticket.orderAwbNumber ? ` · AWB ${ticket.orderAwbNumber}` : ""}
                       </p>
-                      <p className="text-xs text-slate-400 mt-0.5">{ticket.category}</p>
+                      <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">
+                        {formatTicketIssueTypes(ticket)}
+                      </p>
                     </td>
                     <td className="px-4 py-4">
                       <span className={`text-xs font-bold uppercase ${PRIORITY_STYLES[ticket.priority] || ""}`}>
@@ -326,7 +348,7 @@ const AdminTicketsPage = () => {
       {selected && (
         <div className="modal-overlay" onClick={closeModal} role="presentation">
           <div
-            className="modal-panel max-w-2xl"
+            className="modal-panel max-w-3xl"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -340,42 +362,48 @@ const AdminTicketsPage = () => {
                 Close
               </button>
             </div>
-            <div className="text-sm space-y-2 bg-slate-50 rounded-xl p-4 safe-break">
-              <p><strong>Company:</strong> {selected.companyName || selected.submittedBy?.companyName || "—"}</p>
-              <p><strong>Company ID:</strong> {selected.companyID || "—"}</p>
-              <p><strong>Contact:</strong> {selected.fullName || selected.submittedBy?.fullName || "—"}</p>
-              <p><strong>Email:</strong> {selected.email || selected.submittedBy?.email || "—"}</p>
-              <p><strong>Phone:</strong> {selected.phone || selected.submittedBy?.mobile_number || "—"}</p>
-              <p><strong>From:</strong> {selected.fromName} · {selected.fromPhone}<br />{selected.fromAddress}, {selected.fromCity}, {selected.fromState} {selected.fromPincode}</p>
-              <p><strong>To:</strong> {selected.toName} · {selected.toPhone}<br />{selected.toAddress}, {selected.toCity}, {selected.toState} {selected.toPincode}</p>
-              <p><strong>Order / AWB:</strong> {selected.orderAwbNumber || "—"}</p>
-              <p><strong>Subject:</strong> {selected.subject}</p>
-              <p><strong>Issue Type:</strong> {selected.category}</p>
-              <p className="text-slate-600 whitespace-pre-wrap">{selected.description}</p>
-              {(selected.attachmentPath || selected.s3Key) && (
-                <button
-                  type="button"
-                  onClick={() => viewAttachment(selected)}
-                  className="inline-flex items-center gap-1 text-indigo-600 text-xs font-semibold hover:underline"
-                >
-                  <Eye size={14} />
-                  View attachment
-                </button>
-              )}
-            </div>
-            <TicketConversation messages={selected.messages} viewerMode="admin" />
-            <label className="block">
-              <span className="text-xs font-bold text-slate-500 uppercase">Message User</span>
-              <textarea
-                rows={3}
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                placeholder="Send a message to the user..."
-                disabled={!canWrite}
-                readOnly={!canWrite}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50 disabled:text-slate-500"
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="text-sm space-y-2 bg-slate-50 rounded-xl p-4 safe-break border border-slate-100">
+                <p className="text-xs font-bold uppercase text-slate-400">Ticket information</p>
+                <p><strong>Company:</strong> {selected.companyName || selected.submittedBy?.companyName || "—"}</p>
+                <p><strong>Contact:</strong> {selected.fullName || selected.submittedBy?.fullName || "—"}</p>
+                <p><strong>Order / AWB:</strong> {selected.orderAwbNumber || "—"}</p>
+                <p><strong>Subject:</strong> {selected.subject}</p>
+                <p><strong>Issue types:</strong> {formatTicketIssueTypes(selected)}</p>
+                <p><strong>From:</strong> {selected.fromName} · {selected.fromPhone}</p>
+                <p className="text-slate-600 whitespace-pre-wrap">{selected.description}</p>
+                {(selected.attachmentPath || selected.s3Key) && (
+                  <button
+                    type="button"
+                    onClick={() => viewAttachment(selected)}
+                    className="inline-flex items-center gap-1 text-indigo-600 text-xs font-semibold hover:underline"
+                  >
+                    <Eye size={14} />
+                    View initial attachment
+                  </button>
+                )}
+              </div>
+              <TicketChatPanel
+                messages={selected.messages}
+                viewerMode="admin"
+                composer={
+                  canWrite
+                    ? {
+                        enabled: true,
+                        text: replyText,
+                        attachment: replyAttachment,
+                        attachmentName: replyAttachment?.name,
+                        onTextChange: setReplyText,
+                        onAttachmentChange: setReplyAttachment,
+                        onSend: handleSendReply,
+                        onOpenAttachment: openMessageAttachment,
+                        sending: replyLoading,
+                        placeholder: "Message the customer…",
+                      }
+                    : { enabled: false }
+                }
               />
-            </label>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="block">
                 <span className="text-xs font-bold text-slate-500 uppercase">Status</span>
@@ -417,14 +445,6 @@ const AdminTicketsPage = () => {
             </label>
             </div>
             <div className="modal-panel-footer">
-              <button
-                type="button"
-                disabled={!canWrite || replyLoading || !replyText.trim()}
-                onClick={handleSendReply}
-                className="modal-action-btn bg-indigo-600 text-white disabled:opacity-50 sm:mr-auto"
-              >
-                {replyLoading ? "Sending..." : "Send Message"}
-              </button>
               <button type="button" onClick={closeModal} className="modal-action-btn border border-slate-200 text-slate-700">
                 Cancel
               </button>
